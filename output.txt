@@ -1,0 +1,177 @@
+========================================
+  HCDR System Verification Script
+  (With Soft Constraint QP)
+========================================
+
+Configuration loaded:
+  Platform mass: 5.00 kg
+  Arm total mass: 3.50 kg
+  Total mass: 8.50 kg
+  Expected gravity force: 83.39 N
+
+Initial configuration:
+  Platform position: [0.00, 0.00, 1.00] m
+  Platform orientation: [0.05, 0.00, 0.00] rad
+  Pulley center heights: [1.35, 1.36, 1.37, 1.36] m
+
+=== Configuration Feasibility Check ===
+  min|u_z|: 0.2737 [OK]
+  rank(A_m): 6 [OK]
+  cond(A_m*A_m'): 8495835.21 [WARNING]
+
+Warnings:
+  - WARNING: cond(A_m*A_m') = 8495835.21 > 1000000.00 (ill-conditioned)
+
+Configuration is FEASIBLE.
+
+Initial cable lengths:
+  Cable 1: 1.252 m (u_z = +0.2737)
+  Cable 2: 1.248 m (u_z = +0.2743)
+  Cable 3: 1.255 m (u_z = +0.2810)
+  Cable 4: 1.251 m (u_z = +0.2817)
+  Cable 5: 1.258 m (u_z = +0.3000)
+  Cable 6: 1.262 m (u_z = +0.2991)
+  Cable 7: 1.255 m (u_z = +0.2928)
+  Cable 8: 1.259 m (u_z = +0.2919)
+
+=== Visualization ===
+Initial configuration displayed.
+
+========================================
+  Verification Test Cases
+  Sign Convention: W_cable + W_ext = 0
+  W_cable = A_m * T (upward when T > 0)
+  W_ext = gravity (downward, F_z < 0)
+========================================
+
+--- Case 1: Platform-Only Gravity ---
+  External wrench (gravity):
+    F: [0.00, 0.00, -49.05] N
+    M: [0.00, 0.00, 0.00] N·m
+  Cable wrench (A_m*T):
+    F: [0.00, 0.00, 49.05] N
+    M: [-0.00, 0.00, -0.00] N·m
+  Equilibrium residual (W_cable + W_ext):
+    F: [0.00, 0.00, 0.00] N
+    M: [-0.00, 0.00, -0.00] N·m
+  Error: 0.0000 N (scaled: 0.0000)
+  Result: PASS ✓
+
+  Cable tensions:
+    Cable 1: 14.10 N
+    Cable 2: 22.17 N
+    Cable 3: 20.00 N
+    Cable 4: 28.98 N
+    Cable 5: 22.03 N
+    Cable 6: 14.52 N
+    Cable 7: 28.80 N
+    Cable 8: 20.35 N
+  Cables at bounds: 0 lower, 0 upper
+
+--- Case 2: Platform + Arm Gravity (Force Only) ---
+  External wrench (total gravity):
+    F: [0.00, 0.00, -83.39] N
+    M: [0.00, 0.00, 0.00] N·m
+  Cable wrench:
+    F: [0.00, 0.00, 83.39] N
+    M: [-0.00, 0.00, -0.00] N·m
+  Equilibrium residual:
+    F: [0.00, 0.00, 0.00] N
+    M: [-0.00, 0.00, -0.00] N·m
+  Error: 0.0000 N (scaled: 0.0000)
+  Result: PASS ✓
+
+  Cable tensions:
+    Cable 1: 23.98 N
+    Cable 2: 37.67 N
+    Cable 3: 34.01 N
+    Cable 4: 49.25 N
+    Cable 5: 37.47 N
+    Cable 6: 24.67 N
+    Cable 7: 48.98 N
+    Cable 8: 34.57 N
+  Cables at bounds: 0 lower, 0 upper
+
+--- Case 3: Arm Extended Posture (Full Gravity Wrench) ---
+  Arm posture: [0.00, 0.79, 0.00, 0.00, 0.00, 0.00] rad
+  External wrench (with arm moments):
+    F: [0.00, 0.00, -83.39] N
+    M: [0.69, 8.37, 0.00] N·m
+警告: Equilibrium error: 1.07 N (F: 0.92, M: 0.53 N·m) 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 135 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Many cables at lower bound: 4/8 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 140 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Equilibrium error: 1.07 N (F: 0.92, M: 0.53 N·m) 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 135 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Many cables at lower bound: 4/8 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 140 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Equilibrium error: 1.07 N (F: 0.92, M: 0.53 N·m) 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 135 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Many cables at lower bound: 4/8 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 140 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Equilibrium error: 1.07 N (F: 0.92, M: 0.53 N·m) 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 135 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Many cables at lower bound: 4/8 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 140 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Equilibrium error: 1.07 N (F: 0.92, M: 0.53 N·m) 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 135 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+警告: Many cables at lower bound: 4/8 
+> 位置：HCDR_dynamics.static_force_distribution_soft (第 140 行)
+位置: HCDR_dynamics.static_force_distribution_adaptive (第 159 行)
+位置: HCDR_main (第 192 行) 
+  Cable wrench:
+    F: [0.52, 0.11, 84.14] N
+    M: [-0.73, -8.18, -0.50] N·m
+  Equilibrium residual:
+    F: [0.52, 0.11, 0.75] N
+    M: [-0.03, 0.18, -0.50] N·m
+  Error: 1.0662 N (scaled: 3.6686)
+  Result: PASS ✓
+
+  Cable tensions:
+    Cable 1: 5.00 N [AT LOWER]
+    Cable 2: 77.34 N
+    Cable 3: 58.94 N
+    Cable 4: 5.00 N [AT LOWER]
+    Cable 5: 77.54 N
+    Cable 6: 5.00 N [AT LOWER]
+    Cable 7: 5.00 N [AT LOWER]
+    Cable 8: 59.47 N
+  Cables at bounds: 4 lower, 0 upper
+
+========================================
+  Test Summary
+========================================
+
+System Specifications:
+  Total DOF: 12 (6 platform + 6 arm)
+  Number of cables: 8
+  Frame: 2.0 m cube
+  Platform: 0.30 x 0.30 x 0.10 m
+  Total mass: 8.50 kg
+
+Static Tests:
+  Case 1 (platform only): PASS ✓ (error: 0.000 N)
+  Case 2 (total mass): PASS ✓ (error: 0.000 N)
+  Case 3 (with moments): PASS ✓ (error: 1.066 N)
+
+All tests completed!
+>> 
