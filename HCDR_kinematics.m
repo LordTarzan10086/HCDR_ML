@@ -5,7 +5,7 @@ classdef HCDR_kinematics
     
     methods(Static)
         
-        %% ========== Platform Rotation (X→Y'→Z'' Euler) ==========
+        %% ==========Platform Rotation (ZYX yaw-pitch-roll, R=Rz*Ry*Rx) ==========
         function [R, omega_body, E] = platform_rotation(euler_angles, euler_rates)
             % Compute rotation matrix and angular velocity
             % Convention: R = Rz(gamma) * Ry(beta) * Rx(alpha)
@@ -49,6 +49,17 @@ classdef HCDR_kinematics
             else
                 omega_body = [];
             end
+
+             % Euler rates -> omega in WORLD frame
+            E_wd = [ cos(gamma)*cos(beta), -sin(gamma), 0;
+                  sin(gamma)*cos(beta),  cos(gamma), 0;
+                 -sin(beta),             0,          1 ];
+        
+            if nargin > 1 && ~isempty(euler_rates)
+                omega_world = E_wd * euler_rates;
+            else
+                omega_world = [];
+    end
         end
         
         %% ========== Cable Geometry (REVISED: h_k as CENTER height) ==========

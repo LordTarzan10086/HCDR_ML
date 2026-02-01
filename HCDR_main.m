@@ -189,11 +189,21 @@ fprintf('  External wrench (with arm moments):\n');
 fprintf('    F: [%.2f, %.2f, %.2f] N\n', W_ext_case3(1:3));
 fprintf('    M: [%.2f, %.2f, %.2f] N·m\n', W_ext_case3(4:6));
 
-[T_case3, info_case3] = HCDR_dynamics.static_force_distribution_adaptive(...
-    W_ext_case3, A_m_init, config);
+% [T_case3, info_case3] = HCDR_dynamics.static_force_distribution_adaptive(...
+%     W_ext_case3, A_m_init, config);
+
+% 改为：
+[T_case3, info_case3] = HCDR_statics.solve_tension_optimal(...
+    A_m_init, W_ext_case3, config);
 
 fprintf('  Cable wrench:\n');
-fprintf('    F: [%.2f, %.2f, %.2f] N\n', info_case3.W_cable(1:3));
+fprintf('    F: [%.2f, %.2f, %.2f] N\n', info_case3.W_residual(1:3));
+fprintf('  Max margin: %.2f N\n', info_case3.rho_max);
+fprintf('  Tension std: %.2f N\n', info_case3.T_std);
+fprintf('  Cables at bounds: %d lower, %d upper\n', info_case3.n_at_lower, info_case3.n_at_upper);
+
+% fprintf('  Cable wrench:\n');
+% fprintf('    F: [%.2f, %.2f, %.2f] N\n', info_case3.W_cable(1:3));
 fprintf('    M: [%.2f, %.2f, %.2f] N·m\n', info_case3.W_cable(4:6));
 fprintf('  Equilibrium residual:\n');
 fprintf('    F: [%.2f, %.2f, %.2f] N\n', info_case3.W_residual(1:3));
