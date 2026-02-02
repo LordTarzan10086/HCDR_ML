@@ -9,6 +9,7 @@ classdef IK_hqp
         function [q_sol, info] = solve(p_target, mode, q_init, config, options)
             % Solve IK for target position
             
+            
             if nargin < 5
                 options = struct();
             end
@@ -49,6 +50,10 @@ classdef IK_hqp
             info.error_history = [];
             info.step_history = [];
             
+            % ✅ 添加这两行
+            info.q_trajectory = [];  % 存储每次迭代的配置
+            info.mode = mode;        % 记录模式信息
+
             prev_error = inf;
             stall_count = 0;
             
@@ -142,12 +147,21 @@ classdef IK_hqp
                 
                 % Project to joint limits
                 q = IK_hqp.enforce_limits(q, config);
-                
+
+                info.q_trajectory(:,end+1)=q;
                 info.step_history(end+1) = alpha;
             end
             
             q_sol = q;
             info.final_error = error_norm;
+
+            % 确保轨迹包含初始和最终状态
+            if size(info.q_trajectory, 2) < 2
+                info.q_trajectory = [q_init, q_sol];
+            else
+                % 在轨迹开头添加初始状态
+                info.q_trajectory = [q_init, info.q_trajectory];
+            end
             
             if ~info.converged
                 warning('IK did not converge after %d iterations (error: %.4f m)', max_iter, error_norm);
