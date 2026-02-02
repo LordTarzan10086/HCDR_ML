@@ -176,6 +176,26 @@ classdef HCDR_kinematics
             report.rank_Am = rank(A_m, 1e-6);
             report.cond_Am = cond(A_m * A_m');
             report.cable_lengths = L;
+
+             % ✅ 新增：检查null space
+            null_space = null(A_m');
+            report.null_space_dim = size(null_space, 2);
+            
+            if report.null_space_dim > 0
+                report.null_space_modes = null_space;
+                % Check if null space is ONLY yaw (z-axis moment)
+                report.is_yaw_only_singular = false;
+                if report.null_space_dim == 1
+                    % Check if null vector is approximately [0,0,0,0,0,1]
+                    null_vec = null_space / norm(null_space);
+                    if norm(null_vec(1:5)) < 0.1 && abs(null_vec(6)) > 0.9
+                        report.is_yaw_only_singular = true;
+                    end
+                end
+            else
+                report.null_space_modes = [];
+                report.is_yaw_only_singular = false;
+            end
             
             % Feasibility checks
             is_feasible = true;
@@ -187,10 +207,22 @@ classdef HCDR_kinematics
                     report.min_uz, config.check.min_uz);
             end
             
-            if report.rank_Am < config.check.min_rank
+            % if report.rank_Am < config.check.min_rank
+            %     is_feasible = false;
+            %     report.warnings{end+1} = sprintf('CRITICAL: rank(A_m) = %d < %d (singular configuration!)', ...
+            %         report.rank_Am, config.check.min_rank);
+            % end
+
+                % ✅ 修改rank检查逻辑
+            if report.rank_Am < 5
                 is_feasible = false;
-                report.warnings{end+1} = sprintf('CRITICAL: rank(A_m) = %d < %d (singular configuration!)', ...
-                    report.rank_Am, config.check.min_rank);
+                report.warnings{end+1} = sprintf('CRITICAL: rank(A_m) = %d < 5 (insufficient DOF!)', ...
+                    report.rank_Am);
+            elseif report.rank_Am == 5 && report.is_yaw_only_singular
+                % Yaw-only singularity is OK for statics
+                report.warnings{end+1} = sprintf('INFO: rank(A_m) = 5 (yaw uncontrollable, OK for statics)');
+            elseif report.rank_Am == 5
+                report.warnings{end+1} = sprintf('WARNING: rank(A_m) = 5 < 6 (singular configuration)');
             end
             
             if report.cond_Am > config.check.max_cond

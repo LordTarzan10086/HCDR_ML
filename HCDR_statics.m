@@ -86,6 +86,24 @@ classdef HCDR_statics
                 warning('Configuration is NOT statically feasible!');
                 T_opt = [];
                 info.exitflag = -1;
+
+                 % ✅ 添加：确保所有字段都存在
+                info.W_residual = W_ext;  % 无法平衡，残差就是全部外载
+                info.W_error = norm(W_ext);
+                info.W_error_scaled = norm(W_ext);  % 没有尺度化矩阵时
+                info.F_error = norm(W_ext(1:3));
+                info.M_error = norm(W_ext(4:6));
+                info.T_opt = [];
+                info.T_min_val = NaN;
+                info.T_max_val = NaN;
+                info.T_mean = NaN;
+                info.T_std = NaN;
+                info.T_var = NaN;
+                info.margin_min = -inf;
+                info.n_at_lower = 0;
+                info.n_at_upper = 0;
+                info.is_good = false;
+
                 return;
             end
             

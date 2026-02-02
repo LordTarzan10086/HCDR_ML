@@ -1,0 +1,139 @@
+========================================
+  HCDR System Verification Script
+  (With Soft Constraint QP)
+========================================
+
+Configuration loaded:
+  Platform mass: 5.00 kg
+  Arm total mass: 3.50 kg
+  Total mass: 8.50 kg
+  Expected gravity force: 83.39 N
+
+Initial configuration:
+  Platform position: [0.00, 0.00, 1.00] m
+  Platform orientation: [0.00, 0.00, 0.00] rad
+  Pulley center heights: [1.35, 1.36, 1.37, 1.36] m
+
+=== Configuration Feasibility Check ===
+  min|u_z|: 0.2796 [OK]
+  rank(A_m): 5 [FAIL]
+  cond(A_m*A_m'): Inf [WARNING]
+
+Warnings:
+  - INFO: rank(A_m) = 5 (yaw uncontrollable, OK for statics)
+  - WARNING: cond(A_m*A_m') = Inf > 1000000.00 (ill-conditioned)
+
+Configuration is FEASIBLE.
+
+Initial cable lengths:
+  Cable 1: 1.252 m (u_z = +0.2796)
+  Cable 2: 1.252 m (u_z = +0.2796)
+  Cable 3: 1.255 m (u_z = +0.2869)
+  Cable 4: 1.255 m (u_z = +0.2869)
+  Cable 5: 1.258 m (u_z = +0.2942)
+  Cable 6: 1.258 m (u_z = +0.2942)
+  Cable 7: 1.255 m (u_z = +0.2869)
+  Cable 8: 1.255 m (u_z = +0.2869)
+
+=== Visualization ===
+Initial configuration displayed.
+
+========================================
+  Verification Test Cases
+  Sign Convention: W_cable + W_ext = 0
+  W_cable = A_m * T (upward when T > 0)
+  W_ext = gravity (downward, F_z < 0)
+========================================
+
+--- Case 1: Platform-Only Gravity ---
+  External wrench (gravity):
+    F: [0.00, 0.00, -49.05] N
+    M: [0.00, 0.00, 0.00] N·m
+  Cable wrench (A_m*T):
+    F: [0.00, 0.00, 49.05] N
+    M: [-0.00, 0.00, 0.00] N·m
+  Equilibrium residual (W_cable + W_ext):
+    F: [0.00, 0.00, 0.00] N
+    M: [-0.00, 0.00, 0.00] N·m
+  Error: 0.0000 N (scaled: 0.0000)
+  Result: PASS ✓
+
+  Cable tensions:
+    Cable 1: 20.56 N
+    Cable 2: 22.07 N
+    Cable 3: 21.38 N
+    Cable 4: 21.38 N
+    Cable 5: 22.16 N
+    Cable 6: 20.66 N
+    Cable 7: 21.38 N
+    Cable 8: 21.38 N
+  Cables at bounds: 0 lower, 0 upper
+
+--- Case 2: Platform + Arm Gravity (Force Only) ---
+  External wrench (total gravity):
+    F: [0.00, 0.00, -83.39] N
+    M: [0.00, 0.00, 0.00] N·m
+  Cable wrench:
+    F: [0.00, 0.00, 83.39] N
+    M: [-0.00, 0.00, 0.00] N·m
+  Equilibrium residual:
+    F: [0.00, 0.00, 0.00] N
+    M: [-0.00, 0.00, 0.00] N·m
+  Error: 0.0000 N (scaled: 0.0000)
+  Result: PASS ✓
+
+  Cable tensions:
+    Cable 1: 34.94 N
+    Cable 2: 37.51 N
+    Cable 3: 36.35 N
+    Cable 4: 36.35 N
+    Cable 5: 37.67 N
+    Cable 6: 35.11 N
+    Cable 7: 36.35 N
+    Cable 8: 36.35 N
+  Cables at bounds: 0 lower, 0 upper
+
+--- Case 3: Arm Extended Posture (Full Gravity Wrench) ---
+  Arm posture: [0.00, 0.17, 0.00, 0.00, 0.00, 0.00] rad
+  External wrench (with arm moments):
+    F: [0.00, 0.00, -83.39] N
+    M: [1.06, 1.93, 0.00] N·m
+  ✓ Configuration is feasible (margin: 23.64 N)
+  Cable wrench:
+    F: [0.00, 0.00, 0.00] N
+    M: [0.00, 0.00, 0.00] N·m
+  Equilibrium residual:
+    F: [0.00, 0.00, 0.00] N
+    M: [0.00, 0.00, 0.00] N·m
+  Error: 0.0000 N (scaled: 0.0000)
+  Result: PASS ✓
+
+  Cable tensions:
+    Cable 1: 31.68 N
+    Cable 2: 40.66 N
+    Cable 3: 47.43 N
+    Cable 4: 25.39 N
+    Cable 5: 40.81 N
+    Cable 6: 31.86 N
+    Cable 7: 25.39 N
+    Cable 8: 47.43 N
+  Cables at bounds: 0 lower, 0 upper
+
+========================================
+  Test Summary
+========================================
+
+System Specifications:
+  Total DOF: 12 (6 platform + 6 arm)
+  Number of cables: 8
+  Frame: 2.0 m cube
+  Platform: 0.30 x 0.30 x 0.10 m
+  Total mass: 8.50 kg
+
+Static Tests:
+  Case 1 (platform only): PASS ✓ (error: 0.000 N)
+  Case 2 (total mass): PASS ✓ (error: 0.000 N)
+  Case 3 (with moments): PASS ✓ (error: 0.000 N)
+
+All tests completed!
+>> 

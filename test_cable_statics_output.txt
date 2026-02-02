@@ -1,0 +1,16 @@
+Testing cable statics...
+
+Structure matrix A_m: 6x8
+Rank: 5
+Condition number: Inf
+
+External wrench:
+  F: [0.00, 0.00, -83.39] N
+  M: [1.06, -0.16, 0.00] N·m
+
+Testing feasibility check...
+Result:
+  Feasible: 1
+  Max margin: 28.0615
+  Tensions: [39.3, 33.1, 39.7, 33.1, 33.1, 39.6, 33.1, 39.7] N
+>> 

@@ -1,0 +1,94 @@
+========================================
+  Detailed Static Feasibility Debug
+========================================
+
+Configuration:
+  Platform: [0.00, 0.00, 1.00] m, [0.00°, 0.00°, 0.00°]
+  Pulley heights: [1.35, 1.36, 1.37, 1.36] m
+
+Structure Matrix:
+  Size: 6x8
+  Rank: 5 (should be 6)
+  Condition: Inf
+
+External Wrench (30° arm):
+  Force:  [   0.00,    0.00,  -83.39] N
+  Moment: [   1.06,    5.86,    0.00] N·m
+
+Checking LP formulation...
+  LP dimensions:
+    Variables: 9 (8 tensions + 1 rho)
+    Equality constraints: 6 (wrench balance)
+    Inequality constraints: 16 (tension bounds)
+
+  Checking equality constraints:
+    rank(Aeq) = 5 (should be 6)
+    rank([Aeq, beq]) = 5 (should also be 6)
+    ✓ Equality is consistent
+
+  Solving LP...
+Running HiGHS 1.7.0: Copyright (c) 2024 HiGHS under MIT licence terms
+Coefficient ranges:
+  Matrix [8e-03, 1e+00]
+  Cost   [1e+00, 1e+00]
+  Bound  [5e+00, 5e+02]
+  RHS    [1e+00, 5e+02]
+Presolving model
+13 rows, 9 cols, 56 nonzeros  0s
+13 rows, 9 cols, 56 nonzeros  0s
+Presolve : Reductions: rows 13(-9); columns 9(-0); elements 56(-8)
+Solving the presolved LP
+Using EKK dual simplex solver - serial
+  Iteration        Objective     Infeasibilities num(sum)
+          0    -4.0000000000e+03 Ph1: 8(6000); Du: 1(4) 0s
+          9    -9.1291112255e+00 Pr: 0(0) 0s
+Solving the original LP from the solution after postsolve
+Model   status      : Optimal
+Simplex   iterations: 9
+Objective value     : -9.1291112255e+00
+HiGHS run time      :          0.00
+
+找到最优解。
+
+
+  LP Result:
+    Exit flag: 1
+    Message: 找到最优解。
+    Optimal rho: 9.1291
+    Tensions: [14.1, 51.7, 65.2, 14.1, 52.0, 14.1, 14.1, 65.2] N
+    Wrench error: 3.2757e-14
+
+========================================
+  Test with ZERO moment (baseline)
+========================================
+
+External Wrench (force only):
+  Force:  [   0.00,    0.00,  -83.39] N
+  Moment: [   0.00,    0.00,    0.00] N·m
+
+Running HiGHS 1.7.0: Copyright (c) 2024 HiGHS under MIT licence terms
+Coefficient ranges:
+  Matrix [8e-03, 1e+00]
+  Cost   [1e+00, 1e+00]
+  Bound  [5e+00, 5e+02]
+  RHS    [5e+00, 5e+02]
+Presolving model
+13 rows, 9 cols, 56 nonzeros  0s
+13 rows, 9 cols, 56 nonzeros  0s
+Presolve : Reductions: rows 13(-9); columns 9(-0); elements 56(-8)
+Solving the presolved LP
+Using EKK dual simplex solver - serial
+  Iteration        Objective     Infeasibilities num(sum)
+          0    -4.0000000000e+03 Ph1: 8(6000); Du: 1(4) 0s
+         10    -3.0681185270e+01 Pr: 0(0) 0s
+Solving the original LP from the solution after postsolve
+Model   status      : Optimal
+Simplex   iterations: 10
+Objective value     : -3.0681185270e+01
+HiGHS run time      :          0.00
+
+找到最优解。
+
+✓ Force-only case is FEASIBLE
+  Margin: 30.68 N
+>> 

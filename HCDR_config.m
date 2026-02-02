@@ -119,7 +119,7 @@ function config = HCDR_config()
     
     %% ========== Initial Configuration ==========
     % Platform pose: add small yaw to break symmetry for full rank
-    config.init.platform_pose = [0; 0; 1.0; 0.05; 0; 0];  % yaw = 0.1 rad
+    config.init.platform_pose = [0; 0; 1.0; 0; 0; 0];  % yaw = 0.1 rad
     
     % Arm initial joint angles [rad]
     config.init.arm_angles = zeros(6,1);

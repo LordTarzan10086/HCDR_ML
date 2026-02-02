@@ -5,23 +5,23 @@
 Target: [0.30, 0.20, 1.20] m
 
 --- Mode 1: Platform-Only ---
-✓ Converged in 7 iterations (8.628 ms)
+✓ Converged in 7 iterations (2.919 ms)
   Final error: 0.0003 m
 
 --- Mode 2: Arm-Only ---
-✓ Converged in 23 iterations (10.238 ms)
-  Final error: 0.0009 m
+✓ Converged in 24 iterations (8.129 ms)
+  Final error: 0.0002 m
 
 --- Mode 3: Cooperative ---
-  Iter 1: error = 0.6586 m, step = 0.800
-  Iter 11: error = 0.1131 m, step = 0.800
-  Iter 21: error = 0.0220 m, step = 0.800
-  Iter 31: error = 0.0050 m, step = 0.800
+  Iter 1: error = 0.6624 m, step = 0.800
+  Iter 11: error = 0.1143 m, step = 0.800
+  Iter 21: error = 0.0224 m, step = 0.800
+  Iter 31: error = 0.0051 m, step = 0.800
   Iter 41: error = 0.0012 m, step = 0.800
-✓ Converged in 43 iterations (54.087 ms)
+✓ Converged in 43 iterations (44.885 ms)
   Final error: 0.0009 m
-  Platform motion: 0.5283
-  Arm motion: 0.4944
+  Platform motion: 0.5325
+  Arm motion: 0.4953
 
 ========================================
   Solution Verification (Forward Kinematics)
@@ -34,10 +34,12 @@ Platform-Only:
 
 Arm-Only:
   Target:   [0.3000, 0.2000, 1.2000] m
-  Achieved: [0.2995, 0.1996, 1.1994] m
-  Error:    0.0009 m
+  Achieved: [0.2999, 0.1999, 1.1998] m
+  Error:    0.0002 m
 
 Cooperative:
   Target:   [0.3000, 0.2000, 1.2000] m
   Achieved: [0.3005, 0.1999, 1.1993] m
   Error:    0.0009 m
+
+>> 
