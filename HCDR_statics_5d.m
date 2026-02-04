@@ -146,7 +146,7 @@ classdef HCDR_statics_5d
             
             margin_lower = T_opt - T_min;
             margin_upper = T_max - T_opt;
-            info.margin_min = min([margin_lower; margin_upper]);
+            info.min_margin = min([margin_lower; margin_upper]);
             info.n_at_lower = sum(margin_lower < 1.0);
             info.n_at_upper = sum(margin_upper < 1.0);
             
