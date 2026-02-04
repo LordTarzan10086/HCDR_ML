@@ -72,7 +72,7 @@ function result = plan_platform_only(p_target, state0, config)
         end
         
         % Compute cable geometry
-        [~, ~, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
+        [~, U_opt, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
         
         % External wrench (microgravity perturbation)
         W5 = config.microg.W5_nominal;
@@ -86,6 +86,9 @@ function result = plan_platform_only(p_target, state0, config)
         [T_opt, info] = HCDR_statics_5d.solve_tension_optimal(A5, W5, config, qp_options);
         
         if ~info.is_feasible
+            % Print diagnostics for debugging
+            fprintf('  [DEBUG] Static infeasibility detected:\n');
+            HCDR_statics_5d.print_diagnostics(A5, W5, config, U_opt);
             J = 1e10;  % Not feasible
             grad = zeros(size(z));
             return;
