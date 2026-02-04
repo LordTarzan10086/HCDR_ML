@@ -1,0 +1,3166 @@
+========================================
+  HCDR Microgravity: Three-Mode Test
+========================================
+
+
+========================================
+Test 1: Center Easy
+Target: [0.20, 0.10, 1.20] m
+========================================
+
+[1/3] Testing Platform-Only...
+Planning to target [0.20, 0.10, 1.20] using PLATFORM mode...
+=== Platform-Only Mode ===
+Starting optimization (this may take 30-60s)...
+ Iter  Func-count            Fval   Feasibility   Step Length       Norm of   First-order  
+                                                                       step    optimality
+    0          19    1.000000e+10     5.580e-01     1.000e+00     0.000e+00     0.000e+00  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    1          38    1.000000e+10     2.186e-03     1.000e+00     5.615e-01     5.262e-01  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    2          57    1.000000e+10     2.425e-09     1.000e+00     2.830e-03     1.375e-03  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    3          76    1.000000e+10     5.551e-17     1.000e+00     3.425e-09     4.743e-10  
+
+找到满足约束的局部最小值。
+
+优化已完成，因为目标函数沿
+可行方向在最优性容差值范围内呈现非递减，
+并且在约束容差值范围内满足约束。
+
+<停止条件详细信息>
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only (第 128 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+  ERROR: 无法识别的字段名称 "margin_min"。
+
+[2/3] Testing Arm-Only...
+Planning to target [0.20, 0.10, 1.20] using ARM mode...
+=== Arm-Only Mode ===
+  Target in platform frame: [0.200, 0.100, 0.250] m
+
+--- Arm-Only Result ---
+  IK converged: No
+  Within joint limits: Yes
+  Position error: 0.1000 m
+  Joint angles: [-1.785, 0.174, 0.000, -1.611, 0.000, 0.000] rad
+  Cable feasible: No (margin: -Inf N)
+  Solve time: 0.06 s
+  ✗ No feasible solution
+
+[3/3] Testing Cooperative...
+Planning to target [0.20, 0.10, 1.20] using COOP mode...
+=== Cooperative Mode ===
+Starting DLS iterations...
+  [Iter 1] Cable infeasible, increasing damping
+  [Iter 2] Cable infeasible, increasing damping
+  [Iter 3] Cable infeasible, increasing damping
+  [Iter 4] Cable infeasible, increasing damping
+  [Iter 5] Cable infeasible, increasing damping
+  [Iter 6] Cable infeasible, increasing damping
+  [Iter 7] Cable infeasible, increasing damping
+  [Iter 8] Cable infeasible, increasing damping
+  [Iter 9] Cable infeasible, increasing damping
+  [Iter 10] Cable infeasible, increasing damping
+  [Iter 10] Error: 0.1380 m, lambda: 5.77e-01
+  [Iter 11] Cable infeasible, increasing damping
+  [Iter 12] Cable infeasible, increasing damping
+  [Iter 13] Cable infeasible, increasing damping
+  [Iter 14] Cable infeasible, increasing damping
+  [Iter 15] Cable infeasible, increasing damping
+  [Iter 16] Cable infeasible, increasing damping
+  [Iter 17] Cable infeasible, increasing damping
+  [Iter 18] Cable infeasible, increasing damping
+  [Iter 19] Cable infeasible, increasing damping
+  [Iter 20] Cable infeasible, increasing damping
+  [Iter 20] Error: 0.1305 m, lambda: 3.33e+01
+  [Iter 21] Cable infeasible, increasing damping
+  [Iter 22] Cable infeasible, increasing damping
+  [Iter 23] Cable infeasible, increasing damping
+  [Iter 24] Cable infeasible, increasing damping
+  [Iter 25] Cable infeasible, increasing damping
+  [Iter 26] Cable infeasible, increasing damping
+  [Iter 27] Cable infeasible, increasing damping
+  [Iter 28] Cable infeasible, increasing damping
+  [Iter 29] Cable infeasible, increasing damping
+  [Iter 30] Cable infeasible, increasing damping
+  [Iter 30] Error: 0.1305 m, lambda: 1.92e+03
+  [Iter 31] Cable infeasible, increasing damping
+  [Iter 32] Cable infeasible, increasing damping
+  [Iter 33] Cable infeasible, increasing damping
+  [Iter 34] Cable infeasible, increasing damping
+  [Iter 35] Cable infeasible, increasing damping
+  [Iter 36] Cable infeasible, increasing damping
+  [Iter 37] Cable infeasible, increasing damping
+  [Iter 38] Cable infeasible, increasing damping
+  [Iter 39] Cable infeasible, increasing damping
+  [Iter 40] Cable infeasible, increasing damping
+  [Iter 40] Error: 0.1305 m, lambda: 1.11e+05
+  [Iter 41] Cable infeasible, increasing damping
+  [Iter 42] Cable infeasible, increasing damping
+  [Iter 43] Cable infeasible, increasing damping
+  [Iter 44] Cable infeasible, increasing damping
+  [Iter 45] Cable infeasible, increasing damping
+  [Iter 46] Cable infeasible, increasing damping
+  [Iter 47] Cable infeasible, increasing damping
+  [Iter 48] Cable infeasible, increasing damping
+  [Iter 49] Cable infeasible, increasing damping
+  [Iter 50] Cable infeasible, increasing damping
+  [Iter 50] Error: 0.1305 m, lambda: 6.38e+06
+  [Iter 51] Cable infeasible, increasing damping
+  [Iter 52] Cable infeasible, increasing damping
+  [Iter 53] Cable infeasible, increasing damping
+  [Iter 54] Cable infeasible, increasing damping
+  [Iter 55] Cable infeasible, increasing damping
+  [Iter 56] Cable infeasible, increasing damping
+  [Iter 57] Cable infeasible, increasing damping
+  [Iter 58] Cable infeasible, increasing damping
+  [Iter 59] Cable infeasible, increasing damping
+  [Iter 60] Cable infeasible, increasing damping
+  [Iter 60] Error: 0.1305 m, lambda: 3.68e+08
+  [Iter 61] Cable infeasible, increasing damping
+  [Iter 62] Cable infeasible, increasing damping
+  [Iter 63] Cable infeasible, increasing damping
+  [Iter 64] Cable infeasible, increasing damping
+  [Iter 65] Cable infeasible, increasing damping
+  [Iter 66] Cable infeasible, increasing damping
+  [Iter 67] Cable infeasible, increasing damping
+  [Iter 68] Cable infeasible, increasing damping
+  [Iter 69] Cable infeasible, increasing damping
+  [Iter 70] Cable infeasible, increasing damping
+  [Iter 70] Error: 0.1305 m, lambda: 2.12e+10
+  [Iter 71] Cable infeasible, increasing damping
+  [Iter 72] Cable infeasible, increasing damping
+  [Iter 73] Cable infeasible, increasing damping
+  [Iter 74] Cable infeasible, increasing damping
+  [Iter 75] Cable infeasible, increasing damping
+  [Iter 76] Cable infeasible, increasing damping
+  [Iter 77] Cable infeasible, increasing damping
+  [Iter 78] Cable infeasible, increasing damping
+  [Iter 79] Cable infeasible, increasing damping
+  [Iter 80] Cable infeasible, increasing damping
+  [Iter 80] Error: 0.1305 m, lambda: 1.22e+12
+  [Iter 81] Cable infeasible, increasing damping
+  [Iter 82] Cable infeasible, increasing damping
+  [Iter 83] Cable infeasible, increasing damping
+  [Iter 84] Cable infeasible, increasing damping
+  [Iter 85] Cable infeasible, increasing damping
+  [Iter 86] Cable infeasible, increasing damping
+  [Iter 87] Cable infeasible, increasing damping
+  [Iter 88] Cable infeasible, increasing damping
+  [Iter 89] Cable infeasible, increasing damping
+  [Iter 90] Cable infeasible, increasing damping
+  [Iter 90] Error: 0.1305 m, lambda: 7.05e+13
+  [Iter 91] Cable infeasible, increasing damping
+  [Iter 92] Cable infeasible, increasing damping
+  [Iter 93] Cable infeasible, increasing damping
+  [Iter 94] Cable infeasible, increasing damping
+  [Iter 95] Cable infeasible, increasing damping
+  [Iter 96] Cable infeasible, increasing damping
+  [Iter 97] Cable infeasible, increasing damping
+  [Iter 98] Cable infeasible, increasing damping
+  [Iter 99] Cable infeasible, increasing damping
+  [Iter 100] Cable infeasible, increasing damping
+  [Iter 100] Error: 0.1305 m, lambda: 4.07e+15
+
+--- Cooperative Result ---
+  Converged: No
+  Cable feasible: No
+  Final error: 0.1305 m
+  Platform: [-0.135, 0.071, 1.308] m, [0.023, -0.055] rad
+  Arm: [-0.339, 0.087, 0.000, 0.000, 0.000, 0.000] rad
+  Tension margin: -Inf N
+  Iterations: 100, Time: 0.35 s
+  ✗ No feasible solution
+
+========================================
+Test 2: Arm Preferred
+Target: [0.15, 0.15, 0.90] m
+========================================
+
+[1/3] Testing Platform-Only...
+Planning to target [0.15, 0.15, 0.90] using PLATFORM mode...
+=== Platform-Only Mode ===
+Starting optimization (this may take 30-60s)...
+ Iter  Func-count            Fval   Feasibility   Step Length       Norm of   First-order  
+                                                                       step    optimality
+    0          19    1.000000e+10     2.580e-01     1.000e+00     0.000e+00     0.000e+00  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    1          38    1.000000e+10     4.756e-04     1.000e+00     3.275e-01     2.521e-01  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    2          57    1.000000e+10     1.731e-09     1.000e+00     4.676e-04     2.036e-04  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    3          76    1.000000e+10     1.110e-16     1.000e+00     2.287e-09     8.488e-10  
+
+找到满足约束的局部最小值。
+
+优化已完成，因为目标函数沿
+可行方向在最优性容差值范围内呈现非递减，
+并且在约束容差值范围内满足约束。
+
+<停止条件详细信息>
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only (第 128 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+  ERROR: 无法识别的字段名称 "margin_min"。
+
+[2/3] Testing Arm-Only...
+Planning to target [0.15, 0.15, 0.90] using ARM mode...
+=== Arm-Only Mode ===
+  Target in platform frame: [0.150, 0.150, -0.050] m
+
+--- Arm-Only Result ---
+  IK converged: No
+  Within joint limits: Yes
+  Position error: 0.1500 m
+  Joint angles: [-1.243, 1.108, -0.000, -0.135, 0.000, 0.000] rad
+  Cable feasible: No (margin: -Inf N)
+  Solve time: 0.04 s
+  ✗ No feasible solution
+
+[3/3] Testing Cooperative...
+Planning to target [0.15, 0.15, 0.90] using COOP mode...
+=== Cooperative Mode ===
+Starting DLS iterations...
+  [Iter 1] Cable infeasible, increasing damping
+  [Iter 2] Cable infeasible, increasing damping
+  [Iter 3] Cable infeasible, increasing damping
+  [Iter 4] Cable infeasible, increasing damping
+  [Iter 5] Cable infeasible, increasing damping
+  [Iter 6] Cable infeasible, increasing damping
+  [Iter 7] Cable infeasible, increasing damping
+  [Iter 8] Cable infeasible, increasing damping
+  [Iter 9] Cable infeasible, increasing damping
+  [Iter 10] Cable infeasible, increasing damping
+  [Iter 10] Error: 0.0807 m, lambda: 5.77e-01
+  [Iter 11] Cable infeasible, increasing damping
+  [Iter 12] Cable infeasible, increasing damping
+  [Iter 13] Cable infeasible, increasing damping
+  [Iter 14] Cable infeasible, increasing damping
+  [Iter 15] Cable infeasible, increasing damping
+  [Iter 16] Cable infeasible, increasing damping
+  [Iter 17] Cable infeasible, increasing damping
+  [Iter 18] Cable infeasible, increasing damping
+  [Iter 19] Cable infeasible, increasing damping
+  [Iter 20] Cable infeasible, increasing damping
+  [Iter 20] Error: 0.0769 m, lambda: 3.33e+01
+  [Iter 21] Cable infeasible, increasing damping
+  [Iter 22] Cable infeasible, increasing damping
+  [Iter 23] Cable infeasible, increasing damping
+  [Iter 24] Cable infeasible, increasing damping
+  [Iter 25] Cable infeasible, increasing damping
+  [Iter 26] Cable infeasible, increasing damping
+  [Iter 27] Cable infeasible, increasing damping
+  [Iter 28] Cable infeasible, increasing damping
+  [Iter 29] Cable infeasible, increasing damping
+  [Iter 30] Cable infeasible, increasing damping
+  [Iter 30] Error: 0.0769 m, lambda: 1.92e+03
+  [Iter 31] Cable infeasible, increasing damping
+  [Iter 32] Cable infeasible, increasing damping
+  [Iter 33] Cable infeasible, increasing damping
+  [Iter 34] Cable infeasible, increasing damping
+  [Iter 35] Cable infeasible, increasing damping
+  [Iter 36] Cable infeasible, increasing damping
+  [Iter 37] Cable infeasible, increasing damping
+  [Iter 38] Cable infeasible, increasing damping
+  [Iter 39] Cable infeasible, increasing damping
+  [Iter 40] Cable infeasible, increasing damping
+  [Iter 40] Error: 0.0769 m, lambda: 1.11e+05
+  [Iter 41] Cable infeasible, increasing damping
+  [Iter 42] Cable infeasible, increasing damping
+  [Iter 43] Cable infeasible, increasing damping
+  [Iter 44] Cable infeasible, increasing damping
+  [Iter 45] Cable infeasible, increasing damping
+  [Iter 46] Cable infeasible, increasing damping
+  [Iter 47] Cable infeasible, increasing damping
+  [Iter 48] Cable infeasible, increasing damping
+  [Iter 49] Cable infeasible, increasing damping
+  [Iter 50] Cable infeasible, increasing damping
+  [Iter 50] Error: 0.0769 m, lambda: 6.38e+06
+  [Iter 51] Cable infeasible, increasing damping
+  [Iter 52] Cable infeasible, increasing damping
+  [Iter 53] Cable infeasible, increasing damping
+  [Iter 54] Cable infeasible, increasing damping
+  [Iter 55] Cable infeasible, increasing damping
+  [Iter 56] Cable infeasible, increasing damping
+  [Iter 57] Cable infeasible, increasing damping
+  [Iter 58] Cable infeasible, increasing damping
+  [Iter 59] Cable infeasible, increasing damping
+  [Iter 60] Cable infeasible, increasing damping
+  [Iter 60] Error: 0.0769 m, lambda: 3.68e+08
+  [Iter 61] Cable infeasible, increasing damping
+  [Iter 62] Cable infeasible, increasing damping
+  [Iter 63] Cable infeasible, increasing damping
+  [Iter 64] Cable infeasible, increasing damping
+  [Iter 65] Cable infeasible, increasing damping
+  [Iter 66] Cable infeasible, increasing damping
+  [Iter 67] Cable infeasible, increasing damping
+  [Iter 68] Cable infeasible, increasing damping
+  [Iter 69] Cable infeasible, increasing damping
+  [Iter 70] Cable infeasible, increasing damping
+  [Iter 70] Error: 0.0769 m, lambda: 2.12e+10
+  [Iter 71] Cable infeasible, increasing damping
+  [Iter 72] Cable infeasible, increasing damping
+  [Iter 73] Cable infeasible, increasing damping
+  [Iter 74] Cable infeasible, increasing damping
+  [Iter 75] Cable infeasible, increasing damping
+  [Iter 76] Cable infeasible, increasing damping
+  [Iter 77] Cable infeasible, increasing damping
+  [Iter 78] Cable infeasible, increasing damping
+  [Iter 79] Cable infeasible, increasing damping
+  [Iter 80] Cable infeasible, increasing damping
+  [Iter 80] Error: 0.0769 m, lambda: 1.22e+12
+  [Iter 81] Cable infeasible, increasing damping
+  [Iter 82] Cable infeasible, increasing damping
+  [Iter 83] Cable infeasible, increasing damping
+  [Iter 84] Cable infeasible, increasing damping
+  [Iter 85] Cable infeasible, increasing damping
+  [Iter 86] Cable infeasible, increasing damping
+  [Iter 87] Cable infeasible, increasing damping
+  [Iter 88] Cable infeasible, increasing damping
+  [Iter 89] Cable infeasible, increasing damping
+  [Iter 90] Cable infeasible, increasing damping
+  [Iter 90] Error: 0.0769 m, lambda: 7.05e+13
+  [Iter 91] Cable infeasible, increasing damping
+  [Iter 92] Cable infeasible, increasing damping
+  [Iter 93] Cable infeasible, increasing damping
+  [Iter 94] Cable infeasible, increasing damping
+  [Iter 95] Cable infeasible, increasing damping
+  [Iter 96] Cable infeasible, increasing damping
+  [Iter 97] Cable infeasible, increasing damping
+  [Iter 98] Cable infeasible, increasing damping
+  [Iter 99] Cable infeasible, increasing damping
+  [Iter 100] Cable infeasible, increasing damping
+  [Iter 100] Error: 0.0769 m, lambda: 4.07e+15
+
+--- Cooperative Result ---
+  Converged: No
+  Cable feasible: No
+  Final error: 0.0769 m
+  Platform: [-0.111, 0.103, 1.167] m, [0.037, -0.011] rad
+  Arm: [-0.107, 0.119, 0.000, 0.000, 0.000, 0.000] rad
+  Tension margin: -Inf N
+  Iterations: 100, Time: 0.31 s
+  ✗ No feasible solution
+
+========================================
+Test 3: Platform Preferred
+Target: [0.50, 0.40, 1.30] m
+========================================
+
+[1/3] Testing Platform-Only...
+Planning to target [0.50, 0.40, 1.30] using PLATFORM mode...
+=== Platform-Only Mode ===
+Starting optimization (this may take 30-60s)...
+ Iter  Func-count            Fval   Feasibility   Step Length       Norm of   First-order  
+                                                                       step    optimality
+    0          19    1.000000e+10     6.580e-01     1.000e+00     0.000e+00     0.000e+00  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    1          38    1.000000e+10     1.093e-02     1.000e+00     7.467e-01     5.929e-01  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    2          57    1.000000e+10     3.676e-07     1.000e+00     1.370e-02     9.716e-03  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    3          76    1.000000e+10     2.220e-16     1.000e+00     4.656e-07     1.097e-07  
+
+找到满足约束的局部最小值。
+
+优化已完成，因为目标函数沿
+可行方向在最优性容差值范围内呈现非递减，
+并且在约束容差值范围内满足约束。
+
+<停止条件详细信息>
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only (第 128 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+  ERROR: 无法识别的字段名称 "margin_min"。
+
+[2/3] Testing Arm-Only...
+Planning to target [0.50, 0.40, 1.30] using ARM mode...
+=== Arm-Only Mode ===
+  Target in platform frame: [0.500, 0.400, 0.350] m
+
+--- Arm-Only Result ---
+  IK converged: No
+  Within joint limits: Yes
+  Position error: 0.4162 m
+  Joint angles: [-0.675, -1.455, -0.000, -2.130, -0.000, -0.000] rad
+  Cable feasible: No (margin: -Inf N)
+  Solve time: 0.02 s
+  ✗ No feasible solution
+
+[3/3] Testing Cooperative...
+Planning to target [0.50, 0.40, 1.30] using COOP mode...
+=== Cooperative Mode ===
+Starting DLS iterations...
+  [Iter 1] Cable infeasible, increasing damping
+  [Iter 2] Cable infeasible, increasing damping
+  [Iter 3] Cable infeasible, increasing damping
+  [Iter 4] Cable infeasible, increasing damping
+  [Iter 5] Cable infeasible, increasing damping
+  [Iter 6] Cable infeasible, increasing damping
+  [Iter 7] Cable infeasible, increasing damping
+  [Iter 8] Cable infeasible, increasing damping
+  [Iter 9] Cable infeasible, increasing damping
+  [Iter 10] Cable infeasible, increasing damping
+  [Iter 10] Error: 0.1908 m, lambda: 5.77e-01
+  [Iter 11] Cable infeasible, increasing damping
+  [Iter 12] Cable infeasible, increasing damping
+  [Iter 13] Cable infeasible, increasing damping
+  [Iter 14] Cable infeasible, increasing damping
+  [Iter 15] Cable infeasible, increasing damping
+  [Iter 16] Cable infeasible, increasing damping
+  [Iter 17] Cable infeasible, increasing damping
+  [Iter 18] Cable infeasible, increasing damping
+  [Iter 19] Cable infeasible, increasing damping
+  [Iter 20] Cable infeasible, increasing damping
+  [Iter 20] Error: 0.1798 m, lambda: 3.33e+01
+  [Iter 21] Cable infeasible, increasing damping
+  [Iter 22] Cable infeasible, increasing damping
+  [Iter 23] Cable infeasible, increasing damping
+  [Iter 24] Cable infeasible, increasing damping
+  [Iter 25] Cable infeasible, increasing damping
+  [Iter 26] Cable infeasible, increasing damping
+  [Iter 27] Cable infeasible, increasing damping
+  [Iter 28] Cable infeasible, increasing damping
+  [Iter 29] Cable infeasible, increasing damping
+  [Iter 30] Cable infeasible, increasing damping
+  [Iter 30] Error: 0.1798 m, lambda: 1.92e+03
+  [Iter 31] Cable infeasible, increasing damping
+  [Iter 32] Cable infeasible, increasing damping
+  [Iter 33] Cable infeasible, increasing damping
+  [Iter 34] Cable infeasible, increasing damping
+  [Iter 35] Cable infeasible, increasing damping
+  [Iter 36] Cable infeasible, increasing damping
+  [Iter 37] Cable infeasible, increasing damping
+  [Iter 38] Cable infeasible, increasing damping
+  [Iter 39] Cable infeasible, increasing damping
+  [Iter 40] Cable infeasible, increasing damping
+  [Iter 40] Error: 0.1798 m, lambda: 1.11e+05
+  [Iter 41] Cable infeasible, increasing damping
+  [Iter 42] Cable infeasible, increasing damping
+  [Iter 43] Cable infeasible, increasing damping
+  [Iter 44] Cable infeasible, increasing damping
+  [Iter 45] Cable infeasible, increasing damping
+  [Iter 46] Cable infeasible, increasing damping
+  [Iter 47] Cable infeasible, increasing damping
+  [Iter 48] Cable infeasible, increasing damping
+  [Iter 49] Cable infeasible, increasing damping
+  [Iter 50] Cable infeasible, increasing damping
+  [Iter 50] Error: 0.1798 m, lambda: 6.38e+06
+  [Iter 51] Cable infeasible, increasing damping
+  [Iter 52] Cable infeasible, increasing damping
+  [Iter 53] Cable infeasible, increasing damping
+  [Iter 54] Cable infeasible, increasing damping
+  [Iter 55] Cable infeasible, increasing damping
+  [Iter 56] Cable infeasible, increasing damping
+  [Iter 57] Cable infeasible, increasing damping
+  [Iter 58] Cable infeasible, increasing damping
+  [Iter 59] Cable infeasible, increasing damping
+  [Iter 60] Cable infeasible, increasing damping
+  [Iter 60] Error: 0.1798 m, lambda: 3.68e+08
+  [Iter 61] Cable infeasible, increasing damping
+  [Iter 62] Cable infeasible, increasing damping
+  [Iter 63] Cable infeasible, increasing damping
+  [Iter 64] Cable infeasible, increasing damping
+  [Iter 65] Cable infeasible, increasing damping
+  [Iter 66] Cable infeasible, increasing damping
+  [Iter 67] Cable infeasible, increasing damping
+  [Iter 68] Cable infeasible, increasing damping
+  [Iter 69] Cable infeasible, increasing damping
+  [Iter 70] Cable infeasible, increasing damping
+  [Iter 70] Error: 0.1798 m, lambda: 2.12e+10
+  [Iter 71] Cable infeasible, increasing damping
+  [Iter 72] Cable infeasible, increasing damping
+  [Iter 73] Cable infeasible, increasing damping
+  [Iter 74] Cable infeasible, increasing damping
+  [Iter 75] Cable infeasible, increasing damping
+  [Iter 76] Cable infeasible, increasing damping
+  [Iter 77] Cable infeasible, increasing damping
+  [Iter 78] Cable infeasible, increasing damping
+  [Iter 79] Cable infeasible, increasing damping
+  [Iter 80] Cable infeasible, increasing damping
+  [Iter 80] Error: 0.1798 m, lambda: 1.22e+12
+  [Iter 81] Cable infeasible, increasing damping
+  [Iter 82] Cable infeasible, increasing damping
+  [Iter 83] Cable infeasible, increasing damping
+  [Iter 84] Cable infeasible, increasing damping
+  [Iter 85] Cable infeasible, increasing damping
+  [Iter 86] Cable infeasible, increasing damping
+  [Iter 87] Cable infeasible, increasing damping
+  [Iter 88] Cable infeasible, increasing damping
+  [Iter 89] Cable infeasible, increasing damping
+  [Iter 90] Cable infeasible, increasing damping
+  [Iter 90] Error: 0.1798 m, lambda: 7.05e+13
+  [Iter 91] Cable infeasible, increasing damping
+  [Iter 92] Cable infeasible, increasing damping
+  [Iter 93] Cable infeasible, increasing damping
+  [Iter 94] Cable infeasible, increasing damping
+  [Iter 95] Cable infeasible, increasing damping
+  [Iter 96] Cable infeasible, increasing damping
+  [Iter 97] Cable infeasible, increasing damping
+  [Iter 98] Cable infeasible, increasing damping
+  [Iter 99] Cable infeasible, increasing damping
+  [Iter 100] Cable infeasible, increasing damping
+  [Iter 100] Error: 0.1798 m, lambda: 4.07e+15
+
+--- Cooperative Result ---
+  Converged: No
+  Cable feasible: No
+  Final error: 0.1798 m
+  Platform: [0.024, 0.290, 1.287] m, [0.086, -0.102] rad
+  Arm: [-0.473, -0.136, 0.000, 0.000, 0.000, 0.000] rad
+  Tension margin: -Inf N
+  Iterations: 100, Time: 0.30 s
+  ✗ No feasible solution
+
+========================================
+Test 4: Edge Challenge
+Target: [0.70, 0.60, 1.50] m
+========================================
+
+[1/3] Testing Platform-Only...
+Planning to target [0.70, 0.60, 1.50] using PLATFORM mode...
+=== Platform-Only Mode ===
+Starting optimization (this may take 30-60s)...
+ Iter  Func-count            Fval   Feasibility   Step Length       Norm of   First-order  
+                                                                       step    optimality
+    0          19    1.000000e+10     8.580e-01     1.000e+00     0.000e+00     0.000e+00  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    1          38    1.000000e+10     5.130e-02     1.000e+00     1.063e+00     9.930e+01  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    2          57    1.000000e+10     2.675e-05     1.000e+00     6.642e-02     5.614e-02  
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only/objective (第 86 行)
+位置: finDiffEvalAndChkErr
+位置: finitedifferences
+位置: computeFinDiffGradAndJac
+位置: sqpInterface
+位置: fmincon (第 648 行)
+位置: plan_platform_only (第 116 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+    3          76    1.000000e+10     2.292e-13     1.000e+00     2.824e-05     7.406e-06  
+
+找到满足约束的局部最小值。
+
+优化已完成，因为目标函数沿
+可行方向在最优性容差值范围内呈现非递减，
+并且在约束容差值范围内满足约束。
+
+<停止条件详细信息>
+警告: Configuration not statically feasible! 
+> 位置：HCDR_statics_5d.solve_tension_optimal (第 72 行)
+位置: plan_platform_only (第 128 行)
+位置: plan_to_target (第 25 行)
+位置: test_modes_v2 (第 44 行) 
+  ERROR: 无法识别的字段名称 "margin_min"。
+
+[2/3] Testing Arm-Only...
+Planning to target [0.70, 0.60, 1.50] using ARM mode...
+=== Arm-Only Mode ===
+  Target in platform frame: [0.700, 0.600, 0.550] m
+
+--- Arm-Only Result ---
+  IK converged: No
+  Within joint limits: Yes
+  Position error: 0.7192 m
+  Joint angles: [-0.709, -1.455, 0.000, -2.164, 0.000, 0.000] rad
+  Cable feasible: No (margin: -Inf N)
+  Solve time: 0.06 s
+  ✗ No feasible solution
+
+[3/3] Testing Cooperative...
+Planning to target [0.70, 0.60, 1.50] using COOP mode...
+=== Cooperative Mode ===
+Starting DLS iterations...
+  [Iter 1] Cable infeasible, increasing damping
+  [Iter 2] Cable infeasible, increasing damping
+  [Iter 3] Cable infeasible, increasing damping
+  [Iter 4] Cable infeasible, increasing damping
+  [Iter 5] Cable infeasible, increasing damping
+  [Iter 6] Cable infeasible, increasing damping
+  [Iter 7] Cable infeasible, increasing damping
+  [Iter 8] Cable infeasible, increasing damping
+  [Iter 9] Cable infeasible, increasing damping
+  [Iter 10] Cable infeasible, increasing damping
+  [Iter 10] Error: 0.2712 m, lambda: 5.77e-01
+  [Iter 11] Cable infeasible, increasing damping
+  [Iter 12] Cable infeasible, increasing damping
+  [Iter 13] Cable infeasible, increasing damping
+  [Iter 14] Cable infeasible, increasing damping
+  [Iter 15] Cable infeasible, increasing damping
+  [Iter 16] Cable infeasible, increasing damping
+  [Iter 17] Cable infeasible, increasing damping
+  [Iter 18] Cable infeasible, increasing damping
+  [Iter 19] Cable infeasible, increasing damping
+  [Iter 20] Cable infeasible, increasing damping
+  [Iter 20] Error: 0.2566 m, lambda: 3.33e+01
+  [Iter 21] Cable infeasible, increasing damping
+  [Iter 22] Cable infeasible, increasing damping
+  [Iter 23] Cable infeasible, increasing damping
+  [Iter 24] Cable infeasible, increasing damping
+  [Iter 25] Cable infeasible, increasing damping
+  [Iter 26] Cable infeasible, increasing damping
+  [Iter 27] Cable infeasible, increasing damping
+  [Iter 28] Cable infeasible, increasing damping
+  [Iter 29] Cable infeasible, increasing damping
+  [Iter 30] Cable infeasible, increasing damping
+  [Iter 30] Error: 0.2566 m, lambda: 1.92e+03
+  [Iter 31] Cable infeasible, increasing damping
+  [Iter 32] Cable infeasible, increasing damping
+  [Iter 33] Cable infeasible, increasing damping
+  [Iter 34] Cable infeasible, increasing damping
+  [Iter 35] Cable infeasible, increasing damping
+  [Iter 36] Cable infeasible, increasing damping
+  [Iter 37] Cable infeasible, increasing damping
+  [Iter 38] Cable infeasible, increasing damping
+  [Iter 39] Cable infeasible, increasing damping
+  [Iter 40] Cable infeasible, increasing damping
+  [Iter 40] Error: 0.2566 m, lambda: 1.11e+05
+  [Iter 41] Cable infeasible, increasing damping
+  [Iter 42] Cable infeasible, increasing damping
+  [Iter 43] Cable infeasible, increasing damping
+  [Iter 44] Cable infeasible, increasing damping
+  [Iter 45] Cable infeasible, increasing damping
+  [Iter 46] Cable infeasible, increasing damping
+  [Iter 47] Cable infeasible, increasing damping
+  [Iter 48] Cable infeasible, increasing damping
+  [Iter 49] Cable infeasible, increasing damping
+  [Iter 50] Cable infeasible, increasing damping
+  [Iter 50] Error: 0.2566 m, lambda: 6.38e+06
+  [Iter 51] Cable infeasible, increasing damping
+  [Iter 52] Cable infeasible, increasing damping
+  [Iter 53] Cable infeasible, increasing damping
+  [Iter 54] Cable infeasible, increasing damping
+  [Iter 55] Cable infeasible, increasing damping
+  [Iter 56] Cable infeasible, increasing damping
+  [Iter 57] Cable infeasible, increasing damping
+  [Iter 58] Cable infeasible, increasing damping
+  [Iter 59] Cable infeasible, increasing damping
+  [Iter 60] Cable infeasible, increasing damping
+  [Iter 60] Error: 0.2566 m, lambda: 3.68e+08
+  [Iter 61] Cable infeasible, increasing damping
+  [Iter 62] Cable infeasible, increasing damping
+  [Iter 63] Cable infeasible, increasing damping
+  [Iter 64] Cable infeasible, increasing damping
+  [Iter 65] Cable infeasible, increasing damping
+  [Iter 66] Cable infeasible, increasing damping
+  [Iter 67] Cable infeasible, increasing damping
+  [Iter 68] Cable infeasible, increasing damping
+  [Iter 69] Cable infeasible, increasing damping
+  [Iter 70] Cable infeasible, increasing damping
+  [Iter 70] Error: 0.2566 m, lambda: 2.12e+10
+  [Iter 71] Cable infeasible, increasing damping
+  [Iter 72] Cable infeasible, increasing damping
+  [Iter 73] Cable infeasible, increasing damping
+  [Iter 74] Cable infeasible, increasing damping
+  [Iter 75] Cable infeasible, increasing damping
+  [Iter 76] Cable infeasible, increasing damping
+  [Iter 77] Cable infeasible, increasing damping
+  [Iter 78] Cable infeasible, increasing damping
+  [Iter 79] Cable infeasible, increasing damping
+  [Iter 80] Cable infeasible, increasing damping
+  [Iter 80] Error: 0.2566 m, lambda: 1.22e+12
+  [Iter 81] Cable infeasible, increasing damping
+  [Iter 82] Cable infeasible, increasing damping
+  [Iter 83] Cable infeasible, increasing damping
+  [Iter 84] Cable infeasible, increasing damping
+  [Iter 85] Cable infeasible, increasing damping
+  [Iter 86] Cable infeasible, increasing damping
+  [Iter 87] Cable infeasible, increasing damping
+  [Iter 88] Cable infeasible, increasing damping
+  [Iter 89] Cable infeasible, increasing damping
+  [Iter 90] Cable infeasible, increasing damping
+  [Iter 90] Error: 0.2566 m, lambda: 7.05e+13
+  [Iter 91] Cable infeasible, increasing damping
+  [Iter 92] Cable infeasible, increasing damping
+  [Iter 93] Cable infeasible, increasing damping
+  [Iter 94] Cable infeasible, increasing damping
+  [Iter 95] Cable infeasible, increasing damping
+  [Iter 96] Cable infeasible, increasing damping
+  [Iter 97] Cable infeasible, increasing damping
+  [Iter 98] Cable infeasible, increasing damping
+  [Iter 99] Cable infeasible, increasing damping
+  [Iter 100] Cable infeasible, increasing damping
+  [Iter 100] Error: 0.2566 m, lambda: 4.07e+15
+
+--- Cooperative Result ---
+  Converged: No
+  Cable feasible: No
+  Final error: 0.2566 m
+  Platform: [0.147, 0.446, 1.340] m, [0.116, -0.146] rad
+  Arm: [-0.598, -0.292, 0.000, 0.000, 0.000, 0.000] rad
+  Tension margin: -Inf N
+  Iterations: 100, Time: 0.30 s
+  ✗ No feasible solution
+
+
+========================================
+  Summary Table
+========================================
+
+Test Case            | Plat-OK?   | Plat-Err(m)  | Arm-OK?    | Arm-Err(m)   | Coop-OK?   | Coop-Err(m) 
+--------------------------------------------------------------------------------------------------------------
+Center Easy          | No         | Inf          | No         | 0.1000       | No         | 0.1305      
+Arm Preferred        | No         | Inf          | No         | 0.1500       | No         | 0.0769      
+Platform Preferred   | No         | Inf          | No         | 0.4162       | No         | 0.1798      
+Edge Challenge       | No         | Inf          | No         | 0.7192       | No         | 0.2566      
+
+>> 

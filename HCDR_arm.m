@@ -4,7 +4,7 @@ classdef HCDR_arm
     
     methods(Static)
         
-        %% ========== Build Rigid Body Tree ==========
+               %% ========== Build Rigid Body Tree ==========
         function robot = build_robot(config)
             % Build rigidBodyTree from DH parameters
             
@@ -13,6 +13,14 @@ classdef HCDR_arm
             DH = config.arm.DH;  % [a, alpha, d, theta_offset]
             n_joints = size(DH, 1);
             
+            % Add fixed base offset (platform to arm base)
+            base_offset_body = rigidBody('base_offset');
+            base_offset_joint = rigidBodyJoint('base_offset_joint', 'fixed');
+            base_offset_tform = [eye(3), config.arm.offset_in_platform; 0 0 0 1];
+            setFixedTransform(base_offset_joint, base_offset_tform);
+            base_offset_body.Joint = base_offset_joint;
+            addBody(robot, base_offset_body, robot.BaseName);
+
             for i = 1:n_joints
                 % Create body and joint
                 body_name = sprintf('link%d', i);
@@ -43,14 +51,11 @@ classdef HCDR_arm
                 
                 % Add to tree
                 if i == 1
-                    addBody(robot, body, robot.BaseName);
+                    addBody(robot, body, 'base_offset');
                 else
                     addBody(robot, body, sprintf('link%d', i-1));
                 end
             end
-            
-            % Set base offset (platform to arm base)
-            robot.Base.setFixedTransform([eye(3), config.arm.offset_in_platform; 0 0 0 1]);
         end
         
         %% ========== Forward Kinematics ==========
