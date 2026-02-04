@@ -202,10 +202,9 @@ classdef HCDR_statics_5d
             H = (H + H') / 2;  % Symmetrize
             f = w_step * f_step;
             
-            % Equality: A5 * T = 0 (self-stress in microgravity!)
-            % Note: We optimize for self-stress, not external load balancing
+            % Equality: A5 * T = 0 (self-stress equilibrium for microgravity)
             Aeq = A5;
-            beq = zeros(5,1);  % Zero external load for microgravity
+            beq = zeros(5,1);
             
             % Reserve margin from self-stress
             rho_reserve = getfield_default(options, 'rho_reserve', 0.8);

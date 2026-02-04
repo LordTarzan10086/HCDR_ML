@@ -56,10 +56,13 @@ fprintf('  u_z = [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n', u_z);
 fprintf('  All u_z positive: %s\n', bool2str(all(u_z > 0)));
 fprintf('  All u_z negative: %s\n', bool2str(all(u_z < 0)));
 
-% Compute reachable Fz range
+% Compute reachable Fz range based on cable directions
+% Fz = sum(u_z_i * T_i), with T_i in [T_min_solve, T_max]
 T_min_solve = HCDR_statics_5d.get_tau_min_solve(config);
 T_max = config.cable.tau_max;
 
+% For each cable: if u_z >= 0, contributes positive when T is high
+% if u_z < 0, contributes positive when T is low (more negative)
 Fz_min = sum(u_z(u_z >= 0)) * T_min_solve + sum(u_z(u_z < 0)) * T_max;
 Fz_max = sum(u_z(u_z >= 0)) * T_max + sum(u_z(u_z < 0)) * T_min_solve;
 fprintf('  Reachable Fz range: [%.2f, %.2f] N\n', Fz_min, Fz_max);

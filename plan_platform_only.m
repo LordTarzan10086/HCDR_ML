@@ -178,12 +178,12 @@ end
 %% Helper: Compute hybrid objective
 function J = compute_hybrid_objective(q_p, h, T_opt, rho0_max, config, qp_options)
     % J = -w_rho * rho0_max + J_com + J_tension
-    % (Minimize negative rho0_max = Maximize self-stress margin)
+    % We want to MAXIMIZE self-stress margin rho0_max.
+    % Since fmincon MINIMIZES J, we add -w_rho * rho0_max to the objective.
     
-    % Self-stress margin term (MAXIMIZE - so use negative weight)
-    % w_rho is defined in config.platform_only.w_rho (default 10.0)
+    % Self-stress margin term
     w_rho = config.platform_only.w_rho;
-    J_rho = -w_rho * rho0_max;  % Negative because we minimize J
+    J_rho = -w_rho * rho0_max;
     
     % COM stability term
     x = q_p(1);

@@ -93,7 +93,7 @@ function config = HCDR_config_v2()
     config.microg.enabled = true;
     config.microg.fz_eps = 2.0;  % Z-direction perturbation [N] - only for robustness check
     
-    % External wrench: ZERO for nominal microgravity! 
+    % External wrench: ZERO for nominal microgravity!
     % (fz_eps is only for perturbation/robustness testing, not primary equilibrium)
     config.microg.W5_nominal = zeros(5,1);
     
