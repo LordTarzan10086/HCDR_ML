@@ -27,8 +27,12 @@ function config = HCDR_config_v2()
     %% ========== Cable System ==========
     config.cable.num = 8;
     config.cable.d_pulley = 0.10;  % Vertical spacing [m]
-    config.cable.tau_min = 5.0;   % [N]
-    config.cable.tau_max = 500.0; % [N]
+    
+    % Tension limits: split into physical and solve parameters
+    config.cable.tau_min_phys = 5.0;   % Physical desired pretension level [N]
+    config.cable.tau_min_solve = 0.5;  % Relaxed for feasibility search [N]
+    config.cable.tau_min = 5.0;        % Default (backward compat) [N]
+    config.cable.tau_max = 500.0;      % [N]
     
     %% ========== Four Vertical Sliders ==========
     L = config.frame.L;
@@ -90,10 +94,11 @@ function config = HCDR_config_v2()
     
     %% ========== Microgravity Perturbation ==========
     config.microg.enabled = true;
-    config.microg.fz_eps = 2.0;  % Z-direction perturbation [N]
+    config.microg.fz_eps = 2.0;  % Z-direction perturbation [N] (for disturbance testing only)
     
-    % External wrench: only Fz (and optional small Mx, My)
-    config.microg.W5_nominal = [0; 0; -config.microg.fz_eps; 0; 0];
+    % External wrench: ZERO nominal (microgravity!) 
+    % fz_eps is only used for robustness checks, NOT as external load
+    config.microg.W5_nominal = zeros(5,1);  % [Fx; Fy; Fz; Mx; My]
     
     %% ========== Limits ==========
     % Platform position limits (within frame)

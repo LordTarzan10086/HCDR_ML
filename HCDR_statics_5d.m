@@ -4,8 +4,80 @@ classdef HCDR_statics_5d
     
     methods(Static)
         
-        %% ========== Feasibility Check (LP) ==========
+        %% ========== Self-Stress Feasibility Check (LP) ==========
+        function [rho0_max, T0, info] = check_self_stress(A5, config, options)
+            % Zero external load self-stress feasibility check (core gate for microgravity hover)
+            %
+            % Solves:
+            %   max rho
+            %   s.t. A5 * T = 0  (zero external load equilibrium)
+            %        T >= tau_min + rho
+            %        T <= tau_max
+            %
+            % Returns:
+            %   rho0_max: Self-stress margin (>0 means config can maintain tension under zero load)
+            %   T0: Self-stress tension distribution
+            %   info: Detailed information
+            
+            if nargin < 3
+                options = struct();
+            end
+            
+            % Use relaxed tau_min for self-stress search if available
+            if isfield(config.cable, 'tau_min_solve')
+                tau_min = config.cable.tau_min_solve;
+            else
+                tau_min = config.cable.tau_min;
+            end
+            tau_max = config.cable.tau_max;
+            
+            % Variables: [T(8); rho(1)]
+            f = [zeros(8,1); -1];  % max rho = min -rho
+            
+            % Equality: A5 * T = 0 (zero external load)
+            Aeq = [A5, zeros(5,1)];
+            beq = zeros(5,1);
+            
+            % Inequality: -T + rho <= -tau_min, T <= tau_max
+            A_ineq = [-eye(8), ones(8,1);
+                      eye(8), zeros(8,1)];
+            b_ineq = [-tau_min * ones(8,1);
+                      tau_max * ones(8,1)];
+            
+            % Bounds
+            lb = [tau_min * ones(8,1); -inf];
+            ub = [tau_max * ones(8,1); inf];
+            
+            % Solve
+            lp_options = optimoptions('linprog', 'Display', 'off', 'Algorithm', 'dual-simplex');
+            [x, fval, exitflag, output] = linprog(f, A_ineq, b_ineq, Aeq, beq, lb, ub, lp_options);
+            
+            % Package results
+            info = struct();
+            info.exitflag = exitflag;
+            info.output = output;
+            
+            if exitflag > 0 && ~isempty(x)
+                T0 = x(1:8);
+                rho0_max = x(9);
+                info.is_feasible = true;
+                info.T_min_val = min(T0);
+                info.T_max_val = max(T0);
+                info.T_mean = mean(T0);
+                info.T_std = std(T0);
+            else
+                T0 = [];
+                rho0_max = -inf;
+                info.is_feasible = false;
+            end
+        end
+        
+        %% ========== Feasibility Check (LP) - For Disturbance Testing ==========
         function [is_feasible, rho_max, T_init] = check_feasibility(A5, W5, config)
+            % Feasibility check for given external wrench (used for disturbance testing)
+            % NOTE: This is NOT the primary gate for microgravity scenarios.
+            %       Use check_self_stress() first for zero-load feasibility.
+            %
             % LP: max rho s.t. A5*T + W5 = 0, T >= T_min + rho, T <= T_max
             %
             % Returns:
@@ -56,22 +128,40 @@ classdef HCDR_statics_5d
             %   - Variance minimization (balance)
             %   - Smoothness (minimize change from T_prev)
             %   - Pair balance (upper-lower symmetry, light weight)
+            %
+            % IMPORTANT: First checks self-stress (zero load feasibility)
             
             if nargin < 4
                 options = struct();
             end
             
-            % Check feasibility first
-            [is_feasible, rho_max, T_init] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+            % STEP 1: Check self-stress first (microgravity gate condition)
+            [rho0, T0_ss, info_ss] = HCDR_statics_5d.check_self_stress(A5, config, options);
             
             info = struct();
+            info.self_stress = info_ss;
+            info.rho0_max = rho0;
+            
+            if rho0 <= 0
+                warning('No self-stress available at this configuration! (rho0=%.3f)', rho0);
+                T_opt = [];
+                info.is_feasible = false;
+                info.exitflag = -1;
+                info.failure_reason = 'no_self_stress';
+                return;
+            end
+            
+            % STEP 2: Check feasibility with given external wrench
+            [is_feasible, rho_max, T_init] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+            
             info.is_feasible = is_feasible;
             info.rho_max = rho_max;
             
             if ~is_feasible
-                warning('Configuration not statically feasible!');
+                warning('Configuration not statically feasible! (rho_max=%.3f, but rho0=%.3f)', rho_max, rho0);
                 T_opt = [];
                 info.exitflag = -1;
+                info.failure_reason = 'external_wrench_infeasible';
                 return;
             end
             
@@ -154,8 +244,63 @@ classdef HCDR_statics_5d
             info.is_good = (info.W_error < 0.1) && (info.n_at_lower <= 1);
         end
         
+        %% ========== Diagnostic Output Helper ==========
+        function print_diagnostics(A5, W5, config, U)
+            % Print diagnostic information for static feasibility debugging
+            %
+            % Inputs:
+            %   A5: 5x8 structure matrix
+            %   W5: 5x1 external wrench
+            %   config: configuration struct
+            %   U: 3x8 cable unit vectors (optional, for detailed output)
+            
+            fprintf('  --- Static Feasibility Diagnostics ---\n');
+            
+            % Extract z-components from structure matrix (row 3)
+            u_z = A5(3, :);
+            fprintf('  Cable unit vectors (z-component):\n');
+            fprintf('    uz = [');
+            for i = 1:7
+                fprintf('%.3f, ', u_z(i));
+            end
+            fprintf('%.3f]\n', u_z(8));
+            
+            % Estimate achievable Fz range
+            tau_min = config.cable.tau_min;
+            tau_max = config.cable.tau_max;
+            
+            Fz_min = sum(u_z(u_z>=0))*tau_min + sum(u_z(u_z<0))*tau_max;
+            Fz_max = sum(u_z(u_z>=0))*tau_max + sum(u_z(u_z<0))*tau_min;
+            fprintf('  Achievable Fz range: [%.2f, %.2f] N\n', Fz_min, Fz_max);
+            fprintf('  Target Fz: %.2f N\n', W5(3));
+            
+            % Run self-stress LP
+            [rho0, ~, info_ss] = HCDR_statics_5d.check_self_stress(A5, config);
+            fprintf('  Self-stress margin (rho0): %.3f N\n', rho0);
+            
+            if rho0 > 0
+                fprintf('  --> Self-stress EXISTS (configuration can hover at zero load)\n');
+            else
+                fprintf('  --> Self-stress DOES NOT EXIST (configuration cannot hover)\n');
+            end
+            
+            % Check standard feasibility
+            [is_feas, rho_ext, ~] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+            fprintf('  External wrench feasibility: %s (rho=%.3f)\n', ...
+                bool2str_diag(is_feas), rho_ext);
+            
+            fprintf('  --------------------------------------\n');
+        end
+        
     end
 end
+
+function str = bool2str_diag(val)
+    if val
+        str = 'FEASIBLE';
+    else
+        str = 'INFEASIBLE';
+    end
 
 function val = getfield_default(s, field, default)
     if isfield(s, field)
