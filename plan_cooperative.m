@@ -68,13 +68,22 @@ function result = plan_cooperative(p_target, state0, config)
         % Check cable feasibility
         [~, ~, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
         W5 = config.microg.W5_nominal;
+        
+        % Check self-stress first
+        [rho0, ~, ~] = HCDR_statics_5d.check_self_stress(A5, config);
+        has_self_stress = (rho0 > 0);
+        
         [cable_feasible, ~, ~] = HCDR_statics_5d.check_feasibility(A5, W5, config);
         
-        if ~cable_feasible
+        if ~has_self_stress || ~cable_feasible
             % Increase damping if infeasible
             lambda = lambda * 1.5;
             alpha = alpha * 0.8;
-            fprintf('  [Iter %d] Cable infeasible, increasing damping\n', iter);
+            if ~has_self_stress
+                fprintf('  [Iter %d] No self-stress, increasing damping\n', iter);
+            else
+                fprintf('  [Iter %d] Cable infeasible, increasing damping\n', iter);
+            end
         end
         
         if mod(iter, 10) == 0
@@ -92,12 +101,16 @@ function result = plan_cooperative(p_target, state0, config)
     % Check final cable feasibility
     [~, ~, ~, ~, A5_final] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
     W5 = config.microg.W5_nominal;
+    
+    [rho0_final, ~, ~] = HCDR_statics_5d.check_self_stress(A5_final, config);
+    has_self_stress_final = (rho0_final > 0);
+    
     [cable_feasible_final, rho_max, T_final] = HCDR_statics_5d.check_feasibility(A5_final, W5, config);
     
     % Pack result
     result = struct();
     result.mode = 'coop';
-    result.feasible = (error_norm < tol_pos) && cable_feasible_final;
+    result.feasible = (error_norm < tol_pos) && has_self_stress_final && cable_feasible_final;
     result.q_p = q_p;
     result.q_a = q_a;
     result.h = h;  % Kept constant for now
@@ -105,6 +118,8 @@ function result = plan_cooperative(p_target, state0, config)
     result.p_ee_achieved = p_ee_O_final;
     result.final_error = error_norm;
     result.converged = (error_norm < tol_pos);
+    result.has_self_stress = has_self_stress_final;
+    result.self_stress_margin = rho0_final;
     result.cable_feasible = cable_feasible_final;
     result.tension_margin = rho_max;
     result.iterations = length(error_history);
@@ -114,6 +129,7 @@ function result = plan_cooperative(p_target, state0, config)
     % Print summary
     fprintf('\n--- Cooperative Result ---\n');
     fprintf('  Converged: %s\n', bool2str(result.converged));
+    fprintf('  Self-stress exists: %s (rho0: %.2f N)\n', bool2str(has_self_stress_final), rho0_final);
     fprintf('  Cable feasible: %s\n', bool2str(cable_feasible_final));
     fprintf('  Final error: %.4f m\n', error_norm);
     fprintf('  Platform: [%.3f, %.3f, %.3f] m, [%.3f, %.3f] rad\n', ...

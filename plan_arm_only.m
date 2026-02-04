@@ -42,18 +42,26 @@ function result = plan_arm_only(p_target, state0, config)
     % Check cable feasibility at fixed platform
     [~, ~, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p_fix, h_fix, config);
     W5 = config.microg.W5_nominal;
+    
+    % Check self-stress first (microgravity gate condition)
+    [rho0, ~, ~] = HCDR_statics_5d.check_self_stress(A5, config);
+    has_self_stress = (rho0 > 0);
+    
+    % Check external wrench feasibility
     [cable_feasible, rho_max, ~] = HCDR_statics_5d.check_feasibility(A5, W5, config);
     
     % Pack result
     result = struct();
     result.mode = 'arm';
-    result.feasible = info.converged && within_limits;
+    result.feasible = info.converged && within_limits && has_self_stress;
     result.q_p = q_p_fix;
     result.q_a = q_a_sol;
     result.h = h_fix;
     result.p_ee_achieved = p_ee_achieved_O;
     result.final_error = norm(p_ee_achieved_O - p_target);
     result.within_joint_limits = within_limits;
+    result.has_self_stress = has_self_stress;
+    result.self_stress_margin = rho0;
     result.cable_feasible = cable_feasible;
     result.tension_margin = rho_max;
     result.ik_iterations = info.iterations;
@@ -65,7 +73,8 @@ function result = plan_arm_only(p_target, state0, config)
     fprintf('  Within joint limits: %s\n', bool2str(within_limits));
     fprintf('  Position error: %.4f m\n', result.final_error);
     fprintf('  Joint angles: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad\n', q_a_sol);
-    fprintf('  Cable feasible: %s (margin: %.2f N)\n', bool2str(cable_feasible), rho_max);
+    fprintf('  Self-stress exists: %s (rho0: %.2f N)\n', bool2str(has_self_stress), rho0);
+    fprintf('  Cable feasible: %s (rho: %.2f N)\n', bool2str(cable_feasible), rho_max);
     fprintf('  Solve time: %.2f s\n', t_solve);
 end
 
