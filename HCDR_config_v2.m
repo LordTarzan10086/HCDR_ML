@@ -27,8 +27,9 @@ function config = HCDR_config_v2()
     %% ========== Cable System ==========
     config.cable.num = 8;
     config.cable.d_pulley = 0.10;  % Vertical spacing [m]
-    config.cable.tau_min = 5.0;   % [N]
-    config.cable.tau_max = 500.0; % [N]
+    config.cable.tau_min = 5.0;    % Physical minimum pretension [N]
+    config.cable.tau_min_solve = 1.0;  % Lower bound for feasibility search [N]
+    config.cable.tau_max = 500.0;  % [N]
     
     %% ========== Four Vertical Sliders ==========
     L = config.frame.L;
@@ -90,10 +91,11 @@ function config = HCDR_config_v2()
     
     %% ========== Microgravity Perturbation ==========
     config.microg.enabled = true;
-    config.microg.fz_eps = 2.0;  % Z-direction perturbation [N]
+    config.microg.fz_eps = 2.0;  % Z-direction perturbation [N] - only for robustness check
     
-    % External wrench: only Fz (and optional small Mx, My)
-    config.microg.W5_nominal = [0; 0; -config.microg.fz_eps; 0; 0];
+    % External wrench: ZERO for nominal microgravity! 
+    % (fz_eps is only for perturbation/robustness testing, not primary equilibrium)
+    config.microg.W5_nominal = zeros(5,1);
     
     %% ========== Limits ==========
     % Platform position limits (within frame)
@@ -113,6 +115,9 @@ function config = HCDR_config_v2()
     
     %% ========== Platform-Only Optimization Weights ==========
     config.platform_only.objective = 'hybrid';  % 'com_stable' | 'tension_smooth' | 'hybrid'
+    
+    % Self-stress margin weight (CRITICAL for microgravity!)
+    config.platform_only.w_rho = 10.0;  % Maximize self-stress margin
     
     % COM stability weights
     config.platform_only.w_xy = 1.0;    % Penalize platform offset from center

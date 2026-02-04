@@ -74,10 +74,17 @@ function result = plan_platform_only(p_target, state0, config)
         % Compute cable geometry
         [~, ~, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
         
-        % External wrench (microgravity perturbation)
-        W5 = config.microg.W5_nominal;
+        % Check self-stress feasibility FIRST (this is the key for microgravity!)
+        [is_self_stress_feasible, rho0_max, ~] = HCDR_statics_5d.check_self_stress(A5, config);
         
-        % Solve for optimal tension
+        if ~is_self_stress_feasible
+            J = 1e10;  % Not feasible in microgravity
+            grad = zeros(size(z));
+            return;
+        end
+        
+        % Solve for optimal tension (with zero external load)
+        W5 = zeros(5,1);  % Microgravity: zero external load
         qp_options = struct();
         if ~isempty(T_prev)
             qp_options.T_prev = T_prev;
@@ -91,8 +98,8 @@ function result = plan_platform_only(p_target, state0, config)
             return;
         end
         
-        % Compute hybrid objective
-        J = compute_hybrid_objective(q_p, h, T_opt, config, qp_options);
+        % Compute hybrid objective with self-stress margin maximization
+        J = compute_hybrid_objective(q_p, h, T_opt, rho0_max, config, qp_options);
         
         % Numerical gradient (optional, can be removed for speed)
         grad = zeros(size(z));
@@ -124,8 +131,11 @@ function result = plan_platform_only(p_target, state0, config)
     
     % Compute final state
     [L_opt, U_opt, ~, ~, A5_opt] = HCDR_kinematics_5d.cable_geometry_5d(q_p_opt, h_opt, config);
-    W5 = config.microg.W5_nominal;
+    W5 = zeros(5,1);  % Microgravity: zero external load
     [T_opt, info_opt] = HCDR_statics_5d.solve_tension_optimal(A5_opt, W5, config);
+    
+    % Get self-stress margin for reporting
+    [~, rho0_final, ~] = HCDR_statics_5d.check_self_stress(A5_opt, config);
     
     % Verify end-effector position
     p_m = q_p_opt(1:3);
@@ -146,6 +156,7 @@ function result = plan_platform_only(p_target, state0, config)
     result.rank_A5 = rank(A5_opt, 1e-6);
     result.cond_A5 = cond(A5_opt * A5_opt');
     result.tension_margin = info_opt.min_margin;
+    result.self_stress_margin = rho0_final;
     result.solve_time = t_solve;
     result.exitflag = exitflag;
     result.iterations = output.iterations;
@@ -159,13 +170,20 @@ function result = plan_platform_only(p_target, state0, config)
         q_p_opt(1:3), q_p_opt(4:5));
     fprintf('  Slider heights: [%.3f, %.3f, %.3f, %.3f] m\n', h_opt);
     fprintf('  Rank(A5): %d, Cond: %.1e\n', result.rank_A5, result.cond_A5);
+    fprintf('  Self-stress margin: %.2f N\n', rho0_final);
     fprintf('  Tension margin: %.2f N\n', result.tension_margin);
     fprintf('  Solve time: %.2f s\n', t_solve);
 end
 
 %% Helper: Compute hybrid objective
-function J = compute_hybrid_objective(q_p, h, T_opt, config, qp_options)
-    % J = J_com + J_tension
+function J = compute_hybrid_objective(q_p, h, T_opt, rho0_max, config, qp_options)
+    % J = -w_rho * rho0_max + J_com + J_tension
+    % (Minimize negative rho0_max = Maximize self-stress margin)
+    
+    % Self-stress margin term (MAXIMIZE - so use negative weight)
+    % w_rho is defined in config.platform_only.w_rho (default 10.0)
+    w_rho = config.platform_only.w_rho;
+    J_rho = -w_rho * rho0_max;  % Negative because we minimize J
     
     % COM stability term
     x = q_p(1);
@@ -195,7 +213,7 @@ function J = compute_hybrid_objective(q_p, h, T_opt, config, qp_options)
     
     J_tension = J_var + J_step + J_pair;
     
-    J = J_com + J_tension;
+    J = J_rho + J_com + J_tension;
 end
 
 function val = getfield_default(s, field, default)

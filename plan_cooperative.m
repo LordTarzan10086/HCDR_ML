@@ -65,16 +65,15 @@ function result = plan_cooperative(p_target, state0, config)
         q_a = max(config.limits.arm_joints(:,1), ...
                   min(config.limits.arm_joints(:,2), q_a));
         
-        % Check cable feasibility
+        % Check cable feasibility using SELF-STRESS (microgravity)
         [~, ~, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
-        W5 = config.microg.W5_nominal;
-        [cable_feasible, ~, ~] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+        [cable_feasible, ~, ~] = HCDR_statics_5d.check_self_stress(A5, config);
         
         if ~cable_feasible
             % Increase damping if infeasible
             lambda = lambda * 1.5;
             alpha = alpha * 0.8;
-            fprintf('  [Iter %d] Cable infeasible, increasing damping\n', iter);
+            fprintf('  [Iter %d] Cable infeasible (no self-stress), increasing damping\n', iter);
         end
         
         if mod(iter, 10) == 0
@@ -89,10 +88,9 @@ function result = plan_cooperative(p_target, state0, config)
     [p_ee_p, ~] = HCDR_arm.arm_fk(robot, q_a);
     p_ee_O_final = p_m + R * (config.arm.offset_in_platform + p_ee_p);
     
-    % Check final cable feasibility
+    % Check final cable feasibility using SELF-STRESS (microgravity)
     [~, ~, ~, ~, A5_final] = HCDR_kinematics_5d.cable_geometry_5d(q_p, h, config);
-    W5 = config.microg.W5_nominal;
-    [cable_feasible_final, rho_max, T_final] = HCDR_statics_5d.check_feasibility(A5_final, W5, config);
+    [cable_feasible_final, rho_max, T_final] = HCDR_statics_5d.check_self_stress(A5_final, config);
     
     % Pack result
     result = struct();

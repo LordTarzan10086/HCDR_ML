@@ -39,22 +39,24 @@ function result = plan_arm_only(p_target, state0, config)
     within_limits = all(q_a_sol >= config.limits.arm_joints(:,1)) && ...
                     all(q_a_sol <= config.limits.arm_joints(:,2));
     
-    % Check cable feasibility at fixed platform
+    % Check cable feasibility at fixed platform using SELF-STRESS (microgravity)
     [~, ~, ~, ~, A5] = HCDR_kinematics_5d.cable_geometry_5d(q_p_fix, h_fix, config);
-    W5 = config.microg.W5_nominal;
-    [cable_feasible, rho_max, ~] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+    [cable_feasible, rho_max, ~] = HCDR_statics_5d.check_self_stress(A5, config);
     
     % Pack result
     result = struct();
     result.mode = 'arm';
-    result.feasible = info.converged && within_limits;
+    % Arm-only feasibility = IK converged AND within limits
+    % Cable feasibility is reported separately (for platform state, not arm)
+    result.arm_feasible = info.converged && within_limits;
+    result.feasible = result.arm_feasible && cable_feasible;  % Combined
     result.q_p = q_p_fix;
     result.q_a = q_a_sol;
     result.h = h_fix;
     result.p_ee_achieved = p_ee_achieved_O;
     result.final_error = norm(p_ee_achieved_O - p_target);
     result.within_joint_limits = within_limits;
-    result.cable_feasible = cable_feasible;
+    result.cable_feasible = cable_feasible;  % Platform cable state (fixed)
     result.tension_margin = rho_max;
     result.ik_iterations = info.iterations;
     result.solve_time = t_solve;
@@ -63,9 +65,11 @@ function result = plan_arm_only(p_target, state0, config)
     fprintf('\n--- Arm-Only Result ---\n');
     fprintf('  IK converged: %s\n', bool2str(info.converged));
     fprintf('  Within joint limits: %s\n', bool2str(within_limits));
+    fprintf('  Arm feasible (IK only): %s\n', bool2str(result.arm_feasible));
     fprintf('  Position error: %.4f m\n', result.final_error);
     fprintf('  Joint angles: [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f] rad\n', q_a_sol);
-    fprintf('  Cable feasible: %s (margin: %.2f N)\n', bool2str(cable_feasible), rho_max);
+    fprintf('  Cable feasible (platform self-stress): %s (margin: %.2f N)\n', bool2str(cable_feasible), rho_max);
+    fprintf('  Combined feasible: %s\n', bool2str(result.feasible));
     fprintf('  Solve time: %.2f s\n', t_solve);
 end
 

@@ -1,19 +1,73 @@
 %% HCDR 5D Static Force Distribution (Microgravity)
+%
+% Key change for microgravity:
+% - Self-stress LP (A5*T=0) is the PRIMARY feasibility check
+% - External load LP is only for robustness verification
+% - tau_min_solve (low) for feasibility search, tau_min_phys (higher) as desired pretension
 
 classdef HCDR_statics_5d
     
     methods(Static)
         
-        %% ========== Feasibility Check (LP) ==========
+        %% ========== Self-Stress Feasibility (Zero External Load) ==========
+        function [is_feasible, rho0_max, T0] = check_self_stress(A5, config)
+            % LP: max rho s.t. A5*T = 0, T >= T_min_solve + rho, T <= T_max
+            %
+            % This is the PRIMARY feasibility check for microgravity!
+            % A configuration can hover in zero-g if it has self-stress.
+            %
+            % Returns:
+            %   is_feasible: true if rho0_max > 0 (self-stress exists)
+            %   rho0_max: maximum self-stress margin
+            %   T0: self-stress tension vector
+            
+            T_min = HCDR_statics_5d.get_tau_min_solve(config);
+            T_max = config.cable.tau_max;
+            
+            % Variables: [T(8); rho(1)]
+            f = [zeros(8,1); -1];  % max rho = min -rho
+            
+            % Equality: A5 * T = 0 (zero external load!)
+            Aeq = [A5, zeros(5,1)];
+            beq = zeros(5,1);
+            
+            % Inequality: -T + rho <= -T_min, T <= T_max
+            A_ineq = [-eye(8), ones(8,1);
+                      eye(8), zeros(8,1)];
+            b_ineq = [-T_min * ones(8,1);
+                      T_max * ones(8,1)];
+            
+            % Bounds
+            lb = [T_min * ones(8,1); -inf];
+            ub = [T_max * ones(8,1); inf];
+            
+            % Solve
+            options = optimoptions('linprog', 'Display', 'off', 'Algorithm', 'dual-simplex');
+            [x, ~, exitflag] = linprog(f, A_ineq, b_ineq, Aeq, beq, lb, ub, options);
+            
+            if exitflag > 0 && ~isempty(x)
+                rho0_max = x(9);
+                T0 = x(1:8);
+                is_feasible = (rho0_max > 0);
+            else
+                is_feasible = false;
+                rho0_max = -inf;
+                T0 = [];
+            end
+        end
+        
+        %% ========== External Load Feasibility (for robustness check) ==========
         function [is_feasible, rho_max, T_init] = check_feasibility(A5, W5, config)
-            % LP: max rho s.t. A5*T + W5 = 0, T >= T_min + rho, T <= T_max
+            % LP: max rho s.t. A5*T + W5 = 0, T >= T_min_solve + rho, T <= T_max
+            %
+            % This is for checking robustness against perturbations, NOT primary feasibility!
             %
             % Returns:
             %   is_feasible: boolean
             %   rho_max: maximum achievable margin
             %   T_init: initial feasible solution
             
-            T_min = config.cable.tau_min;
+            T_min = HCDR_statics_5d.get_tau_min_solve(config);
             T_max = config.cable.tau_max;
             
             % Variables: [T(8); rho(1)]
@@ -48,9 +102,24 @@ classdef HCDR_statics_5d
             end
         end
         
+        %% ========== Get tau_min for solving (may be lower than physical) ==========
+        function T_min = get_tau_min_solve(config)
+            % For feasibility search, use lower tau_min to find more solutions
+            % Default value matches HCDR_config_v2.m: tau_min_solve = 1.0
+            if isfield(config.cable, 'tau_min_solve')
+                T_min = config.cable.tau_min_solve;
+            else
+                % Default: matches config.cable.tau_min_solve in HCDR_config_v2.m
+                T_min = 1.0;
+            end
+        end
+        
         %% ========== Optimal Tension Distribution (QP) ==========
         function [T_opt, info] = solve_tension_optimal(A5, W5, config, options)
             % QP: minimize objective subject to equilibrium and bounds
+            %
+            % For microgravity: Uses self-stress LP first, then QP optimization.
+            % W5 is only used for robustness checking, not primary feasibility.
             %
             % Objectives (selectable):
             %   - Variance minimization (balance)
@@ -61,29 +130,45 @@ classdef HCDR_statics_5d
                 options = struct();
             end
             
-            % Check feasibility first
-            [is_feasible, rho_max, T_init] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+            % PRIMARY: Check self-stress feasibility (zero external load)
+            [is_self_stress_feasible, rho0_max, T0] = HCDR_statics_5d.check_self_stress(A5, config);
             
             info = struct();
-            info.is_feasible = is_feasible;
-            info.rho_max = rho_max;
+            info.is_self_stress_feasible = is_self_stress_feasible;
+            info.rho0_max = rho0_max;
             
-            if ~is_feasible
-                warning('Configuration not statically feasible!');
+            if ~is_self_stress_feasible
+                % In microgravity, no self-stress = no feasible hover
+                info.is_feasible = false;
+                info.rho_max = -inf;
                 T_opt = [];
                 info.exitflag = -1;
                 return;
             end
             
-            % Reserve margin
-            rho_reserve = getfield_default(options, 'rho_reserve', 0.8);
-            rho_min = max(0, rho_max * rho_reserve);
+            % SECONDARY: Check if we can handle perturbation (optional)
+            if ~all(W5 == 0)
+                [is_load_feasible, rho_max, T_init] = HCDR_statics_5d.check_feasibility(A5, W5, config);
+                info.is_load_feasible = is_load_feasible;
+                info.rho_max = rho_max;
+            else
+                % Zero load: use self-stress result
+                is_load_feasible = true;
+                rho_max = rho0_max;
+                T_init = T0;
+                info.is_load_feasible = true;
+                info.rho_max = rho0_max;
+            end
             
-            T_min = config.cable.tau_min;
+            % Overall feasibility
+            info.is_feasible = is_self_stress_feasible;  % Self-stress is primary
+            
+            % For QP, we optimize around self-stress (A5*T = 0)
+            T_min = HCDR_statics_5d.get_tau_min_solve(config);
             T_max = config.cable.tau_max;
             
             % Get previous tension (for smoothness)
-            T_prev = getfield_default(options, 'T_prev', T_init);
+            T_prev = getfield_default(options, 'T_prev', T0);
             
             % Get weights
             w_var = getfield_default(options, 'w_var', 1.0);
@@ -117,9 +202,14 @@ classdef HCDR_statics_5d
             H = (H + H') / 2;  % Symmetrize
             f = w_step * f_step;
             
-            % Equality: A5 * T + W5 = 0
+            % Equality: A5 * T = 0 (self-stress in microgravity!)
+            % Note: We optimize for self-stress, not external load balancing
             Aeq = A5;
-            beq = -W5;
+            beq = zeros(5,1);  % Zero external load for microgravity
+            
+            % Reserve margin from self-stress
+            rho_reserve = getfield_default(options, 'rho_reserve', 0.8);
+            rho_min = max(0, rho0_max * rho_reserve);
             
             % Bounds with margin
             lb = (T_min + rho_min) * ones(8,1);
@@ -127,7 +217,7 @@ classdef HCDR_statics_5d
             
             % Solve
             qp_options = optimoptions('quadprog', 'Display', 'off', 'MaxIterations', 1000);
-            [T_opt, ~, exitflag, output] = quadprog(H, f, [], [], Aeq, beq, lb, ub, T_init, qp_options);
+            [T_opt, ~, exitflag, output] = quadprog(H, f, [], [], Aeq, beq, lb, ub, T0, qp_options);
             
             % Store info
             info.exitflag = exitflag;
