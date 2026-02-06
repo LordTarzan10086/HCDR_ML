@@ -1,0 +1,178 @@
+
+========================================
+  Test: Self-Stress Feasibility Check
+========================================
+
+Configuration loaded:
+  tau_min_phys: 5.0 N
+  tau_min_solve: 0.5 N
+  W5_nominal: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+========================================
+Test Case 1: Initial Configuration
+========================================
+Platform: [0.00, 0.00, 0.94] m, roll=0.00, pitch=0.00 rad
+Slider heights: [1.00, 1.00, 1.00, 1.00] m
+Rank(A5): 5 (expected: 5)
+Cond(A5*A5'): 4.00e+02
+
+--- Self-Stress Check ---
+Self-stress margin (rho0): -Inf N
+✗ Self-stress DOES NOT EXIST - Configuration cannot hover!
+
+--- External Wrench Check (W5_nominal) ---
+W5_nominal: [0.00, 0.00, 0.00, 0.00, 0.00]
+Feasibility: INFEASIBLE (rho=-Inf)
+✗ External wrench is infeasible
+
+--- Full Diagnostics ---
+  --- Static Feasibility Diagnostics ---
+  Cable unit vectors (z-component):
+    uz = [0.050, 0.050, 0.050, 0.050, 0.050, 0.050, 0.050, 0.050]
+  Achievable Fz range: [1.99, 199.41] N
+  Target Fz: 0.00 N
+  Self-stress margin (rho0): -Inf N
+  --> Self-stress DOES NOT EXIST (configuration cannot hover)
+  External wrench feasibility: INFEASIBLE (rho=-Inf)
+  --------------------------------------
+
+========================================
+Test Case 2: Platform Offset
+========================================
+Platform: [0.30, 0.20, 0.90] m, roll=0.10, pitch=-0.05 rad
+Rank(A5): 5
+Self-stress margin (rho0): -Inf N
+✗ Self-stress DOES NOT EXIST
+
+  --- Static Feasibility Diagnostics ---
+  Cable unit vectors (z-component):
+    uz = [0.090, 0.091, 0.070, 0.070, 0.079, 0.078, 0.091, 0.090]
+  Achievable Fz range: [3.29, 329.06] N
+  Target Fz: 0.00 N
+  Self-stress margin (rho0): -Inf N
+  --> Self-stress DOES NOT EXIST (configuration cannot hover)
+  External wrench feasibility: INFEASIBLE (rho=-Inf)
+  --------------------------------------
+
+========================================
+Test Case 3: Platform at Edge
+========================================
+Platform: [0.50, 0.40, 1.30] m, roll=0.00, pitch=0.00 rad
+Slider heights: [1.20, 1.10, 0.90, 1.00] m
+Rank(A5): 5
+Self-stress margin (rho0): -Inf N
+✗ Self-stress DOES NOT EXIST
+
+  --- Static Feasibility Diagnostics ---
+  Cable unit vectors (z-component):
+    uz = [-0.173, -0.173, -0.139, -0.139, -0.212, -0.212, -0.225, -0.225]
+  Achievable Fz range: [-749.58, -7.50] N
+  Target Fz: 0.00 N
+  Self-stress margin (rho0): -Inf N
+  --> Self-stress DOES NOT EXIST (configuration cannot hover)
+  External wrench feasibility: INFEASIBLE (rho=-Inf)
+  --------------------------------------
+
+========================================
+  Summary
+========================================
+Test Case 1 (Initial):  rho0 = -Inf N ✗
+Test Case 2 (Offset):   rho0 = -Inf N ✗
+Test Case 3 (Edge):     rho0 = -Inf N ✗
+
+✗ FAILURE: Initial configuration lacks self-stress!
+  Platform-only planning will struggle. Check geometry/config.
+>> 
+
+
+
+
+
+
+
+
+
+========================================
+  Test: Self-Stress Feasibility Check
+========================================
+
+Configuration loaded:
+  tau_min_phys: 5.0 N
+  tau_min_solve: 0.5 N
+  W5_nominal: [0.0, 0.0, 0.0, 0.0, 0.0]
+
+========================================
+Test Case 1: Initial Configuration
+========================================
+Platform: [0.00, 0.00, 1.10] m, roll=0.00, pitch=0.00 rad
+Slider heights: [1.00, 1.00, 1.00, 1.00] m
+Rank(A5): 5 (expected: 5)
+Cond(A5*A5'): 4.00e+02
+
+--- Self-Stress Check ---
+Self-stress margin (rho0): -Inf N
+✗ Self-stress DOES NOT EXIST - Configuration cannot hover!
+
+--- External Wrench Check (W5_nominal) ---
+W5_nominal: [0.00, 0.00, 0.00, 0.00, 0.00]
+Feasibility: INFEASIBLE (rho=-Inf)
+✗ External wrench is infeasible
+
+--- Full Diagnostics ---
+  --- Static Feasibility Diagnostics ---
+  Cable unit vectors (z-component):
+    uz = [-0.083, -0.083, -0.083, -0.083, -0.083, -0.083, -0.083, -0.083]
+  Achievable Fz range: [-331.61, -3.32] N
+  Target Fz: 0.00 N
+  Self-stress margin (rho0): -Inf N
+  --> Self-stress DOES NOT EXIST (configuration cannot hover)
+  External wrench feasibility: INFEASIBLE (rho=-Inf)
+  --------------------------------------
+
+========================================
+Test Case 2: Platform Offset
+========================================
+Platform: [0.30, 0.20, 0.90] m, roll=0.10, pitch=-0.05 rad
+Rank(A5): 5
+Self-stress margin (rho0): -Inf N
+✗ Self-stress DOES NOT EXIST
+
+  --- Static Feasibility Diagnostics ---
+  Cable unit vectors (z-component):
+    uz = [0.090, 0.091, 0.070, 0.070, 0.079, 0.078, 0.091, 0.090]
+  Achievable Fz range: [3.29, 329.06] N
+  Target Fz: 0.00 N
+  Self-stress margin (rho0): -Inf N
+  --> Self-stress DOES NOT EXIST (configuration cannot hover)
+  External wrench feasibility: INFEASIBLE (rho=-Inf)
+  --------------------------------------
+
+========================================
+Test Case 3: Platform at Edge
+========================================
+Platform: [0.50, 0.40, 1.30] m, roll=0.00, pitch=0.00 rad
+Slider heights: [1.20, 1.10, 0.90, 1.00] m
+Rank(A5): 5
+Self-stress margin (rho0): -Inf N
+✗ Self-stress DOES NOT EXIST
+
+  --- Static Feasibility Diagnostics ---
+  Cable unit vectors (z-component):
+    uz = [-0.173, -0.173, -0.139, -0.139, -0.212, -0.212, -0.225, -0.225]
+  Achievable Fz range: [-749.58, -7.50] N
+  Target Fz: 0.00 N
+  Self-stress margin (rho0): -Inf N
+  --> Self-stress DOES NOT EXIST (configuration cannot hover)
+  External wrench feasibility: INFEASIBLE (rho=-Inf)
+  --------------------------------------
+
+========================================
+  Summary
+========================================
+Test Case 1 (Initial):  rho0 = -Inf N ✗
+Test Case 2 (Offset):   rho0 = -Inf N ✗
+Test Case 3 (Edge):     rho0 = -Inf N ✗
+
+✗ FAILURE: Initial configuration lacks self-stress!
+  Platform-only planning will struggle. Check geometry/config.
+>> 

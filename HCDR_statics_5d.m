@@ -301,6 +301,7 @@ function str = bool2str_diag(val)
     else
         str = 'INFEASIBLE';
     end
+end
 
 function val = getfield_default(s, field, default)
     if isfield(s, field)

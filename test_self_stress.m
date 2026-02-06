@@ -20,7 +20,7 @@ fprintf('========================================\n');
 fprintf('Test Case 1: Initial Configuration\n');
 fprintf('========================================\n');
 
-q_p_init = [0; 0; 1.0; 0; 0];  % Center, no roll/pitch
+q_p_init = [0; 0; 1.10; 0; 0];  % Center, no roll/pitch
 h_init = config.screw.h_init;
 
 % Compute cable geometry
