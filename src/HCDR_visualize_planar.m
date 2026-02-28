@@ -43,8 +43,30 @@ function h = HCDR_visualize_planar(q, cfg, opts)
     ylabel(ax, "y");
     title(ax, "HCDR Planar Geometry");
 
+    % Draw frame footprint and slider corner positions when available.
+    if isfield(cfg, "frame") && isfield(cfg.frame, "L")
+        frameHalfSideM = cfg.frame.L;
+        frameFootprintM = [ ...
+            frameHalfSideM,  frameHalfSideM;
+           -frameHalfSideM,  frameHalfSideM;
+           -frameHalfSideM, -frameHalfSideM;
+            frameHalfSideM, -frameHalfSideM;
+            frameHalfSideM,  frameHalfSideM]';
+        plot(ax, frameFootprintM(1, :), frameFootprintM(2, :), ...
+            "k-", "LineWidth", 1.0, "Color", [0.2, 0.2, 0.2]);
+    end
+    if isfield(cfg, "screw") && isfield(cfg.screw, "positions")
+        sliderPositionsXYM = cfg.screw.positions;
+        plot(ax, sliderPositionsXYM(1, :), sliderPositionsXYM(2, :), ...
+            "kd", "MarkerFaceColor", [0.5, 0.5, 0.5], "MarkerSize", 6);
+    end
+
     % Plot cable anchor points and current platform attachment points.
-    cableAnchorsWorldM = cfg.cable_anchors_world;              % 3xn_c [m]
+    if isfield(cfg, "cable_anchors_world")
+        cableAnchorsWorldM = cfg.cable_anchors_world;          % 3xn_c [m]
+    else
+        cableAnchorsWorldM = infer_cable_anchors(cfg);
+    end
     platformAttachWorldM = kinematicsResult.attach_world;      % 3xn_c [m]
     plot(ax, cableAnchorsWorldM(1, :), cableAnchorsWorldM(2, :), "ks", "MarkerFaceColor", "k");
     plot(ax, platformAttachWorldM(1, :), platformAttachWorldM(2, :), "bo", "MarkerFaceColor", "b");
@@ -60,10 +82,22 @@ function h = HCDR_visualize_planar(q, cfg, opts)
         end
     end
 
-    % Draw closed platform polygon using local attachment points.
-    platformAttachLocalM = cfg.platform_attach_local;          % 3xn_c [m]
+    % Draw closed platform polygon from four corner points (k=1..4).
+    if isfield(cfg, "platform") && isfield(cfg.platform, "a")
+        a = cfg.platform.a;
+        platformCornersLocalM = [ ...
+             a,  a, 0;
+            -a,  a, 0;
+            -a, -a, 0;
+             a, -a, 0;
+             a,  a, 0]';
+    else
+        platformAttachLocalM = cfg.platform_attach_local;
+        platformCornersLocalM = [platformAttachLocalM(:, [1, 3, 5, 7]), platformAttachLocalM(:, 1)];
+        platformCornersLocalM(3, :) = 0.0;
+    end
     closedPlatformPolygonWorldM = platformPositionWorldM + ...
-        platformRotationWorld * [platformAttachLocalM(:, :), platformAttachLocalM(:, 1)];
+        platformRotationWorld * platformCornersLocalM;
     plot(ax, closedPlatformPolygonWorldM(1, :), closedPlatformPolygonWorldM(2, :), ...
         "b-", "LineWidth", 1.5);
     plot(ax, platformPositionWorldM(1), platformPositionWorldM(2), ...
@@ -89,4 +123,21 @@ function h = HCDR_visualize_planar(q, cfg, opts)
     h = struct();
     h.fig = fig;
     h.ax = ax;
+end
+
+function cableAnchorsWorldM = infer_cable_anchors(cfg)
+%INFER_CABLE_ANCHORS Infer anchor points from screw positions and d_pulley.
+    cableAnchorsWorldM = zeros(3, cfg.n_c, "double");
+    if isfield(cfg.screw, "h_planar")
+        sliderHeightsM = cfg.screw.h_planar(:);
+    else
+        sliderHeightsM = cfg.z0 * ones(4, 1);
+    end
+    for cornerIndex = 1:4
+        xk = cfg.screw.positions(1, cornerIndex);
+        yk = cfg.screw.positions(2, cornerIndex);
+        hk = sliderHeightsM(cornerIndex);
+        cableAnchorsWorldM(:, 2 * cornerIndex - 1) = [xk; yk; hk + cfg.cable.d_pulley / 2];
+        cableAnchorsWorldM(:, 2 * cornerIndex) = [xk; yk; hk - cfg.cable.d_pulley / 2];
+    end
 end

@@ -92,11 +92,13 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
 
             % targetLocalM: target in platform frame [m], size 3x1.
             targetLocalM = rotz_local(-platformYawRad) * ...
-                (targetPositionWorldM - [platformX; platformY; cfg.z0]) - cfg.arm_base_in_platform(:);
+                (targetPositionWorldM - [platformX; platformY; cfg.z0]);
             [armJointSolutionRad, objectiveValue, exitflag] = ...
-                solve_arm_only(targetLocalM(1:2), armJointInitialRad, cfg);
+                solve_arm_only(targetLocalM, armJointInitialRad, cfg);
             solvedConfiguration = [platformX; platformY; platformYawRad; armJointSolutionRad];
-            eePositionErrorM = norm(fk_local_xy(armJointSolutionRad, cfg) - targetLocalM(1:2));
+            eePositionErrorM = norm( ...
+                arm_point_local(armJointSolutionRad, cfg, "with_base_offset", true, "use_xy_only", true) ...
+                - [targetLocalM(1:2); 0.0]);
             success = exitflag > 0 && eePositionErrorM <= 1e-4;
             cost = objectiveValue;
 
@@ -144,16 +146,26 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
         "tension_feasible", logical(staticsResult.is_feasible));
 end
 
-function [q_m, fval, exitflag] = solve_arm_only(target_xy, q0, cfg)
+function [q_m, fval, exitflag] = solve_arm_only(targetPlatformM, q0, cfg)
 %SOLVE_ARM_ONLY Solve arm IK with analytic 2R shortcut and numeric fallback.
 %
-%   target_xy: desired arm tip in platform frame, size 2x1 [m].
+%   targetPlatformM: desired arm tip in platform frame, size 3x1 [m].
 %   q0: initial arm joint guess, size n_mx1 [rad].
+    % Preferred path: Robotics System Toolbox IK with base_offset convention.
+    [q_m, fval, exitflag, solvedByRobotics] = solve_arm_only_robotics(targetPlatformM, q0, cfg);
+    if solvedByRobotics
+        return;
+    end
+
+    % Numeric fallback path (toolbox-free).
     armJointCount = numel(q0);
+    baseOffsetM = cfg.arm_base_in_platform(:);
+    planarTargetFromBaseM = targetPlatformM(1:2) - baseOffsetM(1:2);
     if armJointCount == 2
-        [q_m, isAnalyticSuccess] = analytic_ik_2r(target_xy, cfg.link_lengths(1), cfg.link_lengths(2));
+        [q_m, isAnalyticSuccess] = analytic_ik_2r( ...
+            planarTargetFromBaseM, cfg.link_lengths(1), cfg.link_lengths(2));
         if isAnalyticSuccess
-            fval = objective_arm(q_m, target_xy, q0, cfg);
+            fval = objective_arm(q_m, targetPlatformM, q0, cfg);
             exitflag = 1;
             return;
         end
@@ -161,19 +173,20 @@ function [q_m, fval, exitflag] = solve_arm_only(target_xy, q0, cfg)
 
     armLowerBoundRad = -pi * ones(armJointCount, 1);
     armUpperBoundRad = pi * ones(armJointCount, 1);
-    objectiveFunction = @(jointAnglesRad) objective_arm(jointAnglesRad, target_xy, q0, cfg);
+    objectiveFunction = @(jointAnglesRad) objective_arm(jointAnglesRad, targetPlatformM, q0, cfg);
     fminconOptions = optimoptions("fmincon", "Algorithm", "sqp", "Display", "off");
     [q_m, fval, exitflag] = fmincon(objectiveFunction, q0, [], [], [], [], ...
         armLowerBoundRad, armUpperBoundRad, [], fminconOptions);
 end
 
-function val = objective_arm(q, target_xy, q_ref, cfg)
+function val = objective_arm(q, targetPlatformM, q_ref, cfg)
 %OBJECTIVE_ARM Penalize arm-tip tracking error and deviation from reference.
 %
 %   q: candidate arm joints [rad], n_mx1.
-%   target_xy: desired tip in platform frame [m], 2x1.
+%   targetPlatformM: desired tip in platform frame [m], 3x1.
 %   q_ref: regularization reference [rad], n_mx1.
-    positionErrorM = fk_local_xy(q, cfg) - target_xy;  % 2x1 [m]
+    positionErrorM = arm_point_local(q, cfg, "with_base_offset", true, "use_xy_only", true) - ...
+        [targetPlatformM(1:2); 0.0];
     val = positionErrorM.' * positionErrorM + 1e-4 * sum((q - q_ref) .^ 2);
 end
 
@@ -200,9 +213,22 @@ function [c, ceq] = cooperative_ee_constraint(q, p_d, cfg)
     ceq = kinematicsResult.p_ee(1:2) - p_d(1:2);
 end
 
-function p = arm_point_local(q_m, cfg)
+function p = arm_point_local(q_m, cfg, opts)
 %ARM_POINT_LOCAL Return arm-tip point in platform frame [m], size 3x1.
-    p = cfg.arm_base_in_platform(:) + [fk_local_xy(q_m, cfg); 0.0];
+    arguments
+        q_m (:, 1) double
+        cfg (1, 1) struct
+        opts.with_base_offset (1, 1) logical = true
+        opts.use_xy_only (1, 1) logical = false
+    end
+    [platformToEeTransform, ~] = arm_fk_platform(q_m, cfg);
+    p = platformToEeTransform(1:3, 4);
+    if ~opts.with_base_offset
+        p = p - cfg.arm_base_in_platform(:);
+    end
+    if opts.use_xy_only
+        p(3) = 0.0;
+    end
 end
 
 function p = fk_local_xy(q_m, cfg)
@@ -246,4 +272,105 @@ function [q, is_ok] = analytic_ik_2r(target_xy, l1, l2)
     q1 = atan2(targetY, targetX) - atan2(l2 * sinJoint2, l1 + l2 * cosJoint2);
     q = [q1; q2];
     is_ok = true;
+end
+
+function [qSol, objectiveValue, exitflag, solvedByRobotics] = solve_arm_only_robotics(targetPlatformM, qSeed, cfg)
+%SOLVE_ARM_ONLY_ROBOTICS Solve arm IK using HCDR_arm_planar when available.
+    solvedByRobotics = false;
+    qSol = qSeed;
+    objectiveValue = inf;
+    exitflag = -1;
+
+    if ~isfield(cfg, "arm") || ~isfield(cfg.arm, "use_robotics_ik") || ...
+            ~logical(cfg.arm.use_robotics_ik)
+        return;
+    end
+    if ~isfield(cfg, "arm") || ~isfield(cfg.arm, "DH") || size(cfg.arm.DH, 1) ~= numel(qSeed)
+        return;
+    end
+    if ~license("test", "Robotics_System_Toolbox")
+        return;
+    end
+
+    try
+        persistent robotCache signatureCache
+        currentSignature = sprintf("%d_", size(cfg.arm.DH, 1));
+        if isempty(robotCache) || ~strcmp(signatureCache, currentSignature)
+            robotCache = HCDR_arm_planar.build_robot(cfg);
+            signatureCache = currentSignature;
+        end
+
+        [qCandidate, ikInfo] = HCDR_arm_planar.arm_ik(robotCache, targetPlatformM, qSeed);
+        if ikInfo.converged
+            qSol = qCandidate(:);
+            objectiveValue = objective_arm(qSol, targetPlatformM, qSeed, cfg);
+            exitflag = 1;
+            solvedByRobotics = true;
+        end
+    catch
+        solvedByRobotics = false;
+    end
+end
+
+function [platformToEeTransform, jointPointsPlatformM] = arm_fk_platform(armJointAnglesRad, cfg)
+%ARM_FK_PLATFORM Forward kinematics in platform frame.
+%
+%   Returns:
+%   platformToEeTransform: 4x4 homogeneous transform.
+%   jointPointsPlatformM: 3x(n_m+1) joint points [m].
+    armJointAnglesRad = armJointAnglesRad(:);
+    armJointCount = numel(armJointAnglesRad);
+
+    if isfield(cfg, "arm") && isfield(cfg.arm, "DH") && ...
+            size(cfg.arm.DH, 1) == armJointCount
+        dhTable = cfg.arm.DH;
+        if isfield(cfg.arm, "offset_in_platform")
+            baseOffsetM = cfg.arm.offset_in_platform(:);
+        else
+            baseOffsetM = cfg.arm_base_in_platform(:);
+        end
+
+        T = eye(4, "double");
+        T(1:3, 4) = baseOffsetM;
+        jointPointsPlatformM = zeros(3, armJointCount + 1, "double");
+        jointPointsPlatformM(:, 1) = baseOffsetM;
+        for jointIndex = 1:armJointCount
+            a = dhTable(jointIndex, 1);
+            alpha = dhTable(jointIndex, 2);
+            d = dhTable(jointIndex, 3);
+            thetaOffset = dhTable(jointIndex, 4);
+            theta = armJointAnglesRad(jointIndex) + thetaOffset;
+            T = T * dh_standard_transform(a, alpha, d, theta);
+            jointPointsPlatformM(:, jointIndex + 1) = T(1:3, 4);
+        end
+        platformToEeTransform = T;
+        return;
+    end
+
+    armLinkLengthsM = cfg.link_lengths(:);
+    if numel(armLinkLengthsM) ~= armJointCount
+        error("HCDR:ConfigInvalid", "cfg.link_lengths must have n_m entries.");
+    end
+    baseOffsetM = cfg.arm_base_in_platform(:);
+    cumulativeAnglesRad = cumsum(armJointAnglesRad);
+    jointPointsPlatformM = zeros(3, armJointCount + 1, "double");
+    jointPointsPlatformM(:, 1) = baseOffsetM;
+    for jointIndex = 1:armJointCount
+        jointPointsPlatformM(:, jointIndex + 1) = jointPointsPlatformM(:, jointIndex) + [ ...
+            armLinkLengthsM(jointIndex) * cos(cumulativeAnglesRad(jointIndex)); ...
+            armLinkLengthsM(jointIndex) * sin(cumulativeAnglesRad(jointIndex)); ...
+            0.0];
+    end
+    platformToEeTransform = eye(4, "double");
+    platformToEeTransform(1:3, 1:3) = rotz_local(sum(armJointAnglesRad));
+    platformToEeTransform(1:3, 4) = jointPointsPlatformM(:, end);
+end
+
+function T = dh_standard_transform(a, alpha, d, theta)
+%DH_STANDARD_TRANSFORM Standard DH homogeneous transform.
+    T = [ ...
+        cos(theta), -sin(theta) * cos(alpha),  sin(theta) * sin(alpha), a * cos(theta); ...
+        sin(theta),  cos(theta) * cos(alpha), -cos(theta) * sin(alpha), a * sin(theta); ...
+        0.0,         sin(alpha),               cos(alpha),              d; ...
+        0.0,         0.0,                      0.0,                     1.0];
 end
