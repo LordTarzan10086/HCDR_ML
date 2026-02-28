@@ -1,8 +1,20 @@
 function out = HCDR_statics_planar(A2D, cfg, w_ext)
-%HCDR_STATICS_PLANAR Static feasibility in planar wrench space.
+%HCDR_STATICS_PLANAR Check static tension feasibility in planar wrench space.
 %
 %   OUT = HCDR_STATICS_PLANAR(A2D, CFG) solves self-stress feasibility:
-%   A2D*T = 0 with CFG.T_min <= T <= CFG.T_max.
+%   A2D * T = 0 with CFG.T_min <= T <= CFG.T_max.
+%
+%   OUT = HCDR_STATICS_PLANAR(A2D, CFG, W_EXT) solves:
+%   A2D * T + W_EXT = 0 with the same tension bounds.
+%
+%   Inputs:
+%   A2D: planar cable wrench matrix, size 3 x n_c.
+%   CFG: configuration struct containing T_min/T_max.
+%   W_EXT: external planar wrench [Fx; Fy; Mz], size 3 x 1.
+%
+%   Output:
+%   OUT: struct with feasibility flag, one feasible tension vector, and
+%   solver diagnostics.
 
     arguments
         A2D (3, :) double
@@ -10,62 +22,79 @@ function out = HCDR_statics_planar(A2D, cfg, w_ext)
         w_ext (3, 1) double = zeros(3, 1)
     end
 
-    n_c = size(A2D, 2);
-    lb = reshape(double(cfg.T_min), [], 1);
-    ub = reshape(double(cfg.T_max), [], 1);
+    % cableCount: number of cable tensions to solve, scalar.
+    cableCount = size(A2D, 2);
 
-    if numel(lb) == 1
-        lb = repmat(lb, n_c, 1);
+    % tensionLowerBoundN/tensionUpperBoundN: per-cable bounds [N],
+    % each size n_c x 1 after expansion.
+    tensionLowerBoundN = reshape(double(cfg.T_min), [], 1);
+    tensionUpperBoundN = reshape(double(cfg.T_max), [], 1);
+
+    if numel(tensionLowerBoundN) == 1
+        tensionLowerBoundN = repmat(tensionLowerBoundN, cableCount, 1);
     end
-    if numel(ub) == 1
-        ub = repmat(ub, n_c, 1);
+    if numel(tensionUpperBoundN) == 1
+        tensionUpperBoundN = repmat(tensionUpperBoundN, cableCount, 1);
     end
-    if numel(lb) ~= n_c || numel(ub) ~= n_c
+    if numel(tensionLowerBoundN) ~= cableCount || numel(tensionUpperBoundN) ~= cableCount
         error("HCDR:DimMismatch", "T_min/T_max must be scalar or n_c x 1.");
     end
 
-    H = eye(n_c, "double");
-    f = zeros(n_c, 1, "double");
-    Aeq = A2D;
-    beq = -w_ext;
+    % Primary QP:
+    % min 0.5*T'*qpHessian*T + qpGradient'*T
+    % s.t. equalityMatrix*T = equalityVector and bounds.
+    qpHessian = eye(cableCount, "double");
+    qpGradient = zeros(cableCount, 1, "double");
+    equalityMatrix = A2D;
+    equalityVector = -w_ext;
 
-    opts = optimoptions("quadprog", "Display", "off");
-    [T, fval, exitflag, output] = quadprog(H, f, [], [], Aeq, beq, lb, ub, [], opts);
+    qpOptions = optimoptions("quadprog", "Display", "off");
+    [feasibleTensionN, objectiveValue, exitflag, solverOutput] = quadprog( ...
+        qpHessian, qpGradient, [], [], equalityMatrix, equalityVector, ...
+        tensionLowerBoundN, tensionUpperBoundN, [], qpOptions);
 
-    if isempty(T) || exitflag <= 0
-        rho = 1e3;
-        Hs = blkdiag(H, zeros(6, "double"));
-        fs = [f; rho * ones(6, 1)];
-        Aeqs = [A2D, eye(3, "double"), -eye(3, "double")];
-        beqs = beq;
-        lbs = [lb; zeros(6, 1)];
-        ubs = [ub; inf(6, 1)];
-        [xs, fvals, exitflags, outputs] = quadprog(Hs, fs, [], [], Aeqs, beqs, lbs, ubs, [], opts);
-        if isempty(xs)
-            T = nan(n_c, 1);
-            fval = nan;
-            exitflag = exitflags;
-            output = outputs;
+    % Fallback QP with explicit positive/negative slack for wrench mismatch.
+    if isempty(feasibleTensionN) || exitflag <= 0
+        slackPenaltyWeight = 1e3;
+        slackHessian = blkdiag(qpHessian, zeros(6, "double"));
+        slackGradient = [qpGradient; slackPenaltyWeight * ones(6, 1)];
+        slackEqualityMatrix = [A2D, eye(3, "double"), -eye(3, "double")];
+        slackEqualityVector = equalityVector;
+        slackLowerBound = [tensionLowerBoundN; zeros(6, 1)];
+        slackUpperBound = [tensionUpperBoundN; inf(6, 1)];
+        [slackDecision, slackObjectiveValue, slackExitflag, slackSolverOutput] = quadprog( ...
+            slackHessian, slackGradient, [], [], ...
+            slackEqualityMatrix, slackEqualityVector, ...
+            slackLowerBound, slackUpperBound, [], qpOptions);
+        if isempty(slackDecision)
+            feasibleTensionN = nan(cableCount, 1);
+            objectiveValue = nan;
+            exitflag = slackExitflag;
+            solverOutput = slackSolverOutput;
         else
-            T = xs(1:n_c);
-            fval = fvals;
-            exitflag = exitflags;
-            output = outputs;
+            feasibleTensionN = slackDecision(1:cableCount);
+            objectiveValue = slackObjectiveValue;
+            exitflag = slackExitflag;
+            solverOutput = slackSolverOutput;
         end
     end
 
-    residual = A2D * T + w_ext;
-    tol = 1e-8;
-    is_feasible = all(isfinite(T)) && all(T >= lb - tol) && all(T <= ub + tol) && ...
-                  norm(residual) <= 1e-6;
+    % Evaluate feasibility with tolerance on bounds and wrench residual.
+    wrenchResidual = A2D * feasibleTensionN + w_ext;
+    boundTolerance = 1e-8;
+    isFeasible = all(isfinite(feasibleTensionN)) && ...
+        all(feasibleTensionN >= tensionLowerBoundN - boundTolerance) && ...
+        all(feasibleTensionN <= tensionUpperBoundN + boundTolerance) && ...
+        norm(wrenchResidual) <= 1e-6;
 
+    % Preserve output schema expected by tests and upstream callers.
     out = struct();
-    out.is_feasible = logical(is_feasible);
-    out.T_feas = double(T);
-    out.nullspace_dim = double(n_c - rank(A2D));
+    out.is_feasible = logical(isFeasible);
+    out.T_feas = double(feasibleTensionN);
+    out.nullspace_dim = double(cableCount - rank(A2D));
     out.diagnostics = struct( ...
         "exitflag", double(exitflag), ...
-        "objective", double(fval), ...
-        "residual_norm", double(norm(residual)), ...
-        "solver_output", output);
+        "objective", double(objectiveValue), ...
+        "residual_norm", double(norm(wrenchResidual)), ...
+        "solver_output", solverOutput);
 end

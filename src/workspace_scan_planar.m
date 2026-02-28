@@ -1,5 +1,19 @@
 function out = workspace_scan_planar(x_grid, y_grid, psi_grid, cfg)
-%WORKSPACE_SCAN_PLANAR Scan planar workspace with geometry + tension filters.
+%WORKSPACE_SCAN_PLANAR Scan planar workspace using geometry and statics tests.
+%
+%   OUT = WORKSPACE_SCAN_PLANAR(X_GRID, Y_GRID, PSI_GRID, CFG) evaluates
+%   each grid sample q = [x;y;psi;q_home] and classifies it as:
+%   0: geometrically degenerate,
+%   1: nondegenerate but tension infeasible,
+%   2: nondegenerate and tension feasible.
+%
+%   Inputs:
+%   X_GRID, Y_GRID: position samples [m], column vectors.
+%   PSI_GRID: yaw samples [rad], column vector.
+%   CFG: configuration struct.
+%
+%   Output:
+%   OUT: struct with per-sample flags/metrics and summary counts.
 
     arguments
         x_grid (:, 1) double
@@ -8,57 +22,64 @@ function out = workspace_scan_planar(x_grid, y_grid, psi_grid, cfg)
         cfg (1, 1) struct
     end
 
-    n_x = numel(x_grid);
-    n_y = numel(y_grid);
-    n_psi = numel(psi_grid);
-    n_total = n_x * n_y * n_psi;
-    n_m = double(cfg.n_m);
+    % Grid sizes and total sample count.
+    xCount = numel(x_grid);
+    yCount = numel(y_grid);
+    psiCount = numel(psi_grid);
+    sampleCount = xCount * yCount * psiCount;
+    armJointCount = double(cfg.n_m);
 
-    samples = zeros(n_total, 3, "double");
-    is_nondegenerate = false(n_total, 1);
-    is_tension_feasible = false(n_total, 1);
-    sigma_min = zeros(n_total, 1, "double");
-    rank_a2d = zeros(n_total, 1, "double");
+    % Preallocate outputs:
+    % samples: [x,y,psi], size N x 3.
+    % is_nondegenerate/is_tension_feasible: logical flags, size N x 1.
+    samples = zeros(sampleCount, 3, "double");
+    is_nondegenerate = false(sampleCount, 1);
+    is_tension_feasible = false(sampleCount, 1);
+    sigmaMinA2D = zeros(sampleCount, 1, "double");
+    rankA2D = zeros(sampleCount, 1, "double");
 
-    k = 0;
-    for ix = 1:n_x
-        x = x_grid(ix);
-        for iy = 1:n_y
-            y = y_grid(iy);
-            for ip = 1:n_psi
-                psi = psi_grid(ip);
-                k = k + 1;
+    % Exhaustive scan over x-y-psi grid.
+    sampleIndex = 0;
+    for xIndex = 1:xCount
+        x = x_grid(xIndex);
+        for yIndex = 1:yCount
+            y = y_grid(yIndex);
+            for psiIndex = 1:psiCount
+                psi = psi_grid(psiIndex);
+                sampleIndex = sampleIndex + 1;
                 q = [x; y; psi; cfg.q_home(:)];
-                if numel(q) ~= 3 + n_m
+                if numel(q) ~= 3 + armJointCount
                     error("HCDR:DimMismatch", "q_home size does not match n_m.");
                 end
 
-                kin = HCDR_kinematics_planar(q, cfg);
-                stat = HCDR_statics_planar(kin.A2D, cfg);
+                kinematicsResult = HCDR_kinematics_planar(q, cfg);
+                staticsResult = HCDR_statics_planar(kinematicsResult.A2D, cfg);
 
-                samples(k, :) = [x, y, psi];
-                is_nondegenerate(k) = kin.is_nondegenerate;
-                is_tension_feasible(k) = stat.is_feasible;
-                sigma_min(k) = kin.sigma_min_A2D;
-                rank_a2d(k) = kin.rank_A2D;
+                samples(sampleIndex, :) = [x, y, psi];
+                is_nondegenerate(sampleIndex) = kinematicsResult.is_nondegenerate;
+                is_tension_feasible(sampleIndex) = staticsResult.is_feasible;
+                sigmaMinA2D(sampleIndex) = kinematicsResult.sigma_min_A2D;
+                rankA2D(sampleIndex) = kinematicsResult.rank_A2D;
             end
         end
     end
 
-    class_code = zeros(n_total, 1, "double");
+    % Build compact class code per sample.
+    class_code = zeros(sampleCount, 1, "double");
     class_code(~is_nondegenerate) = 0;
     class_code(is_nondegenerate & ~is_tension_feasible) = 1;
     class_code(is_nondegenerate & is_tension_feasible) = 2;
 
+    % Return scan arrays and summary statistics.
     out = struct();
     out.samples = samples;
     out.is_nondegenerate = is_nondegenerate;
     out.is_tension_feasible = is_tension_feasible;
     out.class_code = class_code;
-    out.sigma_min_A2D = sigma_min;
-    out.rank_A2D = rank_a2d;
+    out.sigma_min_A2D = sigmaMinA2D;
+    out.rank_A2D = rankA2D;
     out.summary = struct( ...
-        "total", double(n_total), ...
+        "total", double(sampleCount), ...
         "degenerate", double(sum(class_code == 0)), ...
         "infeasible", double(sum(class_code == 1)), ...
         "feasible", double(sum(class_code == 2)));

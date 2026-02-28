@@ -1,9 +1,20 @@
 function out = hqp_routeB_solve(M, ST, h_a, cfg, opts)
-%HQP_ROUTEB_SOLVE Route-B single-level HQP skeleton for planar HCDR.
+%HQP_ROUTEB_SOLVE Solve Route-B quadratic program for one control step.
 %
-%   Solves for qdd and u_{a,wo}:
-%       M*qdd = ST*u_{a,wo}
-%   with physical limits applied to final command u_a = u_{a,wo} + h_a.
+%   This routine solves for generalized acceleration qdd and actuation
+%   without bias u_{a,wo} under the Route-B equation:
+%       M * qdd = ST * u_{a,wo}
+%   and actuator physical limits applied to final actuation:
+%       u_a = u_{a,wo} + h_a.
+%
+%   Inputs:
+%   M: inertia matrix, size n_q x n_q.
+%   ST: actuation map S^T, size n_q x n_a.
+%   H_A: actuation-space bias vector, size n_a x 1.
+%   CFG: configuration struct with n_c, n_m and actuator bounds.
+%
+%   Output:
+%   OUT: struct with success flag, qdd, u_a_wo, u_a and diagnostics.
 
     arguments
         M (:, :) double
@@ -16,95 +27,120 @@ function out = hqp_routeB_solve(M, ST, h_a, cfg, opts)
         opts.qdd_ref (:, 1) double = []
     end
 
-    n_q = size(M, 1);
-    if size(M, 2) ~= n_q
+    % Validate matrix dimensions.
+    dofCount = size(M, 1);  % n_q
+    if size(M, 2) ~= dofCount
         error("HCDR:DimMismatch", "M must be square.");
     end
-    if size(ST, 1) ~= n_q
+    if size(ST, 1) ~= dofCount
         error("HCDR:DimMismatch", "ST must have same row count as M.");
     end
 
-    n_a = size(ST, 2);
-    if numel(h_a) ~= n_a
+    actuationCount = size(ST, 2);  % n_a
+    if numel(h_a) ~= actuationCount
         error("HCDR:DimMismatch", "h_a must match ST column count.");
     end
 
-    n_c = double(cfg.n_c);
-    n_m = double(cfg.n_m);
-    if n_a ~= n_c + n_m
+    cableCount = double(cfg.n_c);      % n_c
+    armJointCount = double(cfg.n_m);   % n_m
+    if actuationCount ~= cableCount + armJointCount
         error("HCDR:DimMismatch", "Expected n_a = n_c + n_m.");
     end
 
-    qdd_ref = zeros(n_q, 1);
+    % qddReference: acceleration tracking reference [rad/s^2 or m/s^2],
+    % size n_q x 1.
+    qddReference = zeros(dofCount, 1);
     if ~isempty(opts.qdd_ref)
-        if numel(opts.qdd_ref) ~= n_q
+        if numel(opts.qdd_ref) ~= dofCount
             error("HCDR:DimMismatch", "qdd_ref must have n_q elements.");
         end
-        qdd_ref = opts.qdd_ref(:);
+        qddReference = opts.qdd_ref(:);
     end
 
-    H_qdd = opts.gamma_qdd * eye(n_q, "double");
-    H_u = blkdiag(opts.alpha_T * eye(n_c, "double"), ...
-                  opts.beta_tau * eye(n_m, "double"));
-    H = blkdiag(H_qdd, H_u);
-    f = [-opts.gamma_qdd * qdd_ref; zeros(n_a, 1)];
+    % Build quadratic objective:
+    % min ||qdd - qddReference||_gamma^2 + ||u_T||_alpha^2 + ||u_m||_beta^2.
+    qddWeight = opts.gamma_qdd * eye(dofCount, "double");
+    actuationWeight = blkdiag(opts.alpha_T * eye(cableCount, "double"), ...
+                              opts.beta_tau * eye(armJointCount, "double"));
+    qpHessian = blkdiag(qddWeight, actuationWeight);
+    qpGradient = [-opts.gamma_qdd * qddReference; zeros(actuationCount, 1)];
 
-    Aeq = [M, -ST];
-    beq = zeros(n_q, 1, "double");
+    % Dynamics equality: M*qdd - ST*u_{a,wo} = 0.
+    equalityMatrix = [M, -ST];
+    equalityVector = zeros(dofCount, 1, "double");
 
-    Tmin = expand_bound(cfg.T_min, n_c);
-    Tmax = expand_bound(cfg.T_max, n_c);
-    tauMin = expand_bound(cfg.tau_min, n_m);
-    tauMax = expand_bound(cfg.tau_max, n_m);
+    % Expand scalar or vector bounds to full-size column vectors.
+    cableTensionMinN = expand_bound(cfg.T_min, cableCount);       % n_c x 1 [N]
+    cableTensionMaxN = expand_bound(cfg.T_max, cableCount);       % n_c x 1 [N]
+    armTorqueMinNm = expand_bound(cfg.tau_min, armJointCount);    % n_m x 1 [N*m]
+    armTorqueMaxNm = expand_bound(cfg.tau_max, armJointCount);    % n_m x 1 [N*m]
 
-    h_a_T = h_a(1:n_c);
-    h_a_m = h_a(n_c + 1:end);
+    % Split bias terms into cable and arm parts.
+    cableBiasActuation = h_a(1:cableCount);
+    armBiasActuation = h_a(cableCount + 1:end);
 
-    lb_u = [Tmin - h_a_T; tauMin - h_a_m];
-    ub_u = [Tmax - h_a_T; tauMax - h_a_m];
+    % Convert physical bounds on u_a to bounds on optimization variable u_{a,wo}.
+    actuationLowerBound = [cableTensionMinN - cableBiasActuation; ...
+                           armTorqueMinNm - armBiasActuation];
+    actuationUpperBound = [cableTensionMaxN - cableBiasActuation; ...
+                           armTorqueMaxNm - armBiasActuation];
 
-    lb = [-inf(n_q, 1); lb_u];
-    ub = [inf(n_q, 1); ub_u];
+    % Decision vector is [qdd; u_{a,wo}], size (n_q+n_a) x 1.
+    decisionLowerBound = [-inf(dofCount, 1); actuationLowerBound];
+    decisionUpperBound = [inf(dofCount, 1); actuationUpperBound];
 
-    x0 = zeros(n_q + n_a, 1, "double");
-    optsQP = optimoptions("quadprog", "Display", "off");
-    [x, fval, exitflag, output] = quadprog(H, f, [], [], Aeq, beq, lb, ub, x0, optsQP);
+    % Solve convex QP.
+    initialDecision = zeros(dofCount + actuationCount, 1, "double");
+    quadprogOptions = optimoptions("quadprog", "Display", "off");
+    [decisionSolution, objectiveValue, exitflag, solverOutput] = quadprog( ...
+        qpHessian, qpGradient, [], [], ...
+        equalityMatrix, equalityVector, ...
+        decisionLowerBound, decisionUpperBound, ...
+        initialDecision, quadprogOptions);
 
-    qdd = nan(n_q, 1);
-    u_wo = nan(n_a, 1);
-    u_a = nan(n_a, 1);
-    if ~isempty(x)
-        qdd = x(1:n_q);
-        u_wo = x(n_q + 1:end);
-        u_a = u_wo + h_a;
+    % Decode optimizer output with NaN fallback if solver failed.
+    qdd = nan(dofCount, 1);
+    actuationWithoutBias = nan(actuationCount, 1);
+    finalActuation = nan(actuationCount, 1);
+    if ~isempty(decisionSolution)
+        qdd = decisionSolution(1:dofCount);
+        actuationWithoutBias = decisionSolution(dofCount + 1:end);
+        finalActuation = actuationWithoutBias + h_a;
     end
 
-    dyn_res = norm(M * qdd - ST * u_wo);
-    tol = 1e-6;
-    within_box = all(u_a(1:n_c) >= Tmin - tol) && all(u_a(1:n_c) <= Tmax + tol) && ...
-                 all(u_a(n_c + 1:end) >= tauMin - tol) && ...
-                 all(u_a(n_c + 1:end) <= tauMax + tol);
-    success = ~isempty(x) && exitflag > 0 && dyn_res <= 1e-5 && within_box;
+    % Evaluate feasibility checks used by downstream controller logic.
+    dynamicsResidual = norm(M * qdd - ST * actuationWithoutBias);
+    feasibilityTolerance = 1e-6;
+    isWithinPhysicalBounds = ...
+        all(finalActuation(1:cableCount) >= cableTensionMinN - feasibilityTolerance) && ...
+        all(finalActuation(1:cableCount) <= cableTensionMaxN + feasibilityTolerance) && ...
+        all(finalActuation(cableCount + 1:end) >= armTorqueMinNm - feasibilityTolerance) && ...
+        all(finalActuation(cableCount + 1:end) <= armTorqueMaxNm + feasibilityTolerance);
+    success = ~isempty(decisionSolution) && exitflag > 0 && ...
+        dynamicsResidual <= 1e-5 && isWithinPhysicalBounds;
 
+    % Return outputs with unchanged public field names.
     out = struct();
     out.success = logical(success);
     out.qdd = double(qdd);
-    out.u_a_wo = double(u_wo);
-    out.u_a = double(u_a);
+    out.u_a_wo = double(actuationWithoutBias);
+    out.u_a = double(finalActuation);
     out.diagnostics = struct( ...
         "exitflag", double(exitflag), ...
-        "objective", double(fval), ...
-        "dyn_residual", double(dyn_res), ...
-        "within_box", logical(within_box), ...
-        "solver_output", output);
+        "objective", double(objectiveValue), ...
+        "dyn_residual", double(dynamicsResidual), ...
+        "within_box", logical(isWithinPhysicalBounds), ...
+        "solver_output", solverOutput);
 end
 
 function b = expand_bound(raw, n)
-    b = double(raw(:));
-    if numel(b) == 1
-        b = repmat(b, n, 1);
+%EXPAND_BOUND Expand scalar/vector bound into n-by-1 double vector.
+    expandedBound = double(raw(:));
+    if numel(expandedBound) == 1
+        expandedBound = repmat(expandedBound, n, 1);
     end
-    if numel(b) ~= n
+    if numel(expandedBound) ~= n
         error("HCDR:DimMismatch", "Bound vector must be scalar or length %d.", n);
     end
+    b = expandedBound;
 end

@@ -1,5 +1,18 @@
 function h = HCDR_visualize_planar(q, cfg, opts)
-%HCDR_VISUALIZE_PLANAR Plot platform, cables, and planar arm.
+%HCDR_VISUALIZE_PLANAR Visualize platform, cables, and arm in x-y plane.
+%
+%   H = HCDR_VISUALIZE_PLANAR(Q, CFG) plots cable anchors, platform
+%   attachment polygon, and arm links for generalized coordinates Q.
+%
+%   H = HCDR_VISUALIZE_PLANAR(..., "ax", AX) draws into existing axes AX.
+%   H = HCDR_VISUALIZE_PLANAR(..., "show_labels", TF) toggles anchor labels.
+%
+%   Inputs:
+%   Q: generalized coordinates [x; y; psi; q_m], size (3+n_m) x 1.
+%   CFG: configuration struct from HCDR_CONFIG_PLANAR.
+%
+%   Output:
+%   H: struct with figure and axes handles.
 
     arguments
         q (:, 1) double
@@ -8,10 +21,12 @@ function h = HCDR_visualize_planar(q, cfg, opts)
         opts.show_labels (1, 1) logical = false
     end
 
-    kin = HCDR_kinematics_planar(q, cfg);
-    p_platform = kin.p_platform;
-    R = kin.R_platform;
+    % Compute kinematics used for geometry extraction.
+    kinematicsResult = HCDR_kinematics_planar(q, cfg);
+    platformPositionWorldM = kinematicsResult.p_platform;  % 3x1 [m]
+    platformRotationWorld = kinematicsResult.R_platform;   % 3x3
 
+    % Create plotting axes if caller did not provide one.
     ax = opts.ax;
     if isempty(ax)
         fig = figure("Color", "w");
@@ -20,6 +35,7 @@ function h = HCDR_visualize_planar(q, cfg, opts)
         fig = ancestor(ax, "figure");
     end
 
+    % Configure axis appearance.
     hold(ax, "on");
     axis(ax, "equal");
     grid(ax, "on");
@@ -27,38 +43,49 @@ function h = HCDR_visualize_planar(q, cfg, opts)
     ylabel(ax, "y");
     title(ax, "HCDR Planar Geometry");
 
-    anchors = cfg.cable_anchors_world;
-    attach_world = kin.attach_world;
-    plot(ax, anchors(1, :), anchors(2, :), "ks", "MarkerFaceColor", "k");
-    plot(ax, attach_world(1, :), attach_world(2, :), "bo", "MarkerFaceColor", "b");
+    % Plot cable anchor points and current platform attachment points.
+    cableAnchorsWorldM = cfg.cable_anchors_world;              % 3xn_c [m]
+    platformAttachWorldM = kinematicsResult.attach_world;      % 3xn_c [m]
+    plot(ax, cableAnchorsWorldM(1, :), cableAnchorsWorldM(2, :), "ks", "MarkerFaceColor", "k");
+    plot(ax, platformAttachWorldM(1, :), platformAttachWorldM(2, :), "bo", "MarkerFaceColor", "b");
 
-    for i = 1:cfg.n_c
-        plot(ax, [anchors(1, i), attach_world(1, i)], ...
-                 [anchors(2, i), attach_world(2, i)], ...
+    % Draw cable segments from anchors to platform attachment points.
+    for cableIndex = 1:cfg.n_c
+        plot(ax, [cableAnchorsWorldM(1, cableIndex), platformAttachWorldM(1, cableIndex)], ...
+                 [cableAnchorsWorldM(2, cableIndex), platformAttachWorldM(2, cableIndex)], ...
                  "-", "Color", [0.2, 0.2, 0.2]);
         if opts.show_labels
-            text(ax, anchors(1, i), anchors(2, i), sprintf("a%d", i));
+            text(ax, cableAnchorsWorldM(1, cableIndex), cableAnchorsWorldM(2, cableIndex), ...
+                sprintf("a%d", cableIndex));
         end
     end
 
-    b_local = cfg.platform_attach_local;
-    platform_poly = p_platform + R * [b_local(:, :), b_local(:, 1)];
-    plot(ax, platform_poly(1, :), platform_poly(2, :), "b-", "LineWidth", 1.5);
-    plot(ax, p_platform(1), p_platform(2), "bx", "MarkerSize", 8, "LineWidth", 1.5);
+    % Draw closed platform polygon using local attachment points.
+    platformAttachLocalM = cfg.platform_attach_local;          % 3xn_c [m]
+    closedPlatformPolygonWorldM = platformPositionWorldM + ...
+        platformRotationWorld * [platformAttachLocalM(:, :), platformAttachLocalM(:, 1)];
+    plot(ax, closedPlatformPolygonWorldM(1, :), closedPlatformPolygonWorldM(2, :), ...
+        "b-", "LineWidth", 1.5);
+    plot(ax, platformPositionWorldM(1), platformPositionWorldM(2), ...
+        "bx", "MarkerSize", 8, "LineWidth", 1.5);
 
-    q_m = q(4:end);
-    link_lengths = cfg.link_lengths(:);
-    theta = cumsum(q_m);
-    arm_pts_local = zeros(3, cfg.n_m + 1, "double");
-    arm_pts_local(:, 1) = cfg.arm_base_in_platform(:);
-    for k = 1:cfg.n_m
-        arm_pts_local(:, k + 1) = arm_pts_local(:, k) + ...
-            [link_lengths(k) * cos(theta(k)); link_lengths(k) * sin(theta(k)); 0.0];
+    % Compute arm polyline in platform frame, then map to world frame.
+    armJointAnglesRad = q(4:end);                              % n_mx1 [rad]
+    armLinkLengthsM = cfg.link_lengths(:);                     % n_mx1 [m]
+    armCumulativeAnglesRad = cumsum(armJointAnglesRad);       % n_mx1 [rad]
+    armPointsLocalM = zeros(3, cfg.n_m + 1, "double");        % 3x(n_m+1) [m]
+    armPointsLocalM(:, 1) = cfg.arm_base_in_platform(:);
+    for jointIndex = 1:cfg.n_m
+        armPointsLocalM(:, jointIndex + 1) = armPointsLocalM(:, jointIndex) + ...
+            [armLinkLengthsM(jointIndex) * cos(armCumulativeAnglesRad(jointIndex)); ...
+             armLinkLengthsM(jointIndex) * sin(armCumulativeAnglesRad(jointIndex)); ...
+             0.0];
     end
-    arm_pts_world = p_platform + R * arm_pts_local;
-    plot(ax, arm_pts_world(1, :), arm_pts_world(2, :), "r-o", "LineWidth", 1.5, ...
+    armPointsWorldM = platformPositionWorldM + platformRotationWorld * armPointsLocalM;
+    plot(ax, armPointsWorldM(1, :), armPointsWorldM(2, :), "r-o", "LineWidth", 1.5, ...
         "MarkerFaceColor", "r", "MarkerSize", 4);
 
+    % Return graphics handles.
     h = struct();
     h.fig = fig;
     h.ax = ax;

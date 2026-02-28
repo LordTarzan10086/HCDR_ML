@@ -1,11 +1,18 @@
 function [M, h] = pin_get_M_h(q, qd, opts)
-%PIN_GET_M_H MATLAB wrapper to retrieve M,h from Python Pinocchio side.
+%PIN_GET_M_H Retrieve inertia M and bias h via provider or Python Pinocchio.
 %
 %   [M,H] = PIN_GET_M_H(Q,QD) calls Python module/function:
 %   pin_terms.get_M_h(q, qd)
 %
 %   [M,H] = PIN_GET_M_H(..., "provider", FH) calls MATLAB function handle
-%   FH(q, qd) -> [M, h], useful for testing without Python.
+%   FH(Q, QD) -> [M, H], useful for tests and offline fallback.
+%
+%   Inputs:
+%   Q, QD: generalized coordinates/velocities, each n_q x 1.
+%
+%   Outputs:
+%   M: inertia matrix, n_q x n_q (double).
+%   H: bias vector, n_q x 1 (double).
 
     arguments
         q (:, 1) double
@@ -19,6 +26,7 @@ function [M, h] = pin_get_M_h(q, qd, opts)
         error("HCDR:DimMismatch", "q and qd must have the same length.");
     end
 
+    % Fast path: use injected MATLAB provider (e.g., for tests).
     if ~isempty(opts.provider)
         [M, h] = opts.provider(q, qd);
         M = double(M);
@@ -26,17 +34,21 @@ function [M, h] = pin_get_M_h(q, qd, opts)
         return;
     end
 
-    mod = py.importlib.import_module(char(opts.python_module));
-    func = mod.(char(opts.python_function));
+    % Python bridge path: import requested module/function.
+    pythonModule = py.importlib.import_module(char(opts.python_module));
+    pythonFunction = pythonModule.(char(opts.python_function));
 
-    q_py = py.numpy.array(q(:).');
-    qd_py = py.numpy.array(qd(:).');
-    out = func(q_py, qd_py);
+    % Convert MATLAB column vectors to Python row arrays.
+    qPython = py.numpy.array(q(:).');
+    qdPython = py.numpy.array(qd(:).');
+    pythonResult = pythonFunction(qPython, qdPython);
 
-    M = to_double_array(out{1});
-    h = to_double_array(out{2});
+    % Convert returned Python arrays/iterables back to MATLAB doubles.
+    M = to_double_array(pythonResult{1});
+    h = to_double_array(pythonResult{2});
     h = h(:);
 
+    % Validate returned dimensions before passing upstream.
     if size(M, 1) ~= numel(q) || size(M, 2) ~= numel(q)
         error("HCDR:DimMismatch", "Returned M has invalid shape.");
     end
@@ -46,9 +58,11 @@ function [M, h] = pin_get_M_h(q, qd, opts)
 end
 
 function arr = to_double_array(py_obj)
+%TO_DOUBLE_ARRAY Convert Python numeric containers into MATLAB doubles.
     try
-        arr = double(py_obj);
+        matlabArray = double(py_obj);
     catch
-        arr = double(py.numpy.asarray(py_obj));
+        matlabArray = double(py.numpy.asarray(py_obj));
     end
+    arr = matlabArray;
 end
