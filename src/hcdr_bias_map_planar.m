@@ -16,6 +16,12 @@ function out = hcdr_bias_map_planar(h, A2D, opts)
 %   Note:
 %   This function intentionally does NOT enforce physical box constraints.
 %   Box constraints are handled later in HQP on u_{a,wo}+h_a.
+%
+%   Route-B D4 mapping formulas:
+%   h = [h_p; h_m]
+%   h_{a,m} = h_m
+%   h_{a,T} = A2D^+ h_p
+%   damped form: h_{a,T} = A2D^T (A2D*A2D^T + lambda*I)^(-1) h_p
 
     arguments
         h (:, 1) double
@@ -34,7 +40,7 @@ function out = hcdr_bias_map_planar(h, A2D, opts)
     platformBiasWrench = h(1:3);
     armBiasTorque = h(4:end);
 
-    % Map platform bias into cable actuation space.
+    % Map platform bias into cable actuation space (h_{a,T}).
     % cableBiasActuation size: n_c x 1.
     if opts.lambda > 0.0
         dampingLambda = opts.lambda;

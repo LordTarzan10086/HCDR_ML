@@ -47,3 +47,17 @@ Done: All tests pass via matlab -batch runtests.
 - Pinocchio wrapper (M,h) and Route-B bias mapping
 - HQP solver skeleton producing u_{a,wo} and final u_a
 - Workspace scan tool + visualizer
+
+## Readability / Documentation Rules (IMPORTANT)
+- Prioritize learning-friendly, maintainable code over minimal code.
+- Add at least one comment for each logical code block (what this block does).
+- For key variables, explain meaning at first use (and dimensions/units when relevant).
+- For matrix-heavy code, annotate expected dimensions (e.g., N×3, 3×1).
+- Explain non-obvious operations (numerical stability tricks, vectorization, indexing logic).
+- Each public function must include a clear header comment:
+  - purpose
+  - inputs / outputs
+  - assumptions
+  - edge cases
+- Prefer descriptive variable names over short names (except simple loop indices).
+- If code is generated/refactored, preserve or improve comments instead of removing them.

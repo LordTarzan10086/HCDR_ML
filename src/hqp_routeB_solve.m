@@ -7,6 +7,10 @@ function out = hqp_routeB_solve(M, ST, h_a, cfg, opts)
 %   and actuator physical limits applied to final actuation:
 %       u_a = u_{a,wo} + h_a.
 %
+%   Equivalent full dynamics relation:
+%       M*qdd + h = S^T*u_a
+%   with Route-B substitution u_a = u_{a,wo}+h_a and compensation h_a.
+%
 %   Inputs:
 %   M: inertia matrix, size n_q x n_q.
 %   ST: actuation map S^T, size n_q x n_a.
@@ -65,7 +69,9 @@ function out = hqp_routeB_solve(M, ST, h_a, cfg, opts)
     qpHessian = blkdiag(qddWeight, actuationWeight);
     qpGradient = [-opts.gamma_qdd * qddReference; zeros(actuationCount, 1)];
 
-    % Dynamics equality: M*qdd - ST*u_{a,wo} = 0.
+    % Dynamics equality constraint in HQP:
+    %   M*qdd = ST*u_{a,wo}
+    % (i.e., M*qdd - ST*u_{a,wo} = 0).
     equalityMatrix = [M, -ST];
     equalityVector = zeros(dofCount, 1, "double");
 
@@ -80,6 +86,10 @@ function out = hqp_routeB_solve(M, ST, h_a, cfg, opts)
     armBiasActuation = h_a(cableCount + 1:end);
 
     % Convert physical bounds on u_a to bounds on optimization variable u_{a,wo}.
+    % From u_a = u_{a,wo} + h_a:
+    %   T_min <= u_{T,wo} + h_{a,T} <= T_max
+    % => T_min - h_{a,T} <= u_{T,wo} <= T_max - h_{a,T}
+    % and same mapping for arm torque channels.
     actuationLowerBound = [cableTensionMinN - cableBiasActuation; ...
                            armTorqueMinNm - armBiasActuation];
     actuationUpperBound = [cableTensionMaxN - cableBiasActuation; ...

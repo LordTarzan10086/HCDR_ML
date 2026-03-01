@@ -20,6 +20,26 @@
         "run('scripts/demo.m')"
       ],
       "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: demo IK three modes",
+      "type": "shell",
+      "command": "matlab",
+      "args": [
+        "-batch",
+        "run('scripts/demo_ik_three_modes_planar.m')"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "MATLAB: demo RouteB dynamics",
+      "type": "shell",
+      "command": "matlab",
+      "args": [
+        "-batch",
+        "run('scripts/demo_dynamics_routeB_planar.m')"
+      ],
+      "problemMatcher": []
     }
   ]
 }

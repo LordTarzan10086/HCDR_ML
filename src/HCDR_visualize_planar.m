@@ -1,133 +1,214 @@
 function h = HCDR_visualize_planar(q, cfg, opts)
-%HCDR_VISUALIZE_PLANAR Visualize platform, cables, and arm in x-y plane.
+%HCDR_VISUALIZE_PLANAR Render planar HCDR geometry in a 3D axes.
 %
-%   H = HCDR_VISUALIZE_PLANAR(Q, CFG) plots cable anchors, platform
-%   attachment polygon, and arm links for generalized coordinates Q.
+%   H = HCDR_VISUALIZE_PLANAR(Q, CFG) draws one static snapshot:
+%   frame, sliders/pulleys, platform cuboid, cables, and arm links.
 %
 %   H = HCDR_VISUALIZE_PLANAR(..., "ax", AX) draws into existing axes AX.
-%   H = HCDR_VISUALIZE_PLANAR(..., "show_labels", TF) toggles anchor labels.
 %
-%   Inputs:
-%   Q: generalized coordinates [x; y; psi; q_m], size (3+n_m) x 1.
-%   CFG: configuration struct from HCDR_CONFIG_PLANAR.
+%   H = HCDR_VISUALIZE_PLANAR(..., "show_labels", TF) toggles cable labels.
 %
-%   Output:
-%   H: struct with figure and axes handles.
+%   H = HCDR_VISUALIZE_PLANAR(..., "target_world", P) draws target marker
+%   at P=[x;y;z] in world frame [m].
+%
+%   H = HCDR_VISUALIZE_PLANAR(..., "draw_static", TF) toggles drawing of
+%   static scene components (frame and pulleys).
+%
+%   H = HCDR_VISUALIZE_PLANAR(..., "robot_visual_model", RVM) optionally
+%   invokes RVM.render_fn(ax, q, cfg) for URDF/mesh rendering hooks.
 
     arguments
         q (:, 1) double
         cfg (1, 1) struct
         opts.ax = []
         opts.show_labels (1, 1) logical = false
+        opts.clear_axes (1, 1) logical = true
+        opts.target_world (:, 1) double = []
+        opts.draw_static (1, 1) logical = true
+        opts.robot_visual_model = []
     end
 
-    % Compute kinematics used for geometry extraction.
-    kinematicsResult = HCDR_kinematics_planar(q, cfg);
-    platformPositionWorldM = kinematicsResult.p_platform;  % 3x1 [m]
-    platformRotationWorld = kinematicsResult.R_platform;   % 3x3
-
-    % Create plotting axes if caller did not provide one.
-    ax = opts.ax;
-    if isempty(ax)
-        fig = figure("Color", "w");
+    % Prepare figure/axes.
+    if isempty(opts.ax)
+        fig = figure("Color", "w", "Name", "HCDR Planar Visualization");
         ax = axes(fig); %#ok<LAXES>
     else
+        ax = opts.ax;
         fig = ancestor(ax, "figure");
     end
 
-    % Configure axis appearance.
+    if opts.clear_axes
+        cla(ax);
+    end
     hold(ax, "on");
     axis(ax, "equal");
     grid(ax, "on");
-    xlabel(ax, "x");
-    ylabel(ax, "y");
-    title(ax, "HCDR Planar Geometry");
+    xlabel(ax, "X [m]");
+    ylabel(ax, "Y [m]");
+    zlabel(ax, "Z [m]");
+    view(ax, 45, 25);
 
-    % Draw frame footprint and slider corner positions when available.
-    if isfield(cfg, "frame") && isfield(cfg.frame, "L")
-        frameHalfSideM = cfg.frame.L;
-        frameFootprintM = [ ...
-            frameHalfSideM,  frameHalfSideM;
-           -frameHalfSideM,  frameHalfSideM;
-           -frameHalfSideM, -frameHalfSideM;
-            frameHalfSideM, -frameHalfSideM;
-            frameHalfSideM,  frameHalfSideM]';
-        plot(ax, frameFootprintM(1, :), frameFootprintM(2, :), ...
-            "k-", "LineWidth", 1.0, "Color", [0.2, 0.2, 0.2]);
-    end
-    if isfield(cfg, "screw") && isfield(cfg.screw, "positions")
-        sliderPositionsXYM = cfg.screw.positions;
-        plot(ax, sliderPositionsXYM(1, :), sliderPositionsXYM(2, :), ...
-            "kd", "MarkerFaceColor", [0.5, 0.5, 0.5], "MarkerSize", 6);
+    % Core geometry from kinematics.
+    kinematicsResult = HCDR_kinematics_planar(q, cfg);
+    platformPositionWorldM = kinematicsResult.p_platform;      % 3x1
+    platformRotationWorld = kinematicsResult.R_platform;       % 3x3
+    platformAttachWorldM = kinematicsResult.attach_world;      % 3xn_c
+    cableAnchorsWorldM = infer_cable_anchors(cfg);             % 3xn_c
+
+    % Draw static frame and pulleys.
+    frameHalfSideM = get_field_or(cfg, "frame", "L", 1.0);
+    frameHeightM = get_field_or(cfg, "frame", "height", max(cableAnchorsWorldM(3, :)) + 0.5);
+    if opts.draw_static
+        draw_frame(ax, frameHalfSideM, frameHeightM);
+        draw_pulleys(ax, cfg);
     end
 
-    % Plot cable anchor points and current platform attachment points.
-    if isfield(cfg, "cable_anchors_world")
-        cableAnchorsWorldM = cfg.cable_anchors_world;          % 3xn_c [m]
-    else
-        cableAnchorsWorldM = infer_cable_anchors(cfg);
-    end
-    platformAttachWorldM = kinematicsResult.attach_world;      % 3xn_c [m]
-    plot(ax, cableAnchorsWorldM(1, :), cableAnchorsWorldM(2, :), "ks", "MarkerFaceColor", "k");
-    plot(ax, platformAttachWorldM(1, :), platformAttachWorldM(2, :), "bo", "MarkerFaceColor", "b");
-
-    % Draw cable segments from anchors to platform attachment points.
+    % Draw cables and cable endpoints.
+    cableHandles = gobjects(cfg.n_c, 1);
     for cableIndex = 1:cfg.n_c
-        plot(ax, [cableAnchorsWorldM(1, cableIndex), platformAttachWorldM(1, cableIndex)], ...
-                 [cableAnchorsWorldM(2, cableIndex), platformAttachWorldM(2, cableIndex)], ...
-                 "-", "Color", [0.2, 0.2, 0.2]);
+        cableHandles(cableIndex) = plot3(ax, ...
+            [platformAttachWorldM(1, cableIndex), cableAnchorsWorldM(1, cableIndex)], ...
+            [platformAttachWorldM(2, cableIndex), cableAnchorsWorldM(2, cableIndex)], ...
+            [platformAttachWorldM(3, cableIndex), cableAnchorsWorldM(3, cableIndex)], ...
+            "r-", "LineWidth", 1.5);
         if opts.show_labels
-            text(ax, cableAnchorsWorldM(1, cableIndex), cableAnchorsWorldM(2, cableIndex), ...
-                sprintf("a%d", cableIndex));
+            cableMid = 0.5 * (platformAttachWorldM(:, cableIndex) + cableAnchorsWorldM(:, cableIndex));
+            text(ax, cableMid(1), cableMid(2), cableMid(3), sprintf("%d", cableIndex), ...
+                "FontSize", 9, "Color", [0.8, 0.0, 0.0], "FontWeight", "bold");
+        end
+    end
+    plot3(ax, cableAnchorsWorldM(1, :), cableAnchorsWorldM(2, :), cableAnchorsWorldM(3, :), ...
+        "ks", "MarkerFaceColor", "k", "MarkerSize", 5);
+    plot3(ax, platformAttachWorldM(1, :), platformAttachWorldM(2, :), platformAttachWorldM(3, :), ...
+        "bo", "MarkerFaceColor", "b", "MarkerSize", 4);
+
+    % Draw platform cuboid edges.
+    [platformCornersWorldM, platformEdgePairs] = build_platform_cuboid(platformPositionWorldM, platformRotationWorld, cfg);
+    platformHandles = gobjects(size(platformEdgePairs, 1), 1);
+    for edgeIndex = 1:size(platformEdgePairs, 1)
+        edgeNodes = platformEdgePairs(edgeIndex, :);
+        platformHandles(edgeIndex) = plot3(ax, ...
+            platformCornersWorldM(1, edgeNodes), ...
+            platformCornersWorldM(2, edgeNodes), ...
+            platformCornersWorldM(3, edgeNodes), ...
+            "b-", "LineWidth", 2.0);
+    end
+    plot3(ax, platformPositionWorldM(1), platformPositionWorldM(2), platformPositionWorldM(3), ...
+        "bx", "MarkerSize", 10, "LineWidth", 2);
+
+    useCustomRobotRenderer = false;
+    if ~isempty(opts.robot_visual_model) && isstruct(opts.robot_visual_model) && ...
+            isfield(opts.robot_visual_model, "render_fn")
+        if isfield(opts.robot_visual_model, "replace_links")
+            useCustomRobotRenderer = logical(opts.robot_visual_model.replace_links);
         end
     end
 
-    % Draw closed platform polygon from four corner points (k=1..4).
-    if isfield(cfg, "platform") && isfield(cfg.platform, "a")
-        a = cfg.platform.a;
-        platformCornersLocalM = [ ...
-             a,  a, 0;
-            -a,  a, 0;
-            -a, -a, 0;
-             a, -a, 0;
-             a,  a, 0]';
-    else
-        platformAttachLocalM = cfg.platform_attach_local;
-        platformCornersLocalM = [platformAttachLocalM(:, [1, 3, 5, 7]), platformAttachLocalM(:, 1)];
-        platformCornersLocalM(3, :) = 0.0;
+    % Draw arm polyline from joint positions unless custom renderer replaces it.
+    armLinksHandle = gobjects(0);
+    armJointsHandle = gobjects(0);
+    eeHandle = gobjects(0);
+    if ~useCustomRobotRenderer
+        armJointPointsWorldM = arm_joint_points_world(q(4:end), platformPositionWorldM, platformRotationWorld, cfg);
+        armLinksHandle = plot3(ax, armJointPointsWorldM(1, :), armJointPointsWorldM(2, :), armJointPointsWorldM(3, :), ...
+            "g-", "LineWidth", 2.5);
+        armJointsHandle = plot3(ax, armJointPointsWorldM(1, :), armJointPointsWorldM(2, :), armJointPointsWorldM(3, :), ...
+            "go", "MarkerSize", 6, "MarkerFaceColor", "g");
+        eeHandle = plot3(ax, armJointPointsWorldM(1, end), armJointPointsWorldM(2, end), armJointPointsWorldM(3, end), ...
+            "m*", "MarkerSize", 12, "LineWidth", 1.8);
     end
-    closedPlatformPolygonWorldM = platformPositionWorldM + ...
-        platformRotationWorld * platformCornersLocalM;
-    plot(ax, closedPlatformPolygonWorldM(1, :), closedPlatformPolygonWorldM(2, :), ...
-        "b-", "LineWidth", 1.5);
-    plot(ax, platformPositionWorldM(1), platformPositionWorldM(2), ...
-        "bx", "MarkerSize", 8, "LineWidth", 1.5);
 
-    % Compute arm polyline in platform frame, then map to world frame.
-    armJointAnglesRad = q(4:end);                              % n_mx1 [rad]
-    armLinkLengthsM = cfg.link_lengths(:);                     % n_mx1 [m]
-    armCumulativeAnglesRad = cumsum(armJointAnglesRad);       % n_mx1 [rad]
-    armPointsLocalM = zeros(3, cfg.n_m + 1, "double");        % 3x(n_m+1) [m]
-    armPointsLocalM(:, 1) = cfg.arm_base_in_platform(:);
-    for jointIndex = 1:cfg.n_m
-        armPointsLocalM(:, jointIndex + 1) = armPointsLocalM(:, jointIndex) + ...
-            [armLinkLengthsM(jointIndex) * cos(armCumulativeAnglesRad(jointIndex)); ...
-             armLinkLengthsM(jointIndex) * sin(armCumulativeAnglesRad(jointIndex)); ...
-             0.0];
+    % Optional custom robot visual renderer (URDF/mesh).
+    if ~isempty(opts.robot_visual_model) && isstruct(opts.robot_visual_model) && ...
+            isfield(opts.robot_visual_model, "render_fn")
+        try
+            feval(opts.robot_visual_model.render_fn, ax, q, cfg);
+        catch
+            % keep default rendering if custom renderer fails
+        end
     end
-    armPointsWorldM = platformPositionWorldM + platformRotationWorld * armPointsLocalM;
-    plot(ax, armPointsWorldM(1, :), armPointsWorldM(2, :), "r-o", "LineWidth", 1.5, ...
-        "MarkerFaceColor", "r", "MarkerSize", 4);
 
-    % Return graphics handles.
+    % Optional target marker.
+    targetHandle = gobjects(0);
+    if ~isempty(opts.target_world)
+        targetWorldM = opts.target_world(:);
+        targetHandle = plot3(ax, targetWorldM(1), targetWorldM(2), targetWorldM(3), ...
+            "r*", "MarkerSize", 14, "LineWidth", 2);
+    end
+
+    % Consistent view bounds.
+    xlim(ax, [-frameHalfSideM - 0.2, frameHalfSideM + 0.2]);
+    ylim(ax, [-frameHalfSideM - 0.2, frameHalfSideM + 0.2]);
+    zlim(ax, [0.0, frameHeightM + 0.2]);
+
     h = struct();
     h.fig = fig;
     h.ax = ax;
+    h.cables = cableHandles;
+    h.platform = platformHandles;
+    h.arm_links = armLinksHandle;
+    h.arm_joints = armJointsHandle;
+    h.ee = eeHandle;
+    h.target = targetHandle;
+end
+
+function draw_frame(ax, L, H)
+%DRAW_FRAME Draw cubic frame edges.
+    frameCorners = [ ...
+         L,  L, 0;
+        -L,  L, 0;
+        -L, -L, 0;
+         L, -L, 0;
+         L,  L, H;
+        -L,  L, H;
+        -L, -L, H;
+         L, -L, H]';
+    edgePairs = [ ...
+        1, 2; 2, 3; 3, 4; 4, 1; ...
+        5, 6; 6, 7; 7, 8; 8, 5; ...
+        1, 5; 2, 6; 3, 7; 4, 8];
+    for edgeIndex = 1:size(edgePairs, 1)
+        nodes = edgePairs(edgeIndex, :);
+        plot3(ax, frameCorners(1, nodes), frameCorners(2, nodes), frameCorners(3, nodes), ...
+            "k-", "LineWidth", 1.2);
+    end
+end
+
+function draw_pulleys(ax, cfg)
+%DRAW_PULLEYS Draw upper/lower pulley rings around each screw slider.
+    if ~isfield(cfg, "screw") || ~isfield(cfg.screw, "positions")
+        return;
+    end
+    pulleySpacingM = get_field_or(cfg, "cable", "d_pulley", 0.10);
+    if isfield(cfg.screw, "h_planar")
+        sliderHeightsM = cfg.screw.h_planar(:);
+    else
+        sliderHeightsM = cfg.z0 * ones(4, 1);
+    end
+    ringRadiusM = 0.03;
+    theta = linspace(0, 2 * pi, 30);
+    for cornerIndex = 1:4
+        sliderX = cfg.screw.positions(1, cornerIndex);
+        sliderY = cfg.screw.positions(2, cornerIndex);
+        sliderZ = sliderHeightsM(cornerIndex);
+        ringX = sliderX + ringRadiusM * cos(theta);
+        ringY = sliderY + ringRadiusM * sin(theta);
+        ringZUpper = (sliderZ + pulleySpacingM / 2) * ones(size(theta));
+        ringZLower = (sliderZ - pulleySpacingM / 2) * ones(size(theta));
+        plot3(ax, ringX, ringY, ringZUpper, "k-", "LineWidth", 1.0);
+        plot3(ax, ringX, ringY, ringZLower, "k-", "LineWidth", 1.0);
+        plot3(ax, [sliderX, sliderX], [sliderY, sliderY], [0, sliderZ], "k:", "LineWidth", 1.0);
+    end
 end
 
 function cableAnchorsWorldM = infer_cable_anchors(cfg)
-%INFER_CABLE_ANCHORS Infer anchor points from screw positions and d_pulley.
+%INFER_CABLE_ANCHORS Build anchors from screw positions and pulley spacing.
+    if isfield(cfg, "cable_anchors_world")
+        cableAnchorsWorldM = double(cfg.cable_anchors_world);
+        return;
+    end
     cableAnchorsWorldM = zeros(3, cfg.n_c, "double");
+    pulleySpacingM = get_field_or(cfg, "cable", "d_pulley", 0.10);
     if isfield(cfg.screw, "h_planar")
         sliderHeightsM = cfg.screw.h_planar(:);
     else
@@ -137,7 +218,92 @@ function cableAnchorsWorldM = infer_cable_anchors(cfg)
         xk = cfg.screw.positions(1, cornerIndex);
         yk = cfg.screw.positions(2, cornerIndex);
         hk = sliderHeightsM(cornerIndex);
-        cableAnchorsWorldM(:, 2 * cornerIndex - 1) = [xk; yk; hk + cfg.cable.d_pulley / 2];
-        cableAnchorsWorldM(:, 2 * cornerIndex) = [xk; yk; hk - cfg.cable.d_pulley / 2];
+        cableAnchorsWorldM(:, 2 * cornerIndex - 1) = [xk; yk; hk + pulleySpacingM / 2];
+        cableAnchorsWorldM(:, 2 * cornerIndex) = [xk; yk; hk - pulleySpacingM / 2];
+    end
+end
+
+function [platformCornersWorldM, edgePairs] = build_platform_cuboid(platformCenterWorldM, platformRotationWorld, cfg)
+%BUILD_PLATFORM_CUBOID Build cuboid corner coordinates and edge list.
+    halfSideM = get_field_or(cfg, "platform", "a", 0.15);
+    halfThicknessM = get_field_or(cfg, "platform", "b", 0.05);
+    cornersLocalM = [ ...
+         halfSideM,  halfSideM,  halfThicknessM;
+         halfSideM, -halfSideM,  halfThicknessM;
+        -halfSideM, -halfSideM,  halfThicknessM;
+        -halfSideM,  halfSideM,  halfThicknessM;
+         halfSideM,  halfSideM, -halfThicknessM;
+         halfSideM, -halfSideM, -halfThicknessM;
+        -halfSideM, -halfSideM, -halfThicknessM;
+        -halfSideM,  halfSideM, -halfThicknessM]';
+    platformCornersWorldM = platformCenterWorldM + platformRotationWorld * cornersLocalM;
+    edgePairs = [ ...
+        1, 2; 2, 3; 3, 4; 4, 1; ...
+        5, 6; 6, 7; 7, 8; 8, 5; ...
+        1, 5; 2, 6; 3, 7; 4, 8];
+end
+
+function jointPointsWorldM = arm_joint_points_world(armJointAnglesRad, platformCenterWorldM, platformRotationWorld, cfg)
+%ARM_JOINT_POINTS_WORLD Compute arm joint polyline in world frame.
+    armJointAnglesRad = armJointAnglesRad(:);
+    jointCount = numel(armJointAnglesRad);
+
+    if isfield(cfg, "arm") && isfield(cfg.arm, "DH") && size(cfg.arm.DH, 1) == jointCount
+        if isfield(cfg.arm, "offset_in_platform")
+            baseOffsetPlatformM = cfg.arm.offset_in_platform(:);
+        else
+            baseOffsetPlatformM = cfg.arm_base_in_platform(:);
+        end
+        dhTable = cfg.arm.DH;
+        transformPlatform = eye(4, "double");
+        transformPlatform(1:3, 4) = baseOffsetPlatformM;
+        jointPointsPlatformM = zeros(3, jointCount + 1, "double");
+        jointPointsPlatformM(:, 1) = baseOffsetPlatformM;
+        for jointIndex = 1:jointCount
+            a = dhTable(jointIndex, 1);
+            alpha = dhTable(jointIndex, 2);
+            d = dhTable(jointIndex, 3);
+            thetaOffset = dhTable(jointIndex, 4);
+            theta = armJointAnglesRad(jointIndex) + thetaOffset;
+            transformPlatform = transformPlatform * dh_standard_transform(a, alpha, d, theta);
+            jointPointsPlatformM(:, jointIndex + 1) = transformPlatform(1:3, 4);
+        end
+    else
+        linkLengthsM = cfg.link_lengths(:);
+        if numel(linkLengthsM) ~= jointCount
+            error("HCDR:ConfigInvalid", "cfg.link_lengths must match arm joint count.");
+        end
+        baseOffsetPlatformM = cfg.arm_base_in_platform(:);
+        cumulativeAnglesRad = cumsum(armJointAnglesRad);
+        jointPointsPlatformM = zeros(3, jointCount + 1, "double");
+        jointPointsPlatformM(:, 1) = baseOffsetPlatformM;
+        for jointIndex = 1:jointCount
+            jointPointsPlatformM(:, jointIndex + 1) = jointPointsPlatformM(:, jointIndex) + [ ...
+                linkLengthsM(jointIndex) * cos(cumulativeAnglesRad(jointIndex)); ...
+                linkLengthsM(jointIndex) * sin(cumulativeAnglesRad(jointIndex)); ...
+                0.0];
+        end
+    end
+
+    jointPointsWorldM = platformCenterWorldM + platformRotationWorld * jointPointsPlatformM;
+end
+
+function T = dh_standard_transform(a, alpha, d, theta)
+%DH_STANDARD_TRANSFORM Standard DH homogeneous transform.
+    T = [ ...
+        cos(theta), -sin(theta) * cos(alpha),  sin(theta) * sin(alpha), a * cos(theta); ...
+        sin(theta),  cos(theta) * cos(alpha), -cos(theta) * sin(alpha), a * sin(theta); ...
+        0.0,         sin(alpha),               cos(alpha),              d; ...
+        0.0,         0.0,                      0.0,                     1.0];
+end
+
+function value = get_field_or(cfg, parentField, childField, defaultValue)
+%GET_FIELD_OR Get nested field value or fallback default.
+    value = defaultValue;
+    if isfield(cfg, parentField)
+        parentStruct = cfg.(parentField);
+        if isfield(parentStruct, childField)
+            value = parentStruct.(childField);
+        end
     end
 end

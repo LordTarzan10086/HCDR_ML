@@ -7,6 +7,11 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
 %   3) solve HQP for u_{a,wo},
 %   4) synthesize u_a and integrate forward with Euler step.
 %
+%   Route-B formulas used in this step:
+%   (full)   M*qdd + h = S^T*u_a
+%   (Route-B solve) M*qdd = S^T*u_{a,wo}
+%   synthesis u_a = u_{a,wo} + h_a
+%
 %   Inputs:
 %   Q, QD: current generalized position/velocity, each (3+n_m) x 1.
 %   CFG: configuration struct.
@@ -20,7 +25,7 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
         cfg (1, 1) struct
         opts.dt (1, 1) double = 0.01
         opts.pin_provider = []
-        opts.damped_lambda (1, 1) double = []
+        opts.damped_lambda (1, 1) double = NaN
         opts.qdd_ref (:, 1) double = []
     end
 
@@ -31,6 +36,7 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
     end
 
     % Build current actuation map S^T from geometry.
+    % Here ST = blkdiag(A2D, I_{n_m}) in planar formulation.
     kinematicsResult = HCDR_kinematics_planar(q, cfg);
     actuationMapST = blkdiag(kinematicsResult.A2D, eye(cfg.n_m, "double"));
 
@@ -39,26 +45,27 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
 
     % Select damping used for h -> h_a mapping.
     dampingLambda = cfg.damped_pinv_lambda;
-    if ~isempty(opts.damped_lambda)
+    if ~isnan(opts.damped_lambda)
         dampingLambda = opts.damped_lambda;
     end
     biasMapping = hcdr_bias_map_planar(h, kinematicsResult.A2D, "lambda", dampingLambda);
 
-    % Prepare HQP options (currently only qdd reference is exposed).
-    hqpOptions = struct();
-    if ~isempty(opts.qdd_ref)
-        hqpOptions.qdd_ref = opts.qdd_ref(:);
-    end
-
     % Solve Route-B HQP and choose acceleration fallback on failure.
-    hqpResult = hqp_routeB_solve(M, actuationMapST, biasMapping.h_a, cfg, hqpOptions);
+    if ~isempty(opts.qdd_ref)
+        hqpResult = hqp_routeB_solve(M, actuationMapST, biasMapping.h_a, cfg, ...
+            "qdd_ref", opts.qdd_ref(:));
+    else
+        hqpResult = hqp_routeB_solve(M, actuationMapST, biasMapping.h_a, cfg);
+    end
     if hqpResult.success
         qdd = hqpResult.qdd;
     else
         qdd = zeros(dofCount, 1);
     end
 
-    % Integrate state using explicit Euler.
+    % Integrate state using explicit Euler:
+    %   qd_{k+1} = qd_k + dt*qdd_k
+    %   q_{k+1}  = q_k  + dt*qd_{k+1}
     qd_next = qd + opts.dt * qdd;
     q_next = q + opts.dt * qd_next;
 

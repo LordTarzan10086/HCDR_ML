@@ -55,6 +55,8 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
     success = false;
     solvedConfiguration = initialConfiguration;
     cost = inf;
+    trajectoryQ = initialConfiguration;
+    trajectorySource = "interp_fallback";
 
     % Mode-specific IK solve.
     switch opts.mode_id
@@ -76,6 +78,8 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
             solvedConfiguration = [platformXYM; platformYawRad; armJointSolutionRad];
             success = true;
             cost = norm(solvedConfiguration - initialConfiguration)^2;
+            trajectoryQ = [initialConfiguration, solvedConfiguration];
+            trajectorySource = "analytic";
 
         case 2
             % Mode 2: platform fixed, solve arm joints.
@@ -91,9 +95,14 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
             end
 
             % targetLocalM: target in platform frame [m], size 3x1.
+            % Formula:
+            %   p_d^P = Rz(-psi) * (p_d^O - [x; y; z0])
+            % Note:
+            %   base_offset is modeled inside the arm FK/IK chain, so do
+            %   not add/subtract offset externally here.
             targetLocalM = rotz_local(-platformYawRad) * ...
                 (targetPositionWorldM - [platformX; platformY; cfg.z0]);
-            [armJointSolutionRad, objectiveValue, exitflag] = ...
+            [armJointSolutionRad, objectiveValue, exitflag, armTrajectoryQ, armTrajectorySource] = ...
                 solve_arm_only(targetLocalM, armJointInitialRad, cfg);
             solvedConfiguration = [platformX; platformY; platformYawRad; armJointSolutionRad];
             eePositionErrorM = norm( ...
@@ -101,6 +110,14 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
                 - [targetLocalM(1:2); 0.0]);
             success = exitflag > 0 && eePositionErrorM <= 1e-4;
             cost = objectiveValue;
+            if isempty(armTrajectoryQ)
+                armTrajectoryQ = [armJointInitialRad, armJointSolutionRad];
+                armTrajectorySource = "interp_fallback";
+            end
+            trajectoryQ = repmat([platformX; platformY; platformYawRad; zeros(armJointCount, 1)], ...
+                1, size(armTrajectoryQ, 2));
+            trajectoryQ(4:end, :) = armTrajectoryQ;
+            trajectorySource = armTrajectorySource;
 
         case 3
             % Mode 3: cooperative platform + arm solve.
@@ -118,13 +135,29 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
                 solvedConfiguration = [platformXYM; platformYawRad; armJointSolutionRad];
                 success = true;
                 cost = norm(solvedConfiguration - initialConfiguration)^2;
+                trajectoryQ = [initialConfiguration, solvedConfiguration];
+                trajectorySource = "analytic";
             else
-                [solvedConfiguration, cost, exitflag] = ...
+                [solvedConfiguration, cost, exitflag, cooperativeTrajectoryQ, cooperativeTrajectorySource] = ...
                     solve_cooperative_explicit(targetPositionWorldM, initialConfiguration, cfg);
                 kinematicsCheck = HCDR_kinematics_planar(solvedConfiguration, cfg);
                 success = exitflag > 0 && ...
                     norm(kinematicsCheck.p_ee(1:2) - targetPositionWorldM(1:2)) <= 1e-4;
+                trajectoryQ = cooperativeTrajectoryQ;
+                trajectorySource = cooperativeTrajectorySource;
             end
+    end
+
+    if isempty(trajectoryQ)
+        trajectoryQ = [initialConfiguration, solvedConfiguration];
+        trajectorySource = "interp_fallback";
+    else
+        if norm(trajectoryQ(:, 1) - initialConfiguration) > 0
+            trajectoryQ = [initialConfiguration, trajectoryQ];
+        end
+        if norm(trajectoryQ(:, end) - solvedConfiguration) > 0
+            trajectoryQ = [trajectoryQ, solvedConfiguration];
+        end
     end
 
     % Post-solve diagnostics: kinematic quality and tension feasibility.
@@ -144,16 +177,23 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
         "A2D_rank", double(kinematicsResult.rank_A2D), ...
         "sigma_min_A2D", double(kinematicsResult.sigma_min_A2D), ...
         "tension_feasible", logical(staticsResult.is_feasible));
+    out.traj_q = double(trajectoryQ);
+    out.traj_source = char(trajectorySource);
 end
 
-function [q_m, fval, exitflag] = solve_arm_only(targetPlatformM, q0, cfg)
+function [q_m, fval, exitflag, traj_q, traj_source] = solve_arm_only(targetPlatformM, q0, cfg)
 %SOLVE_ARM_ONLY Solve arm IK with analytic 2R shortcut and numeric fallback.
 %
 %   targetPlatformM: desired arm tip in platform frame, size 3x1 [m].
 %   q0: initial arm joint guess, size n_mx1 [rad].
+    traj_q = [q0(:), q0(:)];
+    traj_source = "interp_fallback";
+
     % Preferred path: Robotics System Toolbox IK with base_offset convention.
     [q_m, fval, exitflag, solvedByRobotics] = solve_arm_only_robotics(targetPlatformM, q0, cfg);
     if solvedByRobotics
+        traj_q = [q0(:), q_m(:)];
+        traj_source = "robotics_ik";
         return;
     end
 
@@ -167,6 +207,8 @@ function [q_m, fval, exitflag] = solve_arm_only(targetPlatformM, q0, cfg)
         if isAnalyticSuccess
             fval = objective_arm(q_m, targetPlatformM, q0, cfg);
             exitflag = 1;
+            traj_q = [q0(:), q_m(:)];
+            traj_source = "analytic";
             return;
         end
     end
@@ -174,9 +216,31 @@ function [q_m, fval, exitflag] = solve_arm_only(targetPlatformM, q0, cfg)
     armLowerBoundRad = -pi * ones(armJointCount, 1);
     armUpperBoundRad = pi * ones(armJointCount, 1);
     objectiveFunction = @(jointAnglesRad) objective_arm(jointAnglesRad, targetPlatformM, q0, cfg);
-    fminconOptions = optimoptions("fmincon", "Algorithm", "sqp", "Display", "off");
+    iterates = zeros(armJointCount, 0);
+    fminconOptions = optimoptions("fmincon", "Algorithm", "sqp", "Display", "off", ...
+        "OutputFcn", @capture_arm_iterations);
     [q_m, fval, exitflag] = fmincon(objectiveFunction, q0, [], [], [], [], ...
         armLowerBoundRad, armUpperBoundRad, [], fminconOptions);
+    traj_q = iterates;
+    if isempty(traj_q)
+        traj_q = [q0(:), q_m(:)];
+        traj_source = "interp_fallback";
+    else
+        if norm(traj_q(:, 1) - q0(:)) > 0
+            traj_q = [q0(:), traj_q];
+        end
+        if norm(traj_q(:, end) - q_m(:)) > 0
+            traj_q = [traj_q, q_m(:)];
+        end
+        traj_source = "fmincon_iter";
+    end
+
+    function stop = capture_arm_iterations(x, ~, state)
+        stop = false;
+        if strcmp(state, 'init') || strcmp(state, 'iter') || strcmp(state, 'done')
+            iterates(:, end + 1) = x(:); %#ok<AGROW>
+        end
+    end
 end
 
 function val = objective_arm(q, targetPlatformM, q_ref, cfg)
@@ -185,12 +249,14 @@ function val = objective_arm(q, targetPlatformM, q_ref, cfg)
 %   q: candidate arm joints [rad], n_mx1.
 %   targetPlatformM: desired tip in platform frame [m], 3x1.
 %   q_ref: regularization reference [rad], n_mx1.
+%   Objective:
+%   J(q) = ||p_EE^P(q) - p_d^P||_2^2 + 1e-4 * ||q - q_ref||_2^2
     positionErrorM = arm_point_local(q, cfg, "with_base_offset", true, "use_xy_only", true) - ...
         [targetPlatformM(1:2); 0.0];
     val = positionErrorM.' * positionErrorM + 1e-4 * sum((q - q_ref) .^ 2);
 end
 
-function [q_sol, fval, exitflag] = solve_cooperative_explicit(p_d, q0, cfg)
+function [q_sol, fval, exitflag, traj_q, traj_source] = solve_cooperative_explicit(p_d, q0, cfg)
 %SOLVE_COOPERATIVE_EXPLICIT Solve cooperative IK with explicit variables.
 %
 %   Decision variable q = [x;y;psi;q_m], size (3+n_m)x1.
@@ -198,12 +264,34 @@ function [q_sol, fval, exitflag] = solve_cooperative_explicit(p_d, q0, cfg)
     armJointCount = dofCount - 3;
     lowerBound = [-inf; -inf; -pi; -pi * ones(armJointCount, 1)];
     upperBound = [inf; inf; pi; pi * ones(armJointCount, 1)];
-    fminconOptions = optimoptions("fmincon", "Algorithm", "sqp", "Display", "off");
+    iterates = zeros(dofCount, 0);
+    fminconOptions = optimoptions("fmincon", "Algorithm", "sqp", "Display", "off", ...
+        "OutputFcn", @capture_coop_iterations);
     objectiveFunction = @(q) sum((q - q0) .^ 2);
     nonlinearConstraints = @(q) cooperative_ee_constraint(q, p_d, cfg);
     [q_sol, fval, exitflag] = fmincon( ...
         objectiveFunction, q0, [], [], [], [], ...
         lowerBound, upperBound, nonlinearConstraints, fminconOptions);
+    traj_q = iterates;
+    if isempty(traj_q)
+        traj_q = [q0(:), q_sol(:)];
+        traj_source = "interp_fallback";
+    else
+        if norm(traj_q(:, 1) - q0(:)) > 0
+            traj_q = [q0(:), traj_q];
+        end
+        if norm(traj_q(:, end) - q_sol(:)) > 0
+            traj_q = [traj_q, q_sol(:)];
+        end
+        traj_source = "fmincon_iter";
+    end
+
+    function stop = capture_coop_iterations(x, ~, state)
+        stop = false;
+        if strcmp(state, 'init') || strcmp(state, 'iter') || strcmp(state, 'done')
+            iterates(:, end + 1) = x(:); %#ok<AGROW>
+        end
+    end
 end
 
 function [c, ceq] = cooperative_ee_constraint(q, p_d, cfg)
@@ -258,6 +346,9 @@ function [q, is_ok] = analytic_ik_2r(target_xy, l1, l2)
 %   target_xy: desired tip [x;y] [m], 2x1.
 %   l1,l2: link lengths [m], scalars.
 %   q: [q1;q2] [rad], 2x1.
+%   Formula:
+%   cos(q2) = (x^2 + y^2 - l1^2 - l2^2) / (2*l1*l2)
+%   q1 = atan2(y,x) - atan2(l2*sin(q2), l1 + l2*cos(q2))
     targetX = target_xy(1);  % [m]
     targetY = target_xy(2);  % [m]
     cosJoint2 = (targetX * targetX + targetY * targetY - l1 * l1 - l2 * l2) / (2 * l1 * l2);

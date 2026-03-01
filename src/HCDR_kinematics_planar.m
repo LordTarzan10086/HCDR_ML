@@ -40,9 +40,14 @@ function out = HCDR_kinematics_planar(q, cfg)
     platformRotationWorld = rotz_local(platformYawRad);
 
     % Arm FK in platform frame.
+    % Formula (platform frame P):
+    %   T_P^EE = T_base_offset * prod_i T_i(a_i, alpha_i, d_i, theta_i)
+    % where T_i is the standard DH transform for joint i.
     % Use DH + base_offset convention when available; otherwise fallback.
     [platformToEeTransform, armJointPointsPlatformM] = arm_fk_platform(armJointAnglesRad, cfg); %#ok<ASGLU>
     endEffectorPositionPlatformM = platformToEeTransform(1:3, 4);
+    % Formula (world frame O):
+    %   p_EE^O = p_platform^O + Rz(psi) * p_EE^P
     endEffectorPositionWorldM = platformPositionWorldM + ...
         platformRotationWorld * endEffectorPositionPlatformM;
 
@@ -79,7 +84,8 @@ function out = HCDR_kinematics_planar(q, cfg)
     end
 
     % Under planar operating assumption, ignore vertical component in unit
-    % vectors (u_z ~= 0). Normalize only by xy projection.
+    % vectors (u_z ~= 0). Normalize only by xy projection:
+    %   u_i = [dx_i; dy_i; 0] / sqrt(dx_i^2 + dy_i^2)
     cableVectorsXYM = cableVectorsWorldM(1:2, :);
     cablePlanarLengthsM = sqrt(sum(cableVectorsXYM .^ 2, 1)).';
     if any(cablePlanarLengthsM <= 0.0)
@@ -90,6 +96,10 @@ function out = HCDR_kinematics_planar(q, cfg)
     cableUnitDirections = double(cableUnitDirections);
 
     % Assemble planar wrench map A2D from xy force and yaw moment.
+    % Per cable i:
+    %   w_2D = [Fx; Fy; Mz],  Fx/Fy from u_i(1:2),
+    %   Mz_i = (r_i x u_i)_z = r_ix*u_iy - r_iy*u_ix
+    % and total wrench mapping is w_2D = A2D * T.
     cableLeverArmsWorldM = platformRotationWorld * platformAttachLocalM;
     A2D = zeros(3, cfg.n_c, "double");
     A2D(1, :) = cableUnitDirections(1, :);

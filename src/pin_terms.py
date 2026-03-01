@@ -43,6 +43,12 @@ def get_M_h(q: Iterable[float], qd: Iterable[float]) -> Tuple[np.ndarray, np.nda
     Returns:
         M: Inertia matrix, shape (n_q, n_q).
         h: Bias term with qdd=0 in RNEA, shape (n_q,).
+
+    Dynamics convention:
+        M(q) * qdd + h(q, qd) = S^T * u_a
+    where:
+        M(q) is from CRBA,
+        h(q,qd) = RNEA(q, qd, qdd=0).
     """
 
     # Normalize input arrays.

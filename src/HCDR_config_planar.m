@@ -140,7 +140,14 @@ function cfg = HCDR_config_planar(varargin)
                             zeros(armJointCount, 1)]';
     end
 
-    cfg.q_home = zeros(armJointCount, 1);      % nominal arm joints [rad]
+    % Nominal arm posture:
+    % keep 2R test branch at zero; use a lifted 6R pose by default to avoid
+    % "flat on plane" visualization in demos.
+    if armJointCount == 6
+        cfg.q_home = [0.0; -0.55; 1.05; -0.75; 0.45; 0.0];
+    else
+        cfg.q_home = zeros(armJointCount, 1);
+    end
     cfg.arm.q_fixed = cfg.q_home;
     cfg.arm_base_in_platform = cfg.arm.offset_in_platform;  % backward-compatible alias
 
