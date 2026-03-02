@@ -254,8 +254,11 @@ function jointPointsWorldM = arm_joint_points_world(armJointAnglesRad, platformC
         else
             baseOffsetPlatformM = cfg.arm_base_in_platform(:);
         end
+        baseRotationPlatform = arm_base_rotation_platform(cfg);
+        toolOffsetInEeM = arm_tool_offset_in_ee(cfg);
         dhTable = cfg.arm.DH;
         transformPlatform = eye(4, "double");
+        transformPlatform(1:3, 1:3) = baseRotationPlatform;
         transformPlatform(1:3, 4) = baseOffsetPlatformM;
         jointPointsPlatformM = zeros(3, jointCount + 1, "double");
         jointPointsPlatformM(:, 1) = baseOffsetPlatformM;
@@ -268,20 +271,31 @@ function jointPointsWorldM = arm_joint_points_world(armJointAnglesRad, platformC
             transformPlatform = transformPlatform * dh_standard_transform(a, alpha, d, theta);
             jointPointsPlatformM(:, jointIndex + 1) = transformPlatform(1:3, 4);
         end
+        if any(abs(toolOffsetInEeM) > 0.0)
+            jointPointsPlatformM = [jointPointsPlatformM, ...
+                transformPlatform(1:3, 4) + transformPlatform(1:3, 1:3) * toolOffsetInEeM];
+        end
     else
         linkLengthsM = cfg.link_lengths(:);
         if numel(linkLengthsM) ~= jointCount
             error("HCDR:ConfigInvalid", "cfg.link_lengths must match arm joint count.");
         end
         baseOffsetPlatformM = cfg.arm_base_in_platform(:);
+        baseRotationPlatform = arm_base_rotation_platform(cfg);
+        toolOffsetInEeM = arm_tool_offset_in_ee(cfg);
         cumulativeAnglesRad = cumsum(armJointAnglesRad);
-        jointPointsPlatformM = zeros(3, jointCount + 1, "double");
-        jointPointsPlatformM(:, 1) = baseOffsetPlatformM;
+        jointPointsLocalM = zeros(3, jointCount + 1, "double");
         for jointIndex = 1:jointCount
-            jointPointsPlatformM(:, jointIndex + 1) = jointPointsPlatformM(:, jointIndex) + [ ...
+            jointPointsLocalM(:, jointIndex + 1) = jointPointsLocalM(:, jointIndex) + [ ...
                 linkLengthsM(jointIndex) * cos(cumulativeAnglesRad(jointIndex)); ...
                 linkLengthsM(jointIndex) * sin(cumulativeAnglesRad(jointIndex)); ...
                 0.0];
+        end
+        jointPointsPlatformM = baseOffsetPlatformM + baseRotationPlatform * jointPointsLocalM;
+        if any(abs(toolOffsetInEeM) > 0.0)
+            eeRotationPlatform = baseRotationPlatform * dh_rotz(sum(armJointAnglesRad));
+            jointPointsPlatformM = [jointPointsPlatformM, ...
+                jointPointsPlatformM(:, end) + eeRotationPlatform * toolOffsetInEeM];
         end
     end
 
@@ -295,6 +309,35 @@ function T = dh_standard_transform(a, alpha, d, theta)
         sin(theta),  cos(theta) * cos(alpha), -cos(theta) * sin(alpha), a * sin(theta); ...
         0.0,         sin(alpha),               cos(alpha),              d; ...
         0.0,         0.0,                      0.0,                     1.0];
+end
+
+function R = arm_base_rotation_platform(cfg)
+%ARM_BASE_ROTATION_PLATFORM Return arm base rotation in platform frame.
+    R = eye(3, "double");
+    if isfield(cfg, "arm") && isfield(cfg.arm, "base_rotation_in_platform")
+        candidate = cfg.arm.base_rotation_in_platform;
+        if isequal(size(candidate), [3, 3])
+            R = double(candidate);
+        end
+    end
+end
+
+function p = arm_tool_offset_in_ee(cfg)
+%ARM_TOOL_OFFSET_IN_EE Return tool-point offset in EE/flange frame [m].
+    p = [0.0; 0.0; 0.0];
+    if isfield(cfg, "arm") && isfield(cfg.arm, "tool_offset_in_ee")
+        candidate = cfg.arm.tool_offset_in_ee(:);
+        if numel(candidate) == 3
+            p = double(candidate);
+        end
+    end
+end
+
+function R = dh_rotz(theta)
+%DH_ROTZ 3x3 rotation about z.
+    R = [cos(theta), -sin(theta), 0.0; ...
+         sin(theta),  cos(theta), 0.0; ...
+         0.0,         0.0,        1.0];
 end
 
 function value = get_field_or(cfg, parentField, childField, defaultValue)

@@ -1,0 +1,14 @@
+personality = "pragmatic"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "xhigh"
+[history]
+persistence = "save-all"
+
+
+
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+
+[sandbox_workspace_write]
+network_access = true

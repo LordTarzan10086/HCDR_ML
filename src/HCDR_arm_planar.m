@@ -31,6 +31,10 @@ classdef HCDR_arm_planar
                 baseOffsetM = config.arm_base_in_platform(:);
             end
             baseOffsetTransform = eye(4, "double");
+            if isfield(config.arm, "base_rotation_in_platform") && ...
+                    isequal(size(config.arm.base_rotation_in_platform), [3, 3])
+                baseOffsetTransform(1:3, 1:3) = double(config.arm.base_rotation_in_platform);
+            end
             baseOffsetTransform(1:3, 4) = baseOffsetM;
             setFixedTransform(baseOffsetJoint, baseOffsetTransform);
             baseOffsetBody.Joint = baseOffsetJoint;
@@ -70,6 +74,19 @@ classdef HCDR_arm_planar
                 else
                     addBody(robot, body, sprintf("link%d", jointIndex - 1));
                 end
+            end
+
+            % Optional fixed tool point body so robotics IK/FK aligns with
+            % flange+tool convention used in analytic FK paths.
+            if isfield(config.arm, "tool_offset_in_ee") && ...
+                    numel(config.arm.tool_offset_in_ee) == 3
+                toolOffsetBody = rigidBody("tool_point");
+                toolOffsetJoint = rigidBodyJoint("tool_point_fixed", "fixed");
+                toolTransform = eye(4, "double");
+                toolTransform(1:3, 4) = double(config.arm.tool_offset_in_ee(:));
+                setFixedTransform(toolOffsetJoint, toolTransform);
+                toolOffsetBody.Joint = toolOffsetJoint;
+                addBody(robot, toolOffsetBody, sprintf("link%d", jointCount));
             end
         end
 

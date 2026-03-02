@@ -218,6 +218,9 @@ function [q_m, fval, exitflag, traj_q, traj_source] = solve_arm_only(targetPlatf
     objectiveFunction = @(jointAnglesRad) objective_arm(jointAnglesRad, targetPlatformM, q0, cfg);
     iterates = zeros(armJointCount, 0);
     fminconOptions = optimoptions("fmincon", "Algorithm", "sqp", "Display", "off", ...
+        "MaxIterations", 400, ...
+        "OptimalityTolerance", 1e-10, ...
+        "StepTolerance", 1e-12, ...
         "OutputFcn", @capture_arm_iterations);
     [q_m, fval, exitflag] = fmincon(objectiveFunction, q0, [], [], [], [], ...
         armLowerBoundRad, armUpperBoundRad, [], fminconOptions);
@@ -250,10 +253,11 @@ function val = objective_arm(q, targetPlatformM, q_ref, cfg)
 %   targetPlatformM: desired tip in platform frame [m], 3x1.
 %   q_ref: regularization reference [rad], n_mx1.
 %   Objective:
-%   J(q) = ||p_EE^P(q) - p_d^P||_2^2 + 1e-4 * ||q - q_ref||_2^2
+%   J(q) = ||p_EE^P(q) - p_d^P||_2^2 + 1e-8 * ||q - q_ref||_2^2
     positionErrorM = arm_point_local(q, cfg, "with_base_offset", true, "use_xy_only", true) - ...
         [targetPlatformM(1:2); 0.0];
-    val = positionErrorM.' * positionErrorM + 1e-4 * sum((q - q_ref) .^ 2);
+    regularizationWeight = 1e-8;
+    val = positionErrorM.' * positionErrorM + regularizationWeight * sum((q - q_ref) .^ 2);
 end
 
 function [q_sol, fval, exitflag, traj_q, traj_source] = solve_cooperative_explicit(p_d, q0, cfg)
@@ -412,6 +416,19 @@ function [platformToEeTransform, jointPointsPlatformM] = arm_fk_platform(armJoin
     armJointAnglesRad = armJointAnglesRad(:);
     armJointCount = numel(armJointAnglesRad);
 
+    useUrdfKinematics = false;
+    if isfield(cfg, "arm") && isfield(cfg.arm, "use_urdf_kinematics")
+        useUrdfKinematics = logical(cfg.arm.use_urdf_kinematics);
+    end
+    if useUrdfKinematics && armJointCount == 6
+        try
+            [platformToEeTransform, jointPointsPlatformM] = arm_fk_platform_urdf(armJointAnglesRad, cfg);
+            return;
+        catch
+            % fallback to DH/planar model if URDF backend is unavailable
+        end
+    end
+
     if isfield(cfg, "arm") && isfield(cfg.arm, "DH") && ...
             size(cfg.arm.DH, 1) == armJointCount
         dhTable = cfg.arm.DH;
@@ -420,8 +437,11 @@ function [platformToEeTransform, jointPointsPlatformM] = arm_fk_platform(armJoin
         else
             baseOffsetM = cfg.arm_base_in_platform(:);
         end
+        baseRotationPlatform = arm_base_rotation_platform(cfg);
+        toolOffsetInEeM = arm_tool_offset_in_ee(cfg);
 
         T = eye(4, "double");
+        T(1:3, 1:3) = baseRotationPlatform;
         T(1:3, 4) = baseOffsetM;
         jointPointsPlatformM = zeros(3, armJointCount + 1, "double");
         jointPointsPlatformM(:, 1) = baseOffsetM;
@@ -434,6 +454,11 @@ function [platformToEeTransform, jointPointsPlatformM] = arm_fk_platform(armJoin
             T = T * dh_standard_transform(a, alpha, d, theta);
             jointPointsPlatformM(:, jointIndex + 1) = T(1:3, 4);
         end
+        if any(abs(toolOffsetInEeM) > 0.0)
+            toolTransform = eye(4, "double");
+            toolTransform(1:3, 4) = toolOffsetInEeM;
+            T = T * toolTransform;
+        end
         platformToEeTransform = T;
         return;
     end
@@ -443,18 +468,22 @@ function [platformToEeTransform, jointPointsPlatformM] = arm_fk_platform(armJoin
         error("HCDR:ConfigInvalid", "cfg.link_lengths must have n_m entries.");
     end
     baseOffsetM = cfg.arm_base_in_platform(:);
+    baseRotationPlatform = arm_base_rotation_platform(cfg);
+    toolOffsetInEeM = arm_tool_offset_in_ee(cfg);
     cumulativeAnglesRad = cumsum(armJointAnglesRad);
-    jointPointsPlatformM = zeros(3, armJointCount + 1, "double");
-    jointPointsPlatformM(:, 1) = baseOffsetM;
+    jointPointsLocalM = zeros(3, armJointCount + 1, "double");
     for jointIndex = 1:armJointCount
-        jointPointsPlatformM(:, jointIndex + 1) = jointPointsPlatformM(:, jointIndex) + [ ...
+        jointPointsLocalM(:, jointIndex + 1) = jointPointsLocalM(:, jointIndex) + [ ...
             armLinkLengthsM(jointIndex) * cos(cumulativeAnglesRad(jointIndex)); ...
             armLinkLengthsM(jointIndex) * sin(cumulativeAnglesRad(jointIndex)); ...
             0.0];
     end
+    jointPointsPlatformM = baseOffsetM + baseRotationPlatform * jointPointsLocalM;
+
     platformToEeTransform = eye(4, "double");
-    platformToEeTransform(1:3, 1:3) = rotz_local(sum(armJointAnglesRad));
-    platformToEeTransform(1:3, 4) = jointPointsPlatformM(:, end);
+    platformToEeTransform(1:3, 1:3) = baseRotationPlatform * rotz_local(sum(armJointAnglesRad));
+    platformToEeTransform(1:3, 4) = jointPointsPlatformM(:, end) + ...
+        platformToEeTransform(1:3, 1:3) * toolOffsetInEeM;
 end
 
 function T = dh_standard_transform(a, alpha, d, theta)
@@ -464,4 +493,26 @@ function T = dh_standard_transform(a, alpha, d, theta)
         sin(theta),  cos(theta) * cos(alpha), -cos(theta) * sin(alpha), a * sin(theta); ...
         0.0,         sin(alpha),               cos(alpha),              d; ...
         0.0,         0.0,                      0.0,                     1.0];
+end
+
+function R = arm_base_rotation_platform(cfg)
+%ARM_BASE_ROTATION_PLATFORM Return arm base rotation in platform frame.
+    R = eye(3, "double");
+    if isfield(cfg, "arm") && isfield(cfg.arm, "base_rotation_in_platform")
+        candidate = cfg.arm.base_rotation_in_platform;
+        if isequal(size(candidate), [3, 3])
+            R = double(candidate);
+        end
+    end
+end
+
+function p = arm_tool_offset_in_ee(cfg)
+%ARM_TOOL_OFFSET_IN_EE Return tool-point offset in EE/flange frame [m].
+    p = [0.0; 0.0; 0.0];
+    if isfield(cfg, "arm") && isfield(cfg.arm, "tool_offset_in_ee")
+        candidate = cfg.arm.tool_offset_in_ee(:);
+        if numel(candidate) == 3
+            p = double(candidate);
+        end
+    end
 end

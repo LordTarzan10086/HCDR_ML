@@ -130,6 +130,21 @@ function cfg = HCDR_config_planar(varargin)
             0.0,   0.0,  0.04;
             0.0,   0.0,  0.0;
             0.0,   0.0,  0.05]';
+
+        % Installation / tool convention for URDF-aligned visualization:
+        % - base_rotation_in_platform flips the arm to "face downward"
+        %   relative to platform frame (user-required mounting direction).
+        % - tool_offset_in_ee shifts FK end-effector from flange to gripper
+        %   tip center so IK/FK and rendered tip use the same point.
+        cfg.arm.base_rotation_in_platform = [ ...
+            1.0,  0.0,  0.0;
+            0.0, -1.0,  0.0;
+            0.0,  0.0, -1.0];
+        cfg.arm.tool_offset_in_ee = [0.0; 0.0026; 0.0825];
+        cfg.arm.gripper_joint_values = [-0.0035; -0.0035];
+        cfg.arm.use_urdf_kinematics = true;
+        cfg.arm.urdf_path = "urdf/mycobot_280_jn_parallel_gripper.urdf";
+        cfg.arm.use_robotics_ik = false;
     else
         % Generic fallback DH for non-6R test configurations.
         genericLinkLengthM = 0.25 * ones(armJointCount, 1);
@@ -138,6 +153,12 @@ function cfg = HCDR_config_planar(varargin)
         cfg.arm.link_com = [0.5 * genericLinkLengthM, ...
                             zeros(armJointCount, 1), ...
                             zeros(armJointCount, 1)]';
+        cfg.arm.base_rotation_in_platform = eye(3, "double");
+        cfg.arm.tool_offset_in_ee = [0.0; 0.0; 0.0];
+        cfg.arm.gripper_joint_values = zeros(0, 1);
+        cfg.arm.use_urdf_kinematics = false;
+        cfg.arm.urdf_path = "";
+        cfg.arm.use_robotics_ik = true;
     end
 
     % Nominal arm posture:

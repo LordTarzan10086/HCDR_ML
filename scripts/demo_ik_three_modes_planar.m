@@ -21,16 +21,31 @@ fprintf("========================================\n\n");
 % Use 6R by default so the arm posture is not visually "flat" in demo.
 cfg = HCDR_config_planar("n_m", 6);
 initialState = [0.0; 0.0; 0.0; cfg.q_home(:)];  % q = [x;y;psi;q_m], (3+n_m)x1
+robotVisualModel = [];
+try
+    robotVisualModel = make_mycobot280_visual_model();
+    fprintf("URDF visual model enabled: %s\n\n", robotVisualModel.urdf_path);
+catch modelLoadError
+    fprintf("URDF visual model unavailable, fallback to line links.\n");
+    fprintf("Reason: %s\n\n", modelLoadError.message);
+end
+
+% Tool-tip definition for FK/IK/trajectory is unified through
+% HCDR_kinematics_planar (6R path uses URDF gripper-tip convention).
+tipWorldFn = @(qNow) HCDR_kinematics_planar(qNow, cfg).p_ee;
+initialTipWorldM = tipWorldFn(initialState);
+fprintf("Initial tool tip (world): [%.4f, %.4f, %.4f] m\n\n", ...
+    initialTipWorldM(1), initialTipWorldM(2), initialTipWorldM(3));
 
 modeSpecs = {
     struct("id", 1, "name", "Platform-Only", "label", "platform", ...
-           "target", [0.50; 0.10; cfg.z0], "color", [0.10, 0.40, 0.90], ...
+           "target", initialTipWorldM + [0.10; 0.06; 0.00], "color", [0.10, 0.40, 0.90], ...
            "opts", struct("strategy", "explicit"));
     struct("id", 2, "name", "Arm-Only", "label", "arm", ...
-           "target", [0.30; 0.25; cfg.z0], "color", [0.85, 0.20, 0.20], ...
+           "target", initialTipWorldM + [0.04; -0.05; 0.00], "color", [0.85, 0.20, 0.20], ...
            "opts", struct("strategy", "explicit", "platform_fixed", [0.0; 0.0; 0.0]));
     struct("id", 3, "name", "Cooperative", "label", "coop", ...
-           "target", [0.90; -0.20; cfg.z0], "color", [0.15, 0.65, 0.20], ...
+           "target", initialTipWorldM + [0.16; -0.10; 0.00], "color", [0.15, 0.65, 0.20], ...
            "opts", struct("strategy", "explicit"));
 };
 
@@ -58,20 +73,28 @@ for modeIndex = 1:numel(modeSpecs)
     end
     solveTimeSec = toc(solveStart);
 
-    % Build animation trajectory:
-    % - prefer recorded solver iterates;
-    % - if not enough iterates, use smooth interpolation fallback.
-    [trajectoryQ, displayTrajectorySource] = resolve_demo_trajectory(ikResult, initialState, 100);
-    sampledMetrics = evaluate_trajectory_samples(trajectoryQ, spec.target, cfg, 10);
+    % Solver trajectory is used for sampled logs.
+    [solverTrajectoryQ, displayTrajectorySource] = resolve_demo_trajectory(ikResult, initialState, 80);
+    sampledMetrics = evaluate_trajectory_samples(solverTrajectoryQ, spec.target, cfg, 10, tipWorldFn);
+
+    % Animation trajectory uses smooth interpolation to avoid optimizer
+    % zig-zag iterates in visible motion playback.
+    displayTrajectoryQ = interpolate_trajectory(initialState, ikResult.q_sol(:), 30);
+    finalTipWorldM = tipWorldFn(ikResult.q_sol(:));
+    finalTipErrorM = norm(finalTipWorldM(1:2) - spec.target(1:2));
 
     modeResults(modeIndex).spec = spec;
     modeResults(modeIndex).result = ikResult;
     modeResults(modeIndex).solve_time = solveTimeSec;
-    modeResults(modeIndex).trajectory = trajectoryQ;
+    modeResults(modeIndex).trajectory = displayTrajectoryQ;
+    modeResults(modeIndex).solver_trajectory = solverTrajectoryQ;
     modeResults(modeIndex).trajectory_source = displayTrajectorySource;
+    modeResults(modeIndex).tip_final = finalTipWorldM;
+    modeResults(modeIndex).tip_error = finalTipErrorM;
     modeResults(modeIndex).metrics = sampledMetrics;
 
-    fprintf("Trajectory source: %s | steps=%d\n", displayTrajectorySource, size(trajectoryQ, 2));
+    fprintf("Trajectory source (logs): %s | solver steps=%d | display steps=%d\n", ...
+        displayTrajectorySource, size(solverTrajectoryQ, 2), size(displayTrajectoryQ, 2));
     fprintf("%-8s | %-8s | %-10s | %-10s | %-12s | %-10s\n", ...
         "Sample", "OK?", "EE-Err(m)", "A2D-rank", "sigma_min", "T-feas?");
     fprintf("%s\n", repmat('-', 1, 72));
@@ -90,15 +113,16 @@ end
 fprintf("========================================\n");
 fprintf("Summary Table\n");
 fprintf("========================================\n");
-fprintf("%-18s | %-8s | %-12s | %-10s | %-12s | %-10s | %-10s\n", ...
-    "Mode", "OK?", "Final-Err(m)", "A2D-rank", "sigma_min", "T-feas?", "Time(s)");
-fprintf("%s\n", repmat('-', 1, 96));
+fprintf("%-18s | %-8s | %-12s | %-12s | %-10s | %-12s | %-10s | %-10s\n", ...
+    "Mode", "OK?", "Final-Err(m)", "Tip-Err(m)", "A2D-rank", "sigma_min", "T-feas?", "Time(s)");
+fprintf("%s\n", repmat('-', 1, 112));
 for modeIndex = 1:numel(modeResults)
     row = modeResults(modeIndex);
-    fprintf("%-18s | %-8s | %-12.4g | %-10d | %-12.4g | %-10s | %-10.3f\n", ...
+    fprintf("%-18s | %-8s | %-12.4g | %-12.4g | %-10d | %-12.4g | %-10s | %-10.3f\n", ...
         row.spec.name, ...
         bool2str(row.result.success), ...
         row.result.ee_error, ...
+        row.tip_error, ...
         row.result.diag.A2D_rank, ...
         row.result.diag.sigma_min_A2D, ...
         bool2str(row.result.diag.tension_feasible), ...
@@ -107,10 +131,10 @@ end
 fprintf("\n");
 
 fprintf("Launching synchronized 3D animation ...\n");
-animate_three_modes(modeResults, cfg);
+animate_three_modes(modeResults, cfg, robotVisualModel, tipWorldFn, 0.12);
 fprintf("Animation complete.\n");
 
-function animate_three_modes(modeResults, cfg)
+function animate_three_modes(modeResults, cfg, robotVisualModel, tipWorldFn, framePauseSec)
 %ANIMATE_THREE_MODES Animate all mode trajectories in one 3D 1x3 figure.
     figureHandle = figure("Name", "HCDR IK Three Modes (Synchronized 3D Animation)", ...
         "Color", "w", "Position", [60, 80, 1880, 640]);
@@ -123,7 +147,7 @@ function animate_three_modes(modeResults, cfg)
     % Precompute EE traces and maximum frame count.
     for modeIndex = 1:modeCount
         qTrajectory = modeResults(modeIndex).trajectory;
-        eeTrajectories{modeIndex} = compute_ee_trajectory(qTrajectory, cfg);
+        eeTrajectories{modeIndex} = compute_tip_trajectory(qTrajectory, tipWorldFn);
         maxFrameCount = max(maxFrameCount, size(qTrajectory, 2));
     end
 
@@ -142,7 +166,8 @@ function animate_three_modes(modeResults, cfg)
 
             HCDR_visualize_planar(qTrajectory(:, localFrame), cfg, ...
                 "ax", ax, "show_labels", false, "clear_axes", true, ...
-                "target_world", row.spec.target);
+                "target_world", row.spec.target, ...
+                "robot_visual_model", robotVisualModel);
 
             hold(ax, "on");
             plot3(ax, eeTrajectory(1, 1:localFrame), eeTrajectory(2, 1:localFrame), eeTrajectory(3, 1:localFrame), ...
@@ -158,7 +183,7 @@ function animate_three_modes(modeResults, cfg)
             grid(ax, "on");
         end
         drawnow;
-        pause(0.03);
+        pause(framePauseSec);
     end
 end
 
@@ -212,17 +237,16 @@ function interpolatedTrajectoryQ = interpolate_trajectory(qStart, qEnd, pointCou
     interpolatedTrajectoryQ = qStart + (qEnd - qStart) * interpolationWeights;
 end
 
-function eeTrajectoryWorldM = compute_ee_trajectory(qTrajectory, cfg)
-%COMPUTE_EE_TRAJECTORY Evaluate EE world position for each trajectory sample.
+function eeTrajectoryWorldM = compute_tip_trajectory(qTrajectory, tipWorldFn)
+%COMPUTE_TIP_TRAJECTORY Evaluate tool-tip world position for each sample.
     frameCount = size(qTrajectory, 2);
     eeTrajectoryWorldM = zeros(3, frameCount);
     for frameIndex = 1:frameCount
-        kinematicsResult = HCDR_kinematics_planar(qTrajectory(:, frameIndex), cfg);
-        eeTrajectoryWorldM(:, frameIndex) = kinematicsResult.p_ee;
+        eeTrajectoryWorldM(:, frameIndex) = tipWorldFn(qTrajectory(:, frameIndex));
     end
 end
 
-function sampled = evaluate_trajectory_samples(qTrajectory, targetWorldM, cfg, sampleCount)
+function sampled = evaluate_trajectory_samples(qTrajectory, targetWorldM, cfg, sampleCount, tipWorldFn)
 %EVALUATE_TRAJECTORY_SAMPLES Evaluate sampled states along trajectory.
     totalPoints = size(qTrajectory, 2);
     sampled.sample_id = unique(round(linspace(1, totalPoints, sampleCount)));
@@ -240,9 +264,10 @@ function sampled = evaluate_trajectory_samples(qTrajectory, targetWorldM, cfg, s
         qNow = qTrajectory(:, idx);
         kinematicsResult = HCDR_kinematics_planar(qNow, cfg);
         staticsResult = HCDR_statics_planar(kinematicsResult.A2D, cfg);
+        tipWorldM = tipWorldFn(qNow);
 
-        % Use planar tracking error (x-y), consistent with current IK task.
-        sampled.ee_error(sampleIndex) = norm(kinematicsResult.p_ee(1:2) - targetWorldM(1:2));
+        % Use tool-tip planar tracking error (x-y).
+        sampled.ee_error(sampleIndex) = norm(tipWorldM(1:2) - targetWorldM(1:2));
         sampled.rank_a2d(sampleIndex) = kinematicsResult.rank_A2D;
         sampled.sigma_min(sampleIndex) = kinematicsResult.sigma_min_A2D;
         sampled.tension_feasible(sampleIndex) = staticsResult.is_feasible;

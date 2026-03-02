@@ -10,16 +10,27 @@ clc;
 
 addpath(fullfile(fileparts(mfilename("fullpath")), "..", "src"));
 
-cfg = HCDR_config_planar("n_m", 2, "n_c", 8);
+cfg = HCDR_config_planar("n_m", 6, "n_c", 8);
 q = [0.1; 0.1; 0.2; cfg.q_home(:)];
 qd = zeros(size(q));
 dt = 0.02;
 stepCount = 40;
+framePauseSec = 0.12;
+
+robotVisualModel = [];
+try
+    robotVisualModel = make_mycobot280_visual_model();
+catch
+    robotVisualModel = [];
+end
+
+% Tool-tip definition is taken from unified kinematics output.
+tipWorldFn = @(qNow) HCDR_kinematics_planar(qNow, cfg).p_ee;
 
 provider = [];
 backendUsed = "pinocchio";
 try
-    [~, ~] = pin_get_M_h(q, qd); %#ok<ASGLU>
+    [~, ~] = pin_get_M_h(q, qd); 
 catch
     backendUsed = "fallback_provider";
     provider = @(qIn, ~) deal(eye(numel(qIn), "double"), 0.05 * ones(numel(qIn), 1, "double"));
@@ -27,7 +38,7 @@ end
 
 logData = repmat(struct(), 1, stepCount);
 qHistory = zeros(numel(q), stepCount);
-eeHistory = zeros(3, stepCount);
+tipHistory = zeros(3, stepCount);
 
 for k = 1:stepCount
     if isempty(provider)
@@ -54,7 +65,7 @@ for k = 1:stepCount
     logData(k).uwo_norm = norm(stepResult.u_a_wo);
 
     qHistory(:, k) = stepResult.q;
-    eeHistory(:, k) = kin.p_ee;
+    tipHistory(:, k) = tipWorldFn(stepResult.q);
 
     q = stepResult.q_next;
     qd = stepResult.qd_next;
@@ -88,13 +99,6 @@ fprintf("Worst torque high margin   = %.6g\n\n", min([logData.tau_margin_high]))
 
 fig = figure("Name", "Route-B Dynamics (3D)", "Color", "w", "Position", [120, 120, 1200, 620]);
 ax = subplot(1, 2, 1, "Parent", fig);
-HCDR_visualize_planar(qHistory(:, end), cfg, "ax", ax, "show_labels", true, "clear_axes", true);
-hold(ax, "on");
-plot3(ax, eeHistory(1, :), eeHistory(2, :), eeHistory(3, :), "m-", "LineWidth", 2.0);
-plot3(ax, eeHistory(1, end), eeHistory(2, end), eeHistory(3, end), "mo", ...
-    "MarkerFaceColor", "m", "MarkerSize", 7);
-title(ax, sprintf("Final Config | Backend=%s", backendUsed), "FontWeight", "bold");
-
 ax2 = subplot(1, 2, 2, "Parent", fig);
 plot(ax2, 1:stepCount, [logData.residual], "b-", "LineWidth", 1.8); hold(ax2, "on");
 plot(ax2, 1:stepCount, [logData.t_margin_low], "r--", "LineWidth", 1.4);
@@ -104,6 +108,21 @@ xlabel(ax2, "Step");
 ylabel(ax2, "Value");
 title(ax2, "Residual and Tension Margins", "FontWeight", "bold");
 legend(ax2, "||Mqdd-Su||", "min(T-Tmin)", "min(Tmax-T)", "Location", "best");
+
+for stepIndex = 1:stepCount
+    HCDR_visualize_planar(qHistory(:, stepIndex), cfg, ...
+        "ax", ax, "show_labels", true, "clear_axes", true, ...
+        "robot_visual_model", robotVisualModel);
+    hold(ax, "on");
+    plot3(ax, tipHistory(1, 1:stepIndex), tipHistory(2, 1:stepIndex), tipHistory(3, 1:stepIndex), ...
+        "m-", "LineWidth", 2.0);
+    plot3(ax, tipHistory(1, stepIndex), tipHistory(2, stepIndex), tipHistory(3, stepIndex), ...
+        "mo", "MarkerFaceColor", "m", "MarkerSize", 7);
+    title(ax, sprintf("Step %d/%d | Backend=%s", stepIndex, stepCount, backendUsed), ...
+        "FontWeight", "bold");
+    drawnow;
+    pause(framePauseSec);
+end
 
 drawnow;
 
