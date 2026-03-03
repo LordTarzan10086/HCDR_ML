@@ -52,7 +52,7 @@ function cfg = HCDR_config_planar(varargin)
 
     % Planar operating plane height: platform center and slider centers are
     % in the same horizontal plane z = z0 = h_bar.
-    cfg.z0 = 1.0;                                 % [m]
+    cfg.z0 = 1.2;                                 % [m]
     cfg.screw.h_planar = cfg.z0 * ones(4, 1);    % slider center heights [m]
 
     %% Platform geometry and cable attachment indexing
@@ -111,6 +111,7 @@ function cfg = HCDR_config_planar(varargin)
     cfg.arm = struct();
     cfg.arm.offset_in_platform = [0; 0; -cfg.platform.b];
     cfg.arm.use_robotics_ik = true;
+    repoRoot = fileparts(fileparts(mfilename("fullpath")));
 
     if armJointCount == 6
         % Standard DH [a, alpha, d, theta_offset].
@@ -134,16 +135,23 @@ function cfg = HCDR_config_planar(varargin)
         % Installation / tool convention for URDF-aligned visualization:
         % - base_rotation_in_platform flips the arm to "face downward"
         %   relative to platform frame (user-required mounting direction).
-        % - tool_offset_in_ee shifts FK end-effector from flange to gripper
-        %   tip center so IK/FK and rendered tip use the same point.
+        % - Tip point is midpoint of left/right fingertip local points.
         cfg.arm.base_rotation_in_platform = [ ...
             1.0,  0.0,  0.0;
             0.0, -1.0,  0.0;
             0.0,  0.0, -1.0];
-        cfg.arm.tool_offset_in_ee = [0.0; 0.0026; 0.0825];
-        cfg.arm.gripper_joint_values = [-0.0035; -0.0035];
+        cfg.arm.tool_offset_in_ee = [0.0; 0.0; 0.0];
+        cfg.arm.gripper_joint_values = [-0.35; 0.0; 0.35; 0.0];
+        cfg.arm.urdf_tip_body = "DUMMY";
+        cfg.arm.urdf_tip_local = [0.0; 0.0; 0.0];
+        cfg.arm.urdf_flange_body = "END_EFFECTOR";
+        cfg.arm.urdf_left_tip_body = "LEFT_FINGER_DIST";
+        cfg.arm.urdf_right_tip_body = "RIGHT_FINGER_DIST";
+        cfg.arm.urdf_left_tip_local = [-0.040; 0.0; 0.0];
+        cfg.arm.urdf_right_tip_local = [0.040; 0.0; 0.0];
         cfg.arm.use_urdf_kinematics = true;
-        cfg.arm.urdf_path = "urdf/mycobot_280_jn_parallel_gripper.urdf";
+        cfg.arm.urdf_path = string(fullfile(repoRoot, "kortex_description", "robots", ...
+            "gen3_lite_gen3_lite_2f_local.urdf"));
         cfg.arm.use_robotics_ik = false;
     else
         % Generic fallback DH for non-6R test configurations.

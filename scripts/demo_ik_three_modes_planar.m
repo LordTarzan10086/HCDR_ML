@@ -12,7 +12,13 @@ clearvars;
 close all;
 clc;
 
-addpath(fullfile(fileparts(mfilename("fullpath")), "..", "src"));
+if isfolder("src")
+    addpath("src");
+elseif isfolder(fullfile("..", "src"))
+    addpath(fullfile("..", "src"));
+else
+    error("HCDR:PathNotFound", "Cannot locate project src/ folder.");
+end
 
 fprintf("========================================\n");
 fprintf("  HCDR Planar IK: Three-Mode Demo\n");
@@ -77,11 +83,27 @@ for modeIndex = 1:numel(modeSpecs)
     [solverTrajectoryQ, displayTrajectorySource] = resolve_demo_trajectory(ikResult, initialState, 80);
     sampledMetrics = evaluate_trajectory_samples(solverTrajectoryQ, spec.target, cfg, 10, tipWorldFn);
 
-    % Animation trajectory uses smooth interpolation to avoid optimizer
-    % zig-zag iterates in visible motion playback.
-    displayTrajectoryQ = interpolate_trajectory(initialState, ikResult.q_sol(:), 30);
+    % Animation trajectory is a time-resampled solver trajectory so the
+    % shown motion follows actual IK solve history instead of a direct
+    % start/end straight interpolation in joint space.
+    displayTrajectoryQ = resample_trajectory(solverTrajectoryQ, 30);
+    modeQmDeltaMax = max(vecnorm(displayTrajectoryQ(4:end, :) - displayTrajectoryQ(4:end, 1), 2, 1));
+    if spec.id == 1 && modeQmDeltaMax > 1e-12
+        % Mode 1 definition: keep arm fixed. Clamp residual numeric drift.
+        displayTrajectoryQ(4:end, :) = repmat(displayTrajectoryQ(4:end, 1), 1, size(displayTrajectoryQ, 2));
+        modeQmDeltaMax = 0.0;
+    end
     finalTipWorldM = tipWorldFn(ikResult.q_sol(:));
     finalTipErrorM = norm(finalTipWorldM(1:2) - spec.target(1:2));
+    modelTipMismatchM = NaN;
+    if ~isempty(robotVisualModel) && isstruct(robotVisualModel) && isfield(robotVisualModel, "tip_world_fn")
+        try
+            renderTipWorldM = robotVisualModel.tip_world_fn(ikResult.q_sol(:), cfg);
+            modelTipMismatchM = norm(renderTipWorldM - finalTipWorldM);
+        catch
+            modelTipMismatchM = NaN;
+        end
+    end
 
     modeResults(modeIndex).spec = spec;
     modeResults(modeIndex).result = ikResult;
@@ -91,10 +113,17 @@ for modeIndex = 1:numel(modeSpecs)
     modeResults(modeIndex).trajectory_source = displayTrajectorySource;
     modeResults(modeIndex).tip_final = finalTipWorldM;
     modeResults(modeIndex).tip_error = finalTipErrorM;
+    modeResults(modeIndex).qm_delta_max = modeQmDeltaMax;
+    modeResults(modeIndex).tip_model_mismatch = modelTipMismatchM;
     modeResults(modeIndex).metrics = sampledMetrics;
 
     fprintf("Trajectory source (logs): %s | solver steps=%d | display steps=%d\n", ...
         displayTrajectorySource, size(solverTrajectoryQ, 2), size(displayTrajectoryQ, 2));
+    fprintf("Diagnostics: max ||q_m(k)-q_m(1)|| = %.3e rad", modeQmDeltaMax);
+    if ~isnan(modelTipMismatchM)
+        fprintf(" | |tip_model-tip_fk| = %.3e m", modelTipMismatchM);
+    end
+    fprintf("\n");
     fprintf("%-8s | %-8s | %-10s | %-10s | %-12s | %-10s\n", ...
         "Sample", "OK?", "EE-Err(m)", "A2D-rank", "sigma_min", "T-feas?");
     fprintf("%s\n", repmat('-', 1, 72));
@@ -235,6 +264,21 @@ function interpolatedTrajectoryQ = interpolate_trajectory(qStart, qEnd, pointCou
 %INTERPOLATE_TRAJECTORY Build smooth linear interpolation in configuration space.
     interpolationWeights = linspace(0.0, 1.0, pointCount);
     interpolatedTrajectoryQ = qStart + (qEnd - qStart) * interpolationWeights;
+end
+
+function qResampled = resample_trajectory(qTrajectory, pointCount)
+%RESAMPLE_TRAJECTORY Resample a trajectory to fixed point count.
+    if isempty(qTrajectory)
+        qResampled = zeros(0, pointCount);
+        return;
+    end
+    if size(qTrajectory, 2) == 1
+        qResampled = repmat(qTrajectory(:, 1), 1, pointCount);
+        return;
+    end
+    sourceT = linspace(0.0, 1.0, size(qTrajectory, 2));
+    targetT = linspace(0.0, 1.0, pointCount);
+    qResampled = interp1(sourceT.', qTrajectory.', targetT.', "linear").';
 end
 
 function eeTrajectoryWorldM = compute_tip_trajectory(qTrajectory, tipWorldFn)

@@ -31,7 +31,7 @@ function h = HCDR_visualize_planar(q, cfg, opts)
     % Prepare figure/axes.
     if isempty(opts.ax)
         fig = figure("Color", "w", "Name", "HCDR Planar Visualization");
-        ax = axes(fig); %#ok<LAXES>
+        ax = axes(fig); 
     else
         ax = opts.ax;
         fig = ancestor(ax, "figure");

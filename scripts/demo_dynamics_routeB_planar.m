@@ -8,7 +8,13 @@ clearvars;
 close all;
 clc;
 
-addpath(fullfile(fileparts(mfilename("fullpath")), "..", "src"));
+if isfolder("src")
+    addpath("src");
+elseif isfolder(fullfile("..", "src"))
+    addpath(fullfile("..", "src"));
+else
+    error("HCDR:PathNotFound", "Cannot locate project src/ folder.");
+end
 
 cfg = HCDR_config_planar("n_m", 6, "n_c", 8);
 q = [0.1; 0.1; 0.2; cfg.q_home(:)];

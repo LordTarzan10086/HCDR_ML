@@ -30,10 +30,10 @@ function out = HCDR_statics_planar(A2D, cfg, w_ext)
     tensionLowerBoundN = reshape(double(cfg.T_min), [], 1);
     tensionUpperBoundN = reshape(double(cfg.T_max), [], 1);
 
-    if numel(tensionLowerBoundN) == 1
+    if isscalar(tensionLowerBoundN)
         tensionLowerBoundN = repmat(tensionLowerBoundN, cableCount, 1);
     end
-    if numel(tensionUpperBoundN) == 1
+    if isscalar(tensionUpperBoundN)
         tensionUpperBoundN = repmat(tensionUpperBoundN, cableCount, 1);
     end
     if numel(tensionLowerBoundN) ~= cableCount || numel(tensionUpperBoundN) ~= cableCount

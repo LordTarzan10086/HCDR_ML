@@ -1,35 +1,39 @@
 function visualModel = make_mycobot280_visual_model(opts)
-%MAKE_MYCOBOT280_VISUAL_MODEL Build URDF render hook for mycobot280 model.
+%MAKE_MYCOBOT280_VISUAL_MODEL Build URDF render hook (default: GEN3-Lite + 2F).
 %
 %   VM = MAKE_MYCOBOT280_VISUAL_MODEL() loads
-%   urdf/mycobot_280_jn_parallel_gripper.urdf and returns hooks:
+%   configured URDF and returns hooks:
 %   - VM.render_fn(ax, q, cfg): draw URDF model attached to moving platform.
 %   - VM.tip_world_fn(q, cfg): gripper tip center in world frame [m], 3x1.
 %   - VM.flange_world_fn(q, cfg): flange origin in world frame [m], 3x1.
 %
 %   Notes:
-%   - URDF/DAE units are meters in this workspace.
+%   - URDF mesh units are expected to be meters in this workspace.
 %   - q format must be [x; y; psi; q1..q6].
-%   - Gripper is visualized and tip is defined as midpoint of left/right
-%     fingertip local points.
+%   - Tip selection order:
+%     1) midpoint of left/right tip bodies (if both exist),
+%     2) tip_body origin + tip_local,
+%     3) flange + cfg.arm.tool_offset_in_ee fallback.
 
     arguments
         opts.urdf_path (1, 1) string = ""
         opts.force_reload (1, 1) logical = false
         opts.base_rpy_offset (1, 3) double = [pi, 0.0, 0.0]
-        opts.gripper_joint_values (:, 1) double = [-0.0035; -0.0035]
-        opts.left_tip_body (1, 1) string = "gripper_left"
-        opts.right_tip_body (1, 1) string = "gripper_right"
-        opts.flange_body (1, 1) string = "joint6_flange"
-        opts.left_tip_local (3, 1) double = [0.0160; 0.0485; -0.0030]
-        opts.right_tip_local (3, 1) double = [-0.0160; 0.0485; -0.0030]
+        opts.gripper_joint_values (:, 1) double = [-0.35; 0.0; 0.35; 0.0]
+        opts.left_tip_body (1, 1) string = "LEFT_FINGER_DIST"
+        opts.right_tip_body (1, 1) string = "RIGHT_FINGER_DIST"
+        opts.tip_body (1, 1) string = "DUMMY"
+        opts.flange_body (1, 1) string = "END_EFFECTOR"
+        opts.left_tip_local (3, 1) double = [-0.040; 0.0; 0.0]
+        opts.right_tip_local (3, 1) double = [0.040; 0.0; 0.0]
+        opts.tip_local (3, 1) double = [0.0; 0.0; 0.0]
         opts.draw_tip_marker (1, 1) logical = true
     end
 
     urdfPath = opts.urdf_path;
     if strlength(urdfPath) == 0
         repoRoot = fileparts(fileparts(mfilename("fullpath")));
-        urdfPath = fullfile(repoRoot, "urdf", "mycobot_280_jn_parallel_gripper.urdf");
+        urdfPath = fullfile(repoRoot, "kortex_description", "robots", "gen3_lite_gen3_lite_2f_local.urdf");
     end
     if ~isfile(urdfPath)
         error("HCDR:URDFNotFound", "URDF file not found: %s", urdfPath);
@@ -95,8 +99,9 @@ function visualModel = make_mycobot280_visual_model(opts)
     %FLANGE_WORLD_FROM_STATE Return flange origin in world frame [m].
         qRobot = build_robot_state_vector(q, cfg);
         attach_robot_base_to_platform(q, cfg);
-        if any(bodyNameCache == opts.flange_body)
-            flangeTransform = getTransform(robotCache, qRobot, char(opts.flange_body));
+        [~, ~, ~, flangeBody, ~, ~, ~] = resolve_tip_and_flange_params(cfg);
+        if strlength(flangeBody) > 0 && any(bodyNameCache == flangeBody)
+            flangeTransform = getTransform(robotCache, qRobot, char(flangeBody));
             flangeWorldM = flangeTransform(1:3, 4);
         else
             flangeWorldM = tip_world_from_qrobot(qRobot, cfg);
@@ -105,20 +110,30 @@ function visualModel = make_mycobot280_visual_model(opts)
 
     function tipWorldM = tip_world_from_qrobot(qRobot, cfg)
     %TIP_WORLD_FROM_QROBOT Evaluate fingertip midpoint from URDF bodies.
-        hasLeft = any(bodyNameCache == opts.left_tip_body);
-        hasRight = any(bodyNameCache == opts.right_tip_body);
+        [leftBody, rightBody, tipBody, flangeBody, leftLocalM, rightLocalM, tipLocalM] = ...
+            resolve_tip_and_flange_params(cfg);
+        hasLeft = strlength(leftBody) > 0 && any(bodyNameCache == leftBody);
+        hasRight = strlength(rightBody) > 0 && any(bodyNameCache == rightBody);
         if hasLeft && hasRight
-            leftTransform = getTransform(robotCache, qRobot, char(opts.left_tip_body));
-            rightTransform = getTransform(robotCache, qRobot, char(opts.right_tip_body));
-            leftPoint = leftTransform * [opts.left_tip_local; 1.0];
-            rightPoint = rightTransform * [opts.right_tip_local; 1.0];
+            leftTransform = getTransform(robotCache, qRobot, char(leftBody));
+            rightTransform = getTransform(robotCache, qRobot, char(rightBody));
+            leftPoint = leftTransform * [leftLocalM; 1.0];
+            rightPoint = rightTransform * [rightLocalM; 1.0];
             tipWorldM = 0.5 * (leftPoint(1:3) + rightPoint(1:3));
             return;
         end
 
+        hasTipBody = strlength(tipBody) > 0 && any(bodyNameCache == tipBody);
+        if hasTipBody
+            tipTransform = getTransform(robotCache, qRobot, char(tipBody));
+            tipPoint = tipTransform * [tipLocalM; 1.0];
+            tipWorldM = tipPoint(1:3);
+            return;
+        end
+
         % Fallback: flange + configured tool offset.
-        if any(bodyNameCache == opts.flange_body)
-            flangeTransform = getTransform(robotCache, qRobot, char(opts.flange_body));
+        if strlength(flangeBody) > 0 && any(bodyNameCache == flangeBody)
+            flangeTransform = getTransform(robotCache, qRobot, char(flangeBody));
             toolOffsetM = [0.0; 0.0; 0.0];
             if isfield(cfg, "arm") && isfield(cfg.arm, "tool_offset_in_ee")
                 candidateTool = cfg.arm.tool_offset_in_ee(:);
@@ -130,6 +145,42 @@ function visualModel = make_mycobot280_visual_model(opts)
         else
             endBodyTransform = getTransform(robotCache, qRobot, robotCache.BodyNames{end});
             tipWorldM = endBodyTransform(1:3, 4);
+        end
+    end
+
+    function [leftBody, rightBody, tipBody, flangeBody, leftLocalM, rightLocalM, tipLocalM] = ...
+            resolve_tip_and_flange_params(cfg)
+    %RESOLVE_TIP_AND_FLANGE_PARAMS Resolve body names and local points from cfg/opts.
+        leftBody = opts.left_tip_body;
+        rightBody = opts.right_tip_body;
+        tipBody = opts.tip_body;
+        flangeBody = opts.flange_body;
+        leftLocalM = opts.left_tip_local;
+        rightLocalM = opts.right_tip_local;
+        tipLocalM = opts.tip_local;
+        if ~isfield(cfg, "arm")
+            return;
+        end
+        if isfield(cfg.arm, "urdf_left_tip_body")
+            leftBody = string(cfg.arm.urdf_left_tip_body);
+        end
+        if isfield(cfg.arm, "urdf_right_tip_body")
+            rightBody = string(cfg.arm.urdf_right_tip_body);
+        end
+        if isfield(cfg.arm, "urdf_tip_body")
+            tipBody = string(cfg.arm.urdf_tip_body);
+        end
+        if isfield(cfg.arm, "urdf_flange_body")
+            flangeBody = string(cfg.arm.urdf_flange_body);
+        end
+        if isfield(cfg.arm, "urdf_left_tip_local") && numel(cfg.arm.urdf_left_tip_local) == 3
+            leftLocalM = double(cfg.arm.urdf_left_tip_local(:));
+        end
+        if isfield(cfg.arm, "urdf_right_tip_local") && numel(cfg.arm.urdf_right_tip_local) == 3
+            rightLocalM = double(cfg.arm.urdf_right_tip_local(:));
+        end
+        if isfield(cfg.arm, "urdf_tip_local") && numel(cfg.arm.urdf_tip_local) == 3
+            tipLocalM = double(cfg.arm.urdf_tip_local(:));
         end
     end
 
