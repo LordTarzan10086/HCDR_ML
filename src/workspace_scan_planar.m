@@ -1,19 +1,14 @@
 function out = workspace_scan_planar(x_grid, y_grid, psi_grid, cfg)
-%WORKSPACE_SCAN_PLANAR Scan planar workspace using geometry and statics tests.
+%WORKSPACE_SCAN_PLANAR Backward-compatible workspace scan entrypoint.
 %
-%   OUT = WORKSPACE_SCAN_PLANAR(X_GRID, Y_GRID, PSI_GRID, CFG) evaluates
-%   each grid sample q = [x;y;psi;q_home] and classifies it as:
-%   0: geometrically degenerate,
-%   1: nondegenerate but tension infeasible,
-%   2: nondegenerate and tension feasible.
+%   This function now delegates to the v3.1 two-layer workspace pipeline:
+%   1) geometry reachability by velocity-IK convergence (Layer-1),
+%   2) tension feasibility on Layer-1 reachable samples (Layer-2).
 %
-%   Inputs:
-%   X_GRID, Y_GRID: position samples [m], column vectors.
-%   PSI_GRID: yaw samples [rad], column vector.
-%   CFG: configuration struct.
-%
-%   Output:
-%   OUT: struct with per-sample flags/metrics and summary counts.
+%   For compatibility with legacy callers/tests, it still returns:
+%   - samples, is_nondegenerate, is_tension_feasible, class_code
+%   - sigma_min_A2D, rank_A2D, summary
+%   where the legacy fields map to cooperative mode (mode3) results.
 
     arguments
         x_grid (:, 1) double
@@ -22,57 +17,21 @@ function out = workspace_scan_planar(x_grid, y_grid, psi_grid, cfg)
         cfg (1, 1) struct
     end
 
-    % Grid sizes and total sample count.
-    xCount = numel(x_grid);
-    yCount = numel(y_grid);
-    psiCount = numel(psi_grid);
-    sampleCount = xCount * yCount * psiCount;
-    armJointCount = double(cfg.n_m);
+    layered = workspace_scan_three_modes_planar(x_grid, y_grid, psi_grid, cfg);
 
-    % Preallocate outputs:
-    % samples: [x,y,psi], size N x 3.
-    % is_nondegenerate/is_tension_feasible: logical flags, size N x 1.
-    samples = zeros(sampleCount, 3, "double");
-    is_nondegenerate = false(sampleCount, 1);
-    is_tension_feasible = false(sampleCount, 1);
-    sigmaMinA2D = zeros(sampleCount, 1, "double");
-    rankA2D = zeros(sampleCount, 1, "double");
+    % Legacy cooperative-mode mapping.
+    is_nondegenerate = layered.geom_reachable_mode3;
+    is_tension_feasible = layered.tension_feasible_mode3;
+    sigmaMinA2D = layered.sigma_min_mode3;
+    rankA2D = layered.A2D_rank_mode3;
 
-    % Exhaustive scan over x-y-psi grid.
-    sampleIndex = 0;
-    for xIndex = 1:xCount
-        x = x_grid(xIndex);
-        for yIndex = 1:yCount
-            y = y_grid(yIndex);
-            for psiIndex = 1:psiCount
-                psi = psi_grid(psiIndex);
-                sampleIndex = sampleIndex + 1;
-                q = [x; y; psi; cfg.q_home(:)];
-                if numel(q) ~= 3 + armJointCount
-                    error("HCDR:DimMismatch", "q_home size does not match n_m.");
-                end
-
-                kinematicsResult = HCDR_kinematics_planar(q, cfg);
-                staticsResult = HCDR_statics_planar(kinematicsResult.A2D, cfg);
-
-                samples(sampleIndex, :) = [x, y, psi];
-                is_nondegenerate(sampleIndex) = kinematicsResult.is_nondegenerate;
-                is_tension_feasible(sampleIndex) = staticsResult.is_feasible;
-                sigmaMinA2D(sampleIndex) = kinematicsResult.sigma_min_A2D;
-                rankA2D(sampleIndex) = kinematicsResult.rank_A2D;
-            end
-        end
-    end
-
-    % Build compact class code per sample.
+    sampleCount = size(layered.samples, 1);
     class_code = zeros(sampleCount, 1, "double");
     class_code(~is_nondegenerate) = 0;
     class_code(is_nondegenerate & ~is_tension_feasible) = 1;
     class_code(is_nondegenerate & is_tension_feasible) = 2;
 
-    % Return scan arrays and summary statistics.
-    out = struct();
-    out.samples = samples;
+    out = layered;
     out.is_nondegenerate = is_nondegenerate;
     out.is_tension_feasible = is_tension_feasible;
     out.class_code = class_code;

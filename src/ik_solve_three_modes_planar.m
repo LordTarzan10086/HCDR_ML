@@ -22,7 +22,7 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
         p_d (3, 1) double
         cfg (1, 1) struct
         opts.mode_id (1, 1) double {mustBeMember(opts.mode_id, [1, 2, 3])} = 3
-        opts.strategy (1, 1) string {mustBeMember(opts.strategy, ["explicit", "elimination"])} = "explicit"
+        opts.strategy (1, 1) string {mustBeMember(opts.strategy, ["explicit", "elimination", "velocity"])} = "explicit"
         opts.q_init (:, 1) double = []
         opts.platform_fixed (3, 1) double = [0.0; 0.0; 0.0]
         opts.q_m_fixed (:, 1) double = []
@@ -59,8 +59,22 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
     trajectorySource = "interp_fallback";
 
     % Mode-specific IK solve.
-    switch opts.mode_id
-        case 1
+    if strategy == "velocity"
+        velocityResult = solve_velocity_ik_three_modes_planar(targetPositionWorldM, cfg, ...
+            "mode_id", opts.mode_id, ...
+            "q_init", initialConfiguration, ...
+            "platform_fixed", opts.platform_fixed, ...
+            "q_m_fixed", opts.q_m_fixed);
+        solvedConfiguration = velocityResult.q_sol(:);
+        success = logical(velocityResult.success);
+        cost = double(velocityResult.cost);
+        trajectoryQ = double(velocityResult.traj_q);
+        trajectorySource = string(velocityResult.traj_source);
+        velocityDiag = velocityResult.velocity_diag;
+    else
+        velocityDiag = struct();
+        switch opts.mode_id
+            case 1
             % Mode 1: solve platform [x,y,psi], keep arm fixed.
             armJointSolutionRad = armHomeAnglesRad;
             if ~isempty(opts.q_m_fixed)
@@ -81,7 +95,7 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
             trajectoryQ = [initialConfiguration, solvedConfiguration];
             trajectorySource = "analytic";
 
-        case 2
+            case 2
             % Mode 2: platform fixed, solve arm joints.
             platformX = opts.platform_fixed(1);     % [m]
             platformY = opts.platform_fixed(2);     % [m]
@@ -105,9 +119,15 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
             [armJointSolutionRad, objectiveValue, exitflag, armTrajectoryQ, armTrajectorySource] = ...
                 solve_arm_only(targetLocalM, armJointInitialRad, cfg);
             solvedConfiguration = [platformX; platformY; platformYawRad; armJointSolutionRad];
-            eePositionErrorM = norm( ...
-                arm_point_local(armJointSolutionRad, cfg, "with_base_offset", true, "use_xy_only", true) ...
-                - [targetLocalM(1:2); 0.0]);
+            if armJointCount > 2
+                eePositionErrorM = norm( ...
+                    arm_point_local(armJointSolutionRad, cfg, "with_base_offset", true, "use_xy_only", false) ...
+                    - targetLocalM(:));
+            else
+                eePositionErrorM = norm( ...
+                    arm_point_local(armJointSolutionRad, cfg, "with_base_offset", true, "use_xy_only", true) ...
+                    - [targetLocalM(1:2); 0.0]);
+            end
             % Treat tiny tracking error as success even when solver exits
             % with non-positive flag due iteration/step tolerance behavior.
             success = eePositionErrorM <= 1e-4 && exitflag >= -1;
@@ -121,7 +141,7 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
             trajectoryQ(4:end, :) = armTrajectoryQ;
             trajectorySource = armTrajectorySource;
 
-        case 3
+            case 3
             % Mode 3: cooperative platform + arm solve.
             if strategy == "elimination"
                 armJointSolutionRad = armHomeAnglesRad;
@@ -143,11 +163,17 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
                 [solvedConfiguration, cost, exitflag, cooperativeTrajectoryQ, cooperativeTrajectorySource] = ...
                     solve_cooperative_explicit(targetPositionWorldM, initialConfiguration, cfg);
                 kinematicsCheck = HCDR_kinematics_planar(solvedConfiguration, cfg);
-                success = exitflag > 0 && ...
-                    norm(kinematicsCheck.p_ee(1:2) - targetPositionWorldM(1:2)) <= 1e-4;
+                if armJointCount > 2
+                    success = exitflag > 0 && ...
+                        norm(kinematicsCheck.p_ee - targetPositionWorldM) <= 1e-4;
+                else
+                    success = exitflag > 0 && ...
+                        norm(kinematicsCheck.p_ee(1:2) - targetPositionWorldM(1:2)) <= 1e-4;
+                end
                 trajectoryQ = cooperativeTrajectoryQ;
                 trajectorySource = cooperativeTrajectorySource;
             end
+        end
     end
 
     if isempty(trajectoryQ)
@@ -174,13 +200,16 @@ function out = ik_solve_three_modes_planar(p_d, cfg, opts)
     out.success = logical(success);
     out.cost = double(cost);
     out.p_ee = double(kinematicsResult.p_ee);
-    out.ee_error = double(norm(kinematicsResult.p_ee(1:2) - targetPositionWorldM(1:2)));
+    out.ee_error = double(norm(kinematicsResult.p_ee - targetPositionWorldM));
     out.diag = struct( ...
         "A2D_rank", double(kinematicsResult.rank_A2D), ...
         "sigma_min_A2D", double(kinematicsResult.sigma_min_A2D), ...
         "tension_feasible", logical(staticsResult.is_feasible));
     out.traj_q = double(trajectoryQ);
     out.traj_source = char(trajectorySource);
+    if ~isempty(fieldnames(velocityDiag))
+        out.velocity_diag = velocityDiag;
+    end
 end
 
 function [q_m, fval, exitflag, traj_q, traj_source] = solve_arm_only(targetPlatformM, q0, cfg)
@@ -243,7 +272,7 @@ function [q_m, fval, exitflag, traj_q, traj_source] = solve_arm_only(targetPlatf
     function stop = capture_arm_iterations(x, ~, state)
         stop = false;
         if strcmp(state, 'init') || strcmp(state, 'iter') || strcmp(state, 'done')
-            iterates(:, end + 1) = x(:); %#ok<AGROW>
+            iterates(:, end + 1) = x(:); 
         end
     end
 end
@@ -256,8 +285,13 @@ function val = objective_arm(q, targetPlatformM, q_ref, cfg)
 %   q_ref: regularization reference [rad], n_mx1.
 %   Objective:
 %   J(q) = ||p_EE^P(q) - p_d^P||_2^2 + 1e-8 * ||q - q_ref||_2^2
-    positionErrorM = arm_point_local(q, cfg, "with_base_offset", true, "use_xy_only", true) - ...
-        [targetPlatformM(1:2); 0.0];
+    if numel(q) > 2
+        positionErrorM = arm_point_local(q, cfg, "with_base_offset", true, "use_xy_only", false) - ...
+            targetPlatformM(:);
+    else
+        positionErrorM = arm_point_local(q, cfg, "with_base_offset", true, "use_xy_only", true) - ...
+            [targetPlatformM(1:2); 0.0];
+    end
     regularizationWeight = 1e-8;
     val = positionErrorM.' * positionErrorM + regularizationWeight * sum((q - q_ref) .^ 2);
 end
@@ -295,16 +329,20 @@ function [q_sol, fval, exitflag, traj_q, traj_source] = solve_cooperative_explic
     function stop = capture_coop_iterations(x, ~, state)
         stop = false;
         if strcmp(state, 'init') || strcmp(state, 'iter') || strcmp(state, 'done')
-            iterates(:, end + 1) = x(:); %#ok<AGROW>
+            iterates(:, end + 1) = x(:); 
         end
     end
 end
 
 function [c, ceq] = cooperative_ee_constraint(q, p_d, cfg)
-%COOPERATIVE_EE_CONSTRAINT Enforce end-effector x-y equality constraints.
+%COOPERATIVE_EE_CONSTRAINT Enforce EE equality (6R: xyz, 2R test branch: xy).
     kinematicsResult = HCDR_kinematics_planar(q, cfg);
     c = [];
-    ceq = kinematicsResult.p_ee(1:2) - p_d(1:2);
+    if numel(q) > 5
+        ceq = kinematicsResult.p_ee - p_d(:);
+    else
+        ceq = kinematicsResult.p_ee(1:2) - p_d(1:2);
+    end
 end
 
 function p = arm_point_local(q_m, cfg, opts)

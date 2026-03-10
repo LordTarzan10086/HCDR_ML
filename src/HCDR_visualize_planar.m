@@ -16,6 +16,11 @@ function h = HCDR_visualize_planar(q, cfg, opts)
 %
 %   H = HCDR_VISUALIZE_PLANAR(..., "robot_visual_model", RVM) optionally
 %   invokes RVM.render_fn(ax, q, cfg) for URDF/mesh rendering hooks.
+%
+%   H = HCDR_VISUALIZE_PLANAR(..., "cable_status", S) sets per-cable color:
+%   S(i) < 0 : lower-bound active (green),
+%   S(i) > 0 : upper-bound active (red),
+%   S(i) = 0 : default cable color.
 
     arguments
         q (:, 1) double
@@ -26,6 +31,7 @@ function h = HCDR_visualize_planar(q, cfg, opts)
         opts.target_world (:, 1) double = []
         opts.draw_static (1, 1) logical = true
         opts.robot_visual_model = []
+        opts.cable_status (:, 1) double = []
     end
 
     % Prepare figure/axes.
@@ -65,12 +71,37 @@ function h = HCDR_visualize_planar(q, cfg, opts)
 
     % Draw cables and cable endpoints.
     cableHandles = gobjects(cfg.n_c, 1);
+    cableStatus = zeros(cfg.n_c, 1, "double");
+    if ~isempty(opts.cable_status)
+        if numel(opts.cable_status) ~= cfg.n_c
+            error("HCDR:DimMismatch", "opts.cable_status must have n_c elements.");
+        end
+        cableStatus = double(opts.cable_status(:));
+    end
     for cableIndex = 1:cfg.n_c
+        cableLineColor = [0.0, 0.0, 0.0];
+        cableLineWidth = 1.2;
+        statusMarker = '';
+        if cableStatus(cableIndex) < 0.0
+            cableLineColor = [0.10, 0.70, 0.20];
+            cableLineWidth = 2.8;
+            statusMarker = "o";
+        elseif cableStatus(cableIndex) > 0.0
+            cableLineColor = [1.0, 0.0, 0.0];
+            cableLineWidth = 2.8;
+            statusMarker = "^";
+        end
         cableHandles(cableIndex) = plot3(ax, ...
             [platformAttachWorldM(1, cableIndex), cableAnchorsWorldM(1, cableIndex)], ...
             [platformAttachWorldM(2, cableIndex), cableAnchorsWorldM(2, cableIndex)], ...
             [platformAttachWorldM(3, cableIndex), cableAnchorsWorldM(3, cableIndex)], ...
-            "r-", "LineWidth", 1.5);
+            "-", "Color", cableLineColor, "LineWidth", cableLineWidth);
+        if strlength(statusMarker) > 0
+            cableMidM = 0.5 * (platformAttachWorldM(:, cableIndex) + cableAnchorsWorldM(:, cableIndex));
+            plot3(ax, cableMidM(1), cableMidM(2), cableMidM(3), ...
+                statusMarker, "Color", cableLineColor, ...
+                "MarkerFaceColor", cableLineColor, "MarkerSize", 6);
+        end
         if opts.show_labels
             cableMid = 0.5 * (platformAttachWorldM(:, cableIndex) + cableAnchorsWorldM(:, cableIndex));
             text(ax, cableMid(1), cableMid(2), cableMid(3), sprintf("%d", cableIndex), ...

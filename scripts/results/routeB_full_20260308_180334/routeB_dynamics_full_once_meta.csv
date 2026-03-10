@@ -1,0 +1,2 @@
+generated_at,steps,dt,n_q,n_a,backend_dynamics,backend_sim,urdf_path,use_urdf_kinematics,target_task_x,target_task_y,target_task_psi,target_tip_x,target_tip_y,target_tip_z
+2026-03-08 18:03:34,80,0.02,9,14,pinocchio,integrator,C:\Users\A\Documents\MATLAB\HCDR_v6-codex\kortex_description\robots\gen3_lite_gen3_lite_2f_local.urdf,1,0.336636642600868,0.00769036104794683,0.2,0.336636642600868,0.00769036104794683,0.285124963237541

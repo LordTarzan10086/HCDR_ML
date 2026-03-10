@@ -153,6 +153,8 @@ function cfg = HCDR_config_planar(varargin)
         cfg.arm.urdf_path = string(fullfile(repoRoot, "kortex_description", "robots", ...
             "gen3_lite_gen3_lite_2f_local.urdf"));
         cfg.arm.use_robotics_ik = false;
+        cfg.arm.joint_min = -pi * ones(armJointCount, 1);
+        cfg.arm.joint_max = pi * ones(armJointCount, 1);
     else
         % Generic fallback DH for non-6R test configurations.
         genericLinkLengthM = 0.25 * ones(armJointCount, 1);
@@ -167,16 +169,16 @@ function cfg = HCDR_config_planar(varargin)
         cfg.arm.use_urdf_kinematics = false;
         cfg.arm.urdf_path = "";
         cfg.arm.use_robotics_ik = true;
+        cfg.arm.joint_min = -pi * ones(armJointCount, 1);
+        cfg.arm.joint_max = pi * ones(armJointCount, 1);
     end
 
     % Nominal arm posture:
-    % keep 2R test branch at zero; use a lifted 6R pose by default to avoid
-    % "flat on plane" visualization in demos.
-    if armJointCount == 6
-        cfg.q_home = [0.0; -0.55; 1.05; -0.75; 0.45; 0.0];
-    else
-        cfg.q_home = zeros(armJointCount, 1);
-    end
+    % keep both 2R and 6R defaults at zero so demos/tests start from the
+    % true URDF zero-reference arm state. The "downward hanging" appearance
+    % is controlled by base_rotation_in_platform and offset_in_platform,
+    % not by forcing a pre-bent q_home posture.
+    cfg.q_home = zeros(armJointCount, 1);
     cfg.arm.q_fixed = cfg.q_home;
     cfg.arm_base_in_platform = cfg.arm.offset_in_platform;  % backward-compatible alias
 
@@ -191,4 +193,30 @@ function cfg = HCDR_config_planar(varargin)
     cfg.T_max = 500.0 * ones(cableCount, 1);    % cable tension max [N]
     cfg.tau_min = -40.0 * ones(armJointCount, 1); % arm torque min [N*m]
     cfg.tau_max = 40.0 * ones(armJointCount, 1);  % arm torque max [N*m]
+
+    % Route-B tension-safety defaults (v3.1 section 12.1):
+    % - working lower bound: T_min + T_safe_margin
+    % - reference preload:   f_ref = T_min + T_safe_margin + T_center_offset
+    % T_safe_margin=0 keeps backward-compatible behavior.
+    cfg.T_safe_margin = 2.0 * ones(cableCount, 1);    % extra cable safety margin [N]
+    cfg.T_center_offset = 6.0 * ones(cableCount, 1);  % preload center offset above safe bound [N]
+    cfg.f_ref = [];                                    % optional user override (scalar/vector) [N]
+    cfg.hqp = struct();
+    cfg.hqp.weight_tension_ref = 0.5;  % weight on ||f-f_ref||^2 in Route-B QP/HQP
+
+    %% Velocity-IK defaults (v3.1 main path for geometric reachability)
+    cfg.ik = struct();
+    cfg.ik.dt = 0.03;                     % integration step [s]
+    cfg.ik.iter_max = 120;                % max IK iterations
+    cfg.ik.err_tol = 1e-4;                % planar position tolerance [m]
+    cfg.ik.err_tol_psi = 5e-3;            % yaw tolerance [rad]
+    cfg.ik.lambda_ik = 1e-4;              % damped pseudo-inverse factor
+    cfg.ik.kp = diag([4.0, 4.0, 2.0]);    % task-space velocity feedback gains
+    cfg.ik.xdot_ff = zeros(3, 1);         % feedforward task velocity [m/s,rad/s]
+    cfg.ik.nullspace_gain = 0.35;         % posture regularization gain
+    cfg.ik.joint_limit_margin = 0.20;     % joint-limit avoidance margin [rad]
+    cfg.ik.joint_limit_gain = 0.40;       % joint-limit avoidance gain
+    cfg.ik.max_qdot_arm = 1.5;            % arm qdot saturation [rad/s]
+    cfg.ik.max_qdot_platform_xy = 0.5;    % platform xy speed cap [m/s]
+    cfg.ik.max_qdot_platform_psi = 1.0;   % platform yaw speed cap [rad/s]
 end

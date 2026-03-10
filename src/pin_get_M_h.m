@@ -7,6 +7,9 @@ function [M, h] = pin_get_M_h(q, qd, opts)
 %   [M,H] = PIN_GET_M_H(..., "provider", FH) calls MATLAB function handle
 %   FH(Q, QD) -> [M, H], useful for tests and offline fallback.
 %
+%   [M,H] = PIN_GET_M_H(..., "python_executable", PY_EXE) overrides the
+%   auto-detected Python executable for the current call/session setup.
+%
 %   Inputs:
 %   Q, QD: generalized coordinates/velocities, each n_q x 1.
 %
@@ -20,6 +23,8 @@ function [M, h] = pin_get_M_h(q, qd, opts)
         opts.provider = []
         opts.python_module (1, 1) string = "pin_terms"
         opts.python_function (1, 1) string = "get_M_h"
+        opts.python_executable (1, 1) string = ""
+        opts.cfg (1, 1) struct = struct()
     end
 
     if numel(q) ~= numel(qd)
@@ -34,14 +39,46 @@ function [M, h] = pin_get_M_h(q, qd, opts)
         return;
     end
 
-    % Python bridge path: import requested module/function.
-    pythonModule = py.importlib.import_module(char(opts.python_module));
+    % Python bridge path: auto-configure workspace pyenv + sys.path once.
+    setupInfo = hcdr_python_setup( ...
+        "python_executable", opts.python_executable, ...
+        "verbose", false);
+
+    if ~setupInfo.pinocchio_available
+        error("HCDR:PinocchioMissing", ...
+            "Python module 'pinocchio' is unavailable in pyenv executable: %s", ...
+            char(setupInfo.python_executable));
+    end
+
+    % Import requested Python module/function after path bootstrap.
+    try
+        pythonModule = py.importlib.import_module(char(opts.python_module));
+    catch importError
+        error("HCDR:PythonImportFailed", ...
+            "Failed to import Python module '%s'. Ensure project root/src are on py.sys.path. Details: %s", ...
+            char(opts.python_module), importError.message);
+    end
+
+    % Refresh cached module once to avoid stale symbol tables after edits.
+    if ~logical(py.hasattr(pythonModule, char(opts.python_function)))
+        try
+            pythonModule = py.importlib.reload(pythonModule);
+        catch
+            % keep original module when reload is unavailable.
+        end
+    end
+    if ~logical(py.hasattr(pythonModule, char(opts.python_function)))
+        error("HCDR:PythonFunctionMissing", ...
+            "Python function '%s' was not found in module '%s'.", ...
+            char(opts.python_function), char(opts.python_module));
+    end
     pythonFunction = pythonModule.(char(opts.python_function));
 
-    % Convert MATLAB column vectors to Python row arrays.
+    % Convert MATLAB vectors to Python arrays.
     qPython = py.numpy.array(q(:).');
     qdPython = py.numpy.array(qd(:).');
-    pythonResult = pythonFunction(qPython, qdPython);
+    modelArgs = pinocchio_model_args_from_cfg(opts.cfg, numel(q) - 3);
+    pythonResult = pythonFunction(qPython, qdPython, modelArgs{:});
 
     % Convert returned Python arrays/iterables back to MATLAB doubles.
     M = to_double_array(pythonResult{1});
