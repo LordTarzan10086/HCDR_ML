@@ -113,6 +113,21 @@ function exportInfo = export_routeB_log_planar(runLog, cfg, opts)
     if isfield(runLog, "backend_sim")
         exportTable.backend_sim = repmat(string(runLog.backend_sim), stepCount, 1);
     end
+    if isfield(runLog, "mujoco_step_success")
+        exportTable.mujoco_step_success = double(runLog.mujoco_step_success(:));
+    end
+    if isfield(runLog, "mujoco_step_message")
+        exportTable.mujoco_step_message = string(runLog.mujoco_step_message(:));
+    end
+    if isfield(runLog, "mujoco_bridge_status_code")
+        exportTable.mujoco_bridge_status_code = string(runLog.mujoco_bridge_status_code(:));
+    end
+    if isfield(runLog, "mujoco_bridge_status_detail")
+        exportTable.mujoco_bridge_status_detail = string(runLog.mujoco_bridge_status_detail(:));
+    end
+    if isfield(runLog, "mujoco_bridge_viewer_active")
+        exportTable.mujoco_bridge_viewer_active = double(runLog.mujoco_bridge_viewer_active(:));
+    end
 
     for cableIndex = 1:double(cfg.n_c)
         exportTable.(sprintf("T_%d", cableIndex)) = runLog.tension(cableIndex, :).';

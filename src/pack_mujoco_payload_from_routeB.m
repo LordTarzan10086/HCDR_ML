@@ -16,6 +16,7 @@ function payload = pack_mujoco_payload_from_routeB(q, qd, u_a, cfg, dt, opts)
         cfg (1, 1) struct
         dt (1, 1) double {mustBePositive}
         opts.qdd (:, 1) double = []
+        opts.target_world (:, 1) double = []
         opts.microgravity (1, 1) logical = true
     end
 
@@ -42,5 +43,7 @@ function payload = pack_mujoco_payload_from_routeB(q, qd, u_a, cfg, dt, opts)
     else
         payload.qdd = zeros(size(q));
     end
+    if ~isempty(opts.target_world)
+        payload.target_world = double(opts.target_world(:));
+    end
 end
-

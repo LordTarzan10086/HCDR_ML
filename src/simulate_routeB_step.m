@@ -208,13 +208,15 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
     mujocoBackendInfo = struct("backend", "integrator", "success", true, "message", "");
     if opts.sim_backend == "mujoco"
         mujocoPayload = pack_mujoco_payload_from_routeB(q, qd, hqpResult.u_a, cfg, opts.dt, ...
-            "qdd", qdd);
+            "qdd", qdd, ...
+            "target_world", targetWorldM);
         mujocoOut = simulate_mujoco_step_planar(mujocoPayload);
         if mujocoOut.success
             q_next = mujocoOut.q_next;
             qd_next = mujocoOut.qd_next;
         end
-        backendKeepFields = {'backend', 'success', 'message'};
+        backendKeepFields = {'backend', 'success', 'message', ...
+            'bridge_status_code', 'bridge_status_detail', 'bridge_viewer_active'};
         backendDropFields = setdiff(fieldnames(mujocoOut), backendKeepFields);
         if isempty(backendDropFields)
             mujocoBackendInfo = struct();
@@ -224,6 +226,15 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
         mujocoBackendInfo.backend = "mujoco";
         mujocoBackendInfo.success = logical(mujocoOut.success);
         mujocoBackendInfo.message = string(mujocoOut.message);
+        if isfield(mujocoOut, "bridge_status_code")
+            mujocoBackendInfo.bridge_status_code = string(mujocoOut.bridge_status_code);
+        end
+        if isfield(mujocoOut, "bridge_status_detail")
+            mujocoBackendInfo.bridge_status_detail = string(mujocoOut.bridge_status_detail);
+        end
+        if isfield(mujocoOut, "bridge_viewer_active")
+            mujocoBackendInfo.bridge_viewer_active = logical(mujocoOut.bridge_viewer_active);
+        end
     end
 
     % Build standardized Route-B step diagnostics for post-analysis.

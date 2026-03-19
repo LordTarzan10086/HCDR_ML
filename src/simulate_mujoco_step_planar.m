@@ -21,6 +21,9 @@ function out = simulate_mujoco_step_planar(payload, opts)
         "success", false, ...
         "backend", "mujoco", ...
         "message", "bridge_not_called", ...
+        "bridge_status_code", "unknown", ...
+        "bridge_status_detail", "", ...
+        "bridge_viewer_active", false, ...
         "q_next", payload.q(:), ...
         "qd_next", payload.qd(:));
 
@@ -53,6 +56,12 @@ function out = simulate_mujoco_step_planar(payload, opts)
         payloadPy{"u_a"} = py.numpy.array(payload.u_a(:).');
         payloadPy{"cable_tensions"} = py.numpy.array(payload.cable_tensions(:).');
         payloadPy{"arm_torques"} = py.numpy.array(payload.arm_torques(:).');
+        if isfield(payload, "qdd")
+            payloadPy{"qdd"} = py.numpy.array(payload.qdd(:).');
+        end
+        if isfield(payload, "target_world")
+            payloadPy{"target_world"} = py.numpy.array(payload.target_world(:).');
+        end
         payloadPy{"dt"} = py.float(double(payload.dt));
         payloadPy{"microgravity"} = py.bool(payload.microgravity);
 
@@ -65,6 +74,21 @@ function out = simulate_mujoco_step_planar(payload, opts)
         out.message = "ok";
         out.q_next = qNext(:);
         out.qd_next = qdNext(:);
+
+        % Read optional bridge-side status without changing step signature.
+        try
+            if logical(py.hasattr(bridgeModule, "get_status"))
+                statusPy = bridgeModule.get_status();
+                out.bridge_status_code = string(statusPy{"status_code"});
+                out.bridge_status_detail = string(statusPy{"status_detail"});
+                out.bridge_viewer_active = logical(statusPy{"viewer_active"});
+                if strlength(out.bridge_status_code) > 0
+                    out.message = "ok|" + out.bridge_status_code;
+                end
+            end
+        catch
+            % Keep default message/status if status query fails.
+        end
     catch bridgeError
         out.message = "python_bridge_runtime_error: " + string(bridgeError.message);
     end
@@ -78,4 +102,3 @@ function arr = to_double_array(pyObj)
         arr = double(py.numpy.asarray(pyObj));
     end
 end
-

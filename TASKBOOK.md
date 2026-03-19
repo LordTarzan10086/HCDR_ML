@@ -1229,3 +1229,298 @@ $$
 5. 只有在满足以上条件后，MuJoCo 才允许从 smoke test 进入 formal validation。
 
 <!-- [ADDED-2026-03-08-TENSION-MARGIN-FIX-END] -->
+
+
+
+## 13. [ADDED-2026-03-15] 微重力静力 Wrench-Feasible 工作空间（三模式，终点判定，3D点云）
+<!-- [ADDED-2026-03-15-BEGIN] -->
+> [新增注释] 本节给出当前项目“微/零重力背景下”的静力 wrench-feasible workspace 分析最终口径。这里不做 dynamic workspace，不做路径过程判定，不引入重力悬吊逻辑，不把质心变化误写成额外重力力矩。若与更早版本的 §13 表述冲突，以本节为准。
+
+### 13.1 适用范围与总口径
+本节只针对以下场景：
+- 微/零重力
+- 终点静力判定
+- 无外接触载荷
+- 不考虑运动过程中的惯性与动态项
+
+统一取：
+- `g = 0`
+- `qdot = 0`
+- `qdd = 0`
+- `w_ext = 0`
+
+因此，本节讨论的是：
+
+**对给定目标点 `p_des = [x, y, z]`，从初始位姿出发，三种 mode 分别是否存在满足各自约束的“终点静态解”。**
+
+本节不做：
+- dynamic workspace
+- 路径上每个中间点的连续可行性验证
+- “只验起点终点即可推出过程点都可行”的凸集推断
+
+### 13.2 参数边界（默认可调）
+统一默认参数如下，且必须放入 `cfg / opts`，不得硬编码：
+- `T_min = 5 N`
+- `T_max = 500 N`
+- `tau_min = -40 Nm`
+- `tau_max = 40 Nm`
+
+说明：
+1. `T_min / T_max` 是本节 static wrench-feasible workspace 的主边界；
+2. `tau_min / tau_max` 保留为配置项与记录项，但**不纳入本节 static workspace 的否决条件**；
+3. 后续若扩展到含外载/接触/非零重力/动态过程，再重新讨论机械臂静力力矩边界是否进入主判据。
+
+### 13.3 关于“质心变化”的明确说明（必须写清楚）
+1. 在本节采用的
+- `g = 0`
+- `qdot = 0`
+- `qdd = 0`
+- `w_ext = 0`
+条件下，**质心位置变化本身不会额外产生静力外力或外力矩**。
+
+2. 因此，本节中不得把：
+- 机械臂构型变化导致的质心偏移
+直接写成额外的重力矩项、静力外载项或补偿项。
+
+3. 这并不意味着 mode3 中机械臂构型“完全无关”。
+其作用体现在：
+- 它影响末端目标点 `p_des` 是否能通过联合变量 `(q_f, q_m)` 几何到达；
+- 它影响联合解是否满足 joint limits；
+- 但在本节的静力层中，平台张力平衡仍按当前平台位姿 `q_f` 来判定，不额外添加“由质心变化导致的静力重力矩”。
+
+4. 因而，mode3 不能简单看作 mode1 和 mode2 的乘积，原因不是“质心变化额外引入了静力重力矩”，而是：
+- 对同一个目标点，必须同时找到一组联合解
+  - `q_f = [x, y, psi]`
+  - `q_m`
+  - `T`
+使得几何、关节限位与平台正张力静力平衡同时成立。
+
+### 13.4 三种 mode 的 static workspace 定义
+#### 13.4.1 mode1: platform-only
+定义：
+- 从初始位姿出发；
+- 机械臂冻结在初始构型 `q_m = q_m_init`；
+- 仅平台变量 `q_f = [x, y, psi]` 参与。
+
+判定目标点 `p_des` 属于 mode1 static workspace，当且仅当：
+1. 现有几何/IK 主链可从初始状态把末端带到 `p_des`；
+2. 对应终点平台位姿 `q_f` 下，存在一组张力 `T` 满足：
+   - `A_2D(q_f) * T = 0`
+   - `T_min <= T <= T_max`
+
+说明：
+- mode1 的静力层只检查终点平台位姿的正张力可行性；
+- 机械臂冻结，因此不做机械臂联合搜索。
+
+#### 13.4.2 mode2: arm-only
+定义：
+- 从初始位姿出发；
+- 平台冻结在初始位姿 `q_f = q_f_init`；
+- 仅机械臂关节 `q_m` 参与。
+
+判定目标点 `p_des` 属于 mode2 static workspace，当且仅当：
+1. 平台冻结条件下，机械臂可从初始状态把末端带到 `p_des`；
+2. 所得机械臂关节解满足 joint limits。
+
+说明：
+- mode2 的 static workspace 主判据就是“平台冻结条件下的几何可达 + joint limits 可达”；
+- **不再对每个目标点额外引入“当前平台位姿是否存在静力可行分配”的否决条件**；
+- 若需要，可在程序最开始对“初始平台位姿是否具备静力正张力解”做一次性 setup diagnostic，但这不是 mode2 每个目标点的主判据；
+- 机械臂关节力矩边界不作为本节 static workspace 的否决条件。
+
+#### 13.4.3 mode3: cooperative
+定义：
+- 从初始位姿出发；
+- 平台与机械臂共同参与；
+- 对每个目标点，必须寻找联合静态解。
+
+判定目标点 `p_des` 属于 mode3 static workspace，当且仅当：
+存在至少一组联合解
+- `q_f = [x, y, psi]`
+- `q_m`
+- `T`
+满足：
+1. 末端从初始状态可达到目标点 `p_des`；
+2. `q_m` 满足 joint limits；
+3. 对应平台位姿 `q_f` 下，存在张力 `T` 满足：
+   - `A_2D(q_f) * T = 0`
+   - `T_min <= T <= T_max`
+
+说明：
+- mode3 **绝对不能**写成：
+  - mode1 与 mode2 的乘积；
+  - mode1 / mode2 的并集；
+  - 或任何简单逻辑拼接；
+- 必须真正做 `(q_f, q_m, T)` 的联合存在性判定。
+
+### 13.5 平台静力正张力可行性：统一采用 gamma 裕量判定
+对给定平台位姿 `q_f`，推荐求解：
+- 变量：`T, gamma`
+- 约束：
+  - `A_2D(q_f) * T = 0`
+  - `T_min + gamma <= T_i <= T_max - gamma`
+  - `gamma >= 0`
+- 目标：`maximize gamma`
+
+判定：
+- 若最优 `gamma >= 0`，则该平台位姿 static wrench-feasible；
+- `gamma` 作为该位姿的张力安全裕量指标输出。
+
+说明：
+1. 该方法优于只求“任意一个可行张力解”；
+2. 后续可同时输出：
+   - binary feasible / infeasible
+   - `gamma` 裕量热图 / 点云着色图；
+3. mode1 / mode3 的静力层统一采用该判定方式。
+
+### 13.6 推荐求解流程（按此实现）
+对每个候选目标点 `p_des`，按以下顺序分析：
+
+#### Step 1. 几何层
+- 调用现有 IK 主链（已改成速度级 IK）；
+- 按 mode1 / mode2 / mode3 分别求几何可达性；
+- 得到候选终点平台位姿 `q_f`、机械臂构型 `q_m`、以及 `geom_success`。
+
+#### Step 2. 关节层
+- 对涉及机械臂参与的 mode（mode2 / mode3），检查 `q_m` 是否满足 joint limits；
+- URDF / Pinocchio 读取到的真实 joint limits 优先；
+- 若 URDF 读取失败，再退回 `cfg` 中的限位配置；
+- 不允许默认用手写 DH 限位覆盖 URDF 主路径。
+
+#### Step 3. 平台静力层
+- mode1 / mode3：
+  - 对终点平台位姿 `q_f` 调用 `gamma` 裕量判定；
+  - 检查是否存在 bounded positive tension；
+- mode2：
+  - 不做 per-point 平台静力否决；
+  - 如需要，仅在扫描前做一次性 initial platform static diagnostic。
+
+#### Step 4. 组合标签
+必须明确分层输出，而不是只给一个 `OK`：
+- `geom_reachable_mode1`
+- `geom_reachable_mode2`
+- `geom_reachable_mode3`
+
+- `joint_limit_ok_mode2`
+- `joint_limit_ok_mode3`
+
+- `wrench_feasible_static_mode1`
+- `wrench_feasible_static_mode3`
+
+- `overall_static_feasible_mode1`
+- `overall_static_feasible_mode2`
+- `overall_static_feasible_mode3`
+
+### 13.7 cooperative 的实现要求（重点）
+对每个目标点 `p_des`，mode3 至少实现下面一种联合搜索方式：
+
+#### 方案 A（默认推荐）
+1. 对平台姿态 `psi` 做离散扫描；
+2. 对每个候选平台位姿 `q_f = [x, y, psi]`：
+   - 调用当前几何链 / 冻结基座下的 arm-only 几何求解，求机械臂构型 `q_m`
+   - 检查 `q_m` 是否满足 joint limits
+   - 若满足，再做平台静力 gamma 裕量判定
+3. 只要存在一组联合解，即判该目标点属于 mode3 static workspace。
+
+#### 方案 B（可选）
+1. 调用 mode3 速度级 IK 多初值求解器，得到若干候选 `(q_f, q_m)`；
+2. 对每组候选单独做平台静力 gamma 判定；
+3. 只要存在一组联合解，即判成功。
+
+实现要求：
+- 不得把“最小张力”作为 cooperative 几何层 IK 的一级目标；
+- 张力可行性统一留在本节的静力层处理；
+- 不得用“mode1 与 mode2 组合近似”替代联合搜索。
+
+### 13.8 可视化要求（必须做）
+1. 本节必须提供 **3D 空间点云可视化**，因为当前不以计算时间为主要约束。
+2. 至少输出以下三张点云图：
+- `mode1` static workspace point cloud
+- `mode2` static workspace point cloud
+- `mode3` static workspace point cloud
+
+3. 对 mode1 / mode3，建议额外提供：
+- `gamma` 裕量着色点云
+- 最优 `psi` 着色点云（若实现了 `psi` 扫描）
+
+4. 若已有平面切片图/二维 mask，可保留作为辅助图，但不能替代 3D 点云主可视化。
+
+### 13.9 代码开发约束（必须写入）
+1. **默认原则：不修改、不删除已有代码。**
+- 现有代码可以调用、包裹、复用；
+- 但不得直接改写、删除或覆盖已有核心脚本/函数；
+- 若确实必须修改已有代码，必须先请求用户同意。
+
+2. 本节优先采用“新增分析层代码”的方式实现，建议新增：
+- `src/check_platform_static_wrench_feasible_planar.m`
+- `src/evaluate_static_workspace_mode1_planar.m`
+- `src/evaluate_static_workspace_mode2_planar.m`
+- `src/evaluate_static_workspace_mode3_planar.m`
+- `src/workspace_scan_static_wrench_feasible_planar.m`
+- `scripts/demo_workspace_static_wrench_feasible_planar.m`
+
+3. 已有 IK / FK / Pinocchio / A2D / self-stress / plotting 函数优先直接调用；
+4. 不要为本节静力 workspace 分析去破坏当前已经跑通的 IK / dynamics 主链。
+
+### 13.10 输出字段
+至少输出：
+- `geom_reachable_mode1`
+- `geom_reachable_mode2`
+- `geom_reachable_mode3`
+
+- `joint_limit_ok_mode2`
+- `joint_limit_ok_mode3`
+
+- `wrench_feasible_static_mode1`
+- `wrench_feasible_static_mode3`
+
+- `overall_static_feasible_mode1`
+- `overall_static_feasible_mode2`
+- `overall_static_feasible_mode3`
+
+- `gamma_margin_mode1`
+- `gamma_margin_mode3`
+
+- `best_platform_pose_mode3`
+- `best_arm_config_mode3`
+- `best_tension_mode3`
+
+可选输出：
+- `initial_platform_static_diag`
+- `best_psi_mode1`
+- `best_psi_mode3`
+
+说明：
+- mode2 不强制输出 `gamma_margin_mode2`；
+- 因为 mode2 不把平台静力张力可行性作为 per-point 主判据。
+
+### 13.11 验收标准
+1. mode1：
+- 必须明确区分：
+  - 几何到达
+  - 平台静力正张力可行
+- 不允许只给一个混合 `OK`
+
+2. mode2：
+- 平台冻结在初始位姿；
+- static workspace 主判据仅为：
+  - 从初始位姿出发的机械臂几何可达
+  - joint limits 满足
+- 机械臂关节力矩不作为否决条件
+
+3. mode3：
+- 必须做真正的联合搜索；
+- 不能写成 mode1 / mode2 的乘积、并集或简单逻辑组合；
+- 结果必须可回溯：
+  - `q_f`
+  - `q_m`
+  - `T`
+  - `gamma`
+
+4. 全部模式：
+- 默认微重力 `g=0`
+- 不得在本节 static workspace 中偷偷引入重力外载或“质心变化导致的重力矩”
+- 不得用路径凸集假设代替终点判定
+- 默认不改旧代码，只新增分析层；若要改旧代码，必须先请求用户同意
+
+<!-- [ADDED-2026-03-15-END] -->

@@ -24,7 +24,7 @@ stepCount = 80;
 framePauseSec = 0.05;  % smaller interval for smoother/faster animation
 activeTolN = 1e-3;
 targetOffsetM = [0.18; -0.10; 0.40];
-simBackend = "integrator";  % "integrator" | "mujoco"
+simBackend = "mujoco";  % "integrator" | "mujoco"
 smoothWeightU = 1.0;
 smoothWeightQdd = 1.0;
 cfg.T_safe_margin = max(expand_bound(cfg.T_safe_margin, cfg.n_c), 2.0);
@@ -92,6 +92,9 @@ jacobianFallback = false(1, stepCount);
 jacobianFallbackReason = strings(1, stepCount);
 mujocoStepSuccess = true(1, stepCount);
 mujocoStepMessage = strings(1, stepCount);
+mujocoBridgeStatusCode = strings(1, stepCount);
+mujocoBridgeStatusDetail = strings(1, stepCount);
+mujocoBridgeViewerActive = false(1, stepCount);
 duNormHistory = nan(1, stepCount);
 dqddNormHistory = nan(1, stepCount);
 taskResidualHistory = nan(1, stepCount);
@@ -156,6 +159,15 @@ for stepIndex = 1:stepCount
     if isfield(stepResult, "mujoco_backend") && isstruct(stepResult.mujoco_backend)
         mujocoStepSuccess(stepIndex) = logical(stepResult.mujoco_backend.success);
         mujocoStepMessage(stepIndex) = string(stepResult.mujoco_backend.message);
+        if isfield(stepResult.mujoco_backend, "bridge_status_code")
+            mujocoBridgeStatusCode(stepIndex) = string(stepResult.mujoco_backend.bridge_status_code);
+        end
+        if isfield(stepResult.mujoco_backend, "bridge_status_detail")
+            mujocoBridgeStatusDetail(stepIndex) = string(stepResult.mujoco_backend.bridge_status_detail);
+        end
+        if isfield(stepResult.mujoco_backend, "bridge_viewer_active")
+            mujocoBridgeViewerActive(stepIndex) = logical(stepResult.mujoco_backend.bridge_viewer_active);
+        end
     end
 
     if isfield(stepResult, "diagnostics") && isfield(stepResult.diagnostics, "step_log")
@@ -253,6 +265,9 @@ runLog.backend_dynamics = backendUsed;
 runLog.backend_sim = simBackend;
 runLog.mujoco_step_success = mujocoStepSuccess;
 runLog.mujoco_step_message = mujocoStepMessage;
+runLog.mujoco_bridge_status_code = mujocoBridgeStatusCode;
+runLog.mujoco_bridge_status_detail = mujocoBridgeStatusDetail;
+runLog.mujoco_bridge_viewer_active = mujocoBridgeViewerActive;
 
 cableMarginToSafe = tensionHistory - cableSafeLower;
 [minCableMarginPerStep, worstCablePerStep] = min(cableMarginToSafe, [], 1);
@@ -408,6 +423,19 @@ fprintf("Tip RMSE xyz               = [%.6g, %.6g, %.6g] m\n\n", ...
     sqrt(mean(tipErrorHistory(3, :) .^ 2)));
 fprintf("Final tension [N]          = [%s]\n", num2str(tensionHistory(:, end).', "%.6g "));
 fprintf("Final torque [Nm]          = [%s]\n\n", num2str(torqueHistory(:, end).', "%.6g "));
+if simBackend == "mujoco"
+    fprintf("MuJoCo step success ratio  = %.2f%%\n", 100.0 * mean(mujocoStepSuccess));
+    fprintf("MuJoCo viewer active ratio = %.2f%%\n", 100.0 * mean(mujocoBridgeViewerActive));
+    statusCodes = unique(mujocoBridgeStatusCode);
+    for idx = 1:numel(statusCodes)
+        code = statusCodes(idx);
+        if strlength(code) == 0
+            continue;
+        end
+        fprintf("MuJoCo bridge status %-12s = %d/%d\n", code, sum(mujocoBridgeStatusCode == code), stepCount);
+    end
+    fprintf("\n");
+end
 
 plot_routeB_diagnostics_planar(runLog, cfg, "target_world", targetTipWorldM);
 plot_cost_breakdown_planar(runLog);

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Split Zip Desktop"
+  short_description: "Split files into zip parts (<=9 each) on Desktop."
+  default_prompt: "Use $split-zip-desktop to package selected files from the current folder into Desktop zip parts with at most 9 files each."
