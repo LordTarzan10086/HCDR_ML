@@ -1,0 +1,43 @@
+{
+  "T_min": 5.0,
+  "T_max": 500.0,
+  "voxel_size": 0.01,
+  "mode1_xy_resolution": 201,
+  "mode2_arm_samples": 200000,
+  "mode3_xy_resolution": 121,
+  "psi_samples": 181,
+  "fixed_psi_deg": 45.0,
+  "z0": 1.2,
+  "frameHalfLength": 1.0,
+  "frameHeight": 2.0,
+  "platform_half_side": 0.15,
+  "platform_half_thickness": 0.05,
+  "pulley_spacing": 0.10,
+  "platform_xy_half_span": 0.85,
+  "output_union": true,
+  "output_fixedpsi_diagnostics": true,
+  "gravity_mps2": 0.0,
+  "qdot_norm": 0.0,
+  "qdd_norm": 0.0,
+  "w_ext": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+  "urdf_path": "../kortex_description/robots/gen3_lite_gen3_lite_2f_local.urdf",
+  "platform_init": {
+    "x": 0.0,
+    "y": 0.0,
+    "psi_deg": 0.0
+  },
+  "q_m_init": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+  "arm_base_offset_in_platform": [0.0, 0.0, -0.05],
+  "arm_base_rotation_in_platform": [
+    [1.0, 0.0, 0.0],
+    [0.0, -1.0, 0.0],
+    [0.0, 0.0, -1.0]
+  ],
+  "left_tip_body": "LEFT_FINGER_DIST",
+  "right_tip_body": "RIGHT_FINGER_DIST",
+  "left_tip_local": [-0.04, 0.0, 0.0],
+  "right_tip_local": [0.04, 0.0, 0.0],
+  "flange_body": "END_EFFECTOR",
+  "fixed_gripper_q": [0.0, 0.0, 0.0, 0.0],
+  "output_root": "output"
+}

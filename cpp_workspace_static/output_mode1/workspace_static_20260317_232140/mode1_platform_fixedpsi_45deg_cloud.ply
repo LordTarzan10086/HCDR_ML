@@ -1,0 +1,11 @@
+ply
+format ascii 1.0
+element vertex 0
+property float x
+property float y
+property float z
+property float psi_rad
+property float gamma_n
+property int mode_id
+property uint hit_count
+end_header

@@ -1,0 +1,231 @@
+[mode1_workspace] mode1 only run started
+[mode1_workspace] fixed scan total points = 40401
+[mode1_workspace] eps_rank = 0.000001
+[mode1_workspace] fixed psi = 45.000000 deg
+[mode1_workspace] optimizing over real cable tensions T_i
+[mode1_workspace] w_ext_2d = [0.000000, 0.000000, 0.000000]
+[mode1_workspace] zero external load mode = true
+[mode1_workspace] sample=center_0deg cable=1 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=2 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=3 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=4 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=5 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=6 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=7 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=8 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_30deg cable=1 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=2 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=3 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=4 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=5 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=6 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=7 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=8 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_45deg cable=1 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=2 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=3 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=4 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=5 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=6 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=7 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=8 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_60deg cable=1 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=2 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=3 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=4 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=5 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=6 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=7 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=8 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] fixed psi rank<3 rejected = 0
+[mode1_workspace] fixed psi sigma<eps rejected = 0
+[mode1_workspace] fixed psi gamma>=0 feasible = 0
+[mode1_workspace] fixed psi gamma min = nan
+[mode1_workspace] fixed psi gamma max = nan
+[mode1_workspace] fixed psi force-only qualified = 0
+[mode1_workspace] fixed psi force-only feasible = 0
+[mode1_workspace] psi 1/181 deg=-180 rank_rejected=40401 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 2/181 deg=-178 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 3/181 deg=-176 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 4/181 deg=-174 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 5/181 deg=-172 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 6/181 deg=-170 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 7/181 deg=-168 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 8/181 deg=-166 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 9/181 deg=-164 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 10/181 deg=-162 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 11/181 deg=-160 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 12/181 deg=-158 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 13/181 deg=-156 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 14/181 deg=-154 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 15/181 deg=-152 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 16/181 deg=-150 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 17/181 deg=-148 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 18/181 deg=-146 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 19/181 deg=-144 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 20/181 deg=-142 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 21/181 deg=-140 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 22/181 deg=-138 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 23/181 deg=-136 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 24/181 deg=-134 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 25/181 deg=-132 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 26/181 deg=-130 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 27/181 deg=-128 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 28/181 deg=-126 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 29/181 deg=-124 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 30/181 deg=-122 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 31/181 deg=-120 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 32/181 deg=-118 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 33/181 deg=-116 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 34/181 deg=-114 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 35/181 deg=-112 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 36/181 deg=-110 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 37/181 deg=-108 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 38/181 deg=-106 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 39/181 deg=-104 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 40/181 deg=-102 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 41/181 deg=-100 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 42/181 deg=-98 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 43/181 deg=-96 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 44/181 deg=-94 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 45/181 deg=-92 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 46/181 deg=-90 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 47/181 deg=-88 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 48/181 deg=-86 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 49/181 deg=-84 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 50/181 deg=-82 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 51/181 deg=-80 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 52/181 deg=-78 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 53/181 deg=-76 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 54/181 deg=-74 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 55/181 deg=-72 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 56/181 deg=-70 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 57/181 deg=-68 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 58/181 deg=-66 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 59/181 deg=-64 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 60/181 deg=-62 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 61/181 deg=-60 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 62/181 deg=-58 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 63/181 deg=-56 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 64/181 deg=-54 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 65/181 deg=-52 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 66/181 deg=-50 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 67/181 deg=-48 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 68/181 deg=-46 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 69/181 deg=-44 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 70/181 deg=-42 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 71/181 deg=-40 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 72/181 deg=-38 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 73/181 deg=-36 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 74/181 deg=-34 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 75/181 deg=-32 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 76/181 deg=-30 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 77/181 deg=-28 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 78/181 deg=-26 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 79/181 deg=-24 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 80/181 deg=-22 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 81/181 deg=-20 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 82/181 deg=-18 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 83/181 deg=-16 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 84/181 deg=-14 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 85/181 deg=-12 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 86/181 deg=-10 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 87/181 deg=-8 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 88/181 deg=-6 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 89/181 deg=-4 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 90/181 deg=-2 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 91/181 deg=0 rank_rejected=40401 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 92/181 deg=2 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 93/181 deg=4 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 94/181 deg=6 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 95/181 deg=8 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 96/181 deg=10 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 97/181 deg=12 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 98/181 deg=14 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 99/181 deg=16 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 100/181 deg=18 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 101/181 deg=20 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 102/181 deg=22 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 103/181 deg=24 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 104/181 deg=26 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 105/181 deg=28 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 106/181 deg=30 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 107/181 deg=32 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 108/181 deg=34 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 109/181 deg=36 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 110/181 deg=38 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 111/181 deg=40 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 112/181 deg=42 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 113/181 deg=44 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 114/181 deg=46 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 115/181 deg=48 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 116/181 deg=50 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 117/181 deg=52 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 118/181 deg=54 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 119/181 deg=56 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 120/181 deg=58 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 121/181 deg=60 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 122/181 deg=62 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 123/181 deg=64 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 124/181 deg=66 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 125/181 deg=68 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 126/181 deg=70 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 127/181 deg=72 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 128/181 deg=74 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 129/181 deg=76 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 130/181 deg=78 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 131/181 deg=80 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 132/181 deg=82 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 133/181 deg=84 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 134/181 deg=86 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 135/181 deg=88 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 136/181 deg=90 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 137/181 deg=92 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 138/181 deg=94 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 139/181 deg=96 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 140/181 deg=98 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 141/181 deg=100 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 142/181 deg=102 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 143/181 deg=104 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 144/181 deg=106 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 145/181 deg=108 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 146/181 deg=110 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 147/181 deg=112 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 148/181 deg=114 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 149/181 deg=116 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 150/181 deg=118 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 151/181 deg=120 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 152/181 deg=122 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 153/181 deg=124 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 154/181 deg=126 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 155/181 deg=128 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 156/181 deg=130 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 157/181 deg=132 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 158/181 deg=134 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 159/181 deg=136 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 160/181 deg=138 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 161/181 deg=140 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 162/181 deg=142 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 163/181 deg=144 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 164/181 deg=146 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 165/181 deg=148 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 166/181 deg=150 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 167/181 deg=152 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 168/181 deg=154 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 169/181 deg=156 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 170/181 deg=158 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 171/181 deg=160 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 172/181 deg=162 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 173/181 deg=164 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 174/181 deg=166 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 175/181 deg=168 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 176/181 deg=170 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 177/181 deg=172 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 178/181 deg=174 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 179/181 deg=176 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 180/181 deg=178 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 181/181 deg=180 rank_rejected=40401 sigma_rejected=0 feasible=0
+[mode1_workspace] union force-only qualified = 3
+[mode1_workspace] union force-only feasible = 3
+[mode1_workspace] ee union raw points = 0
+[mode1_workspace] ee union voxel points = 0

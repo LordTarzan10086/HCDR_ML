@@ -1,0 +1,191 @@
+Mode 1 nullspace diagnostics
+Optimization variable semantics: real 3D cable tensions T_i
+Corrected A_2D columns include planar projection coefficient c_i = L_xy / L_3d
+eps_rank = 0.000001
+
+sample = center_0deg
+  pose = [x=0.000000, y=0.000000, psi_deg=0.000000]
+  corrected_rank = 2
+  corrected_sigma_min = 0.000000
+  main_gamma_feasible = false
+  main_gamma_status = rejected-rank
+  main_gamma_margin = nan
+  legacy_A2D
+  singular_values = [2.000000, 2.000000, 0.000000]
+  rank = 2
+  nullspace_dim = 6
+  basis[0] = [0.353553, -0.353553, 0.750000, -0.250000, 0.000000, 0.000000, 0.250000, 0.250000]
+    positive=4, negative=2, near_zero=2
+  basis[1] = [0.353553, -0.353553, -0.250000, 0.750000, 0.000000, 0.000000, 0.250000, 0.250000]
+    positive=4, negative=2, near_zero=2
+  basis[2] = [0.353553, 0.353553, 0.000000, 0.000000, 0.853553, -0.146447, 0.000000, 0.000000]
+    positive=3, negative=1, near_zero=4
+  basis[3] = [0.353553, 0.353553, 0.000000, 0.000000, -0.146447, 0.853553, 0.000000, 0.000000]
+    positive=3, negative=1, near_zero=4
+  basis[4] = [-0.353553, 0.353553, 0.250000, 0.250000, -0.000000, -0.000000, 0.750000, -0.250000]
+    positive=4, negative=2, near_zero=2
+  basis[5] = [-0.353553, 0.353553, 0.250000, 0.250000, -0.000000, -0.000000, -0.250000, 0.750000]
+    positive=4, negative=2, near_zero=2
+  legacy_positive_self_stress = true
+  legacy_positive_status = solved
+  legacy_positive_beta = 0.125000
+  corrected_A2D
+  singular_values = [2.000000, 2.000000, 0.000000]
+  rank = 2
+  nullspace_dim = 6
+  basis[0] = [0.353553, -0.353553, 0.750000, -0.250000, 0.000000, 0.000000, 0.250000, 0.250000]
+    positive=4, negative=2, near_zero=2
+  basis[1] = [0.353553, -0.353553, -0.250000, 0.750000, 0.000000, 0.000000, 0.250000, 0.250000]
+    positive=4, negative=2, near_zero=2
+  basis[2] = [0.353553, 0.353553, 0.000000, 0.000000, 0.853553, -0.146447, 0.000000, 0.000000]
+    positive=3, negative=1, near_zero=4
+  basis[3] = [0.353553, 0.353553, 0.000000, 0.000000, -0.146447, 0.853553, 0.000000, 0.000000]
+    positive=3, negative=1, near_zero=4
+  basis[4] = [-0.353553, 0.353553, 0.250000, 0.250000, -0.000000, -0.000000, 0.750000, -0.250000]
+    positive=4, negative=2, near_zero=2
+  basis[5] = [-0.353553, 0.353553, 0.250000, 0.250000, -0.000000, -0.000000, -0.250000, 0.750000]
+    positive=4, negative=2, near_zero=2
+  corrected_positive_self_stress = true
+  corrected_positive_status = solved
+  corrected_positive_beta = 0.125000
+  force_only_qualified = true
+  force_only_torque_row_norm = 0.000000
+  force_only_gamma_feasible = true
+  force_only_gamma_status = solved
+  force_only_gamma_margin = 247.500000
+  force_only_positive_self_stress = true
+  force_only_positive_status = solved
+  force_only_positive_beta = 0.125000
+
+sample = center_30deg
+  pose = [x=0.000000, y=0.000000, psi_deg=30.000000]
+  corrected_rank = 3
+  corrected_sigma_min = 0.343516
+  main_gamma_feasible = false
+  main_gamma_status = primal infeasible
+  main_gamma_margin = nan
+  legacy_A2D
+  singular_values = [2.000000, 2.000000, 0.343516]
+  rank = 3
+  nullspace_dim = 5
+  basis[0] = [0.166952, -0.360028, -0.530594, 0.723670, -0.096538, -0.096538, 0.096538, 0.096538]
+    positive=4, negative=4, near_zero=0
+  basis[1] = [0.111055, 0.338751, -0.411218, -0.038587, 0.724903, -0.275097, -0.224903, -0.224903]
+    positive=3, negative=5, near_zero=0
+  basis[2] = [0.111055, 0.338751, -0.411218, -0.038587, -0.275097, 0.724903, -0.224903, -0.224903]
+    positive=3, negative=5, near_zero=0
+  basis[3] = [-0.535005, 0.364606, -0.051326, 0.221725, -0.085199, -0.085199, 0.585199, -0.414801]
+    positive=3, negative=5, near_zero=0
+  basis[4] = [-0.535005, 0.364606, -0.051326, 0.221725, -0.085199, -0.085199, -0.414801, 0.585199]
+    positive=3, negative=5, near_zero=0
+  legacy_positive_self_stress = false
+  legacy_positive_status = primal infeasible
+  legacy_positive_beta = nan
+  corrected_A2D
+  singular_values = [2.000000, 2.000000, 0.343516]
+  rank = 3
+  nullspace_dim = 5
+  basis[0] = [0.166952, -0.360028, -0.530594, 0.723670, -0.096538, -0.096538, 0.096538, 0.096538]
+    positive=4, negative=4, near_zero=0
+  basis[1] = [0.111055, 0.338751, -0.411218, -0.038587, 0.724903, -0.275097, -0.224903, -0.224903]
+    positive=3, negative=5, near_zero=0
+  basis[2] = [0.111055, 0.338751, -0.411218, -0.038587, -0.275097, 0.724903, -0.224903, -0.224903]
+    positive=3, negative=5, near_zero=0
+  basis[3] = [-0.535005, 0.364606, -0.051326, 0.221725, -0.085199, -0.085199, 0.585199, -0.414801]
+    positive=3, negative=5, near_zero=0
+  basis[4] = [-0.535005, 0.364606, -0.051326, 0.221725, -0.085199, -0.085199, -0.414801, 0.585199]
+    positive=3, negative=5, near_zero=0
+  corrected_positive_self_stress = false
+  corrected_positive_status = primal infeasible
+  corrected_positive_beta = nan
+  force_only_qualified = false
+  force_only_torque_row_norm = 0.343516
+
+sample = center_45deg
+  pose = [x=0.000000, y=0.000000, psi_deg=45.000000]
+  corrected_rank = 3
+  corrected_sigma_min = 0.471297
+  main_gamma_feasible = false
+  main_gamma_status = primal infeasible
+  main_gamma_margin = nan
+  legacy_A2D
+  singular_values = [2.000000, 2.000000, 0.471297]
+  rank = 3
+  nullspace_dim = 5
+  basis[0] = [0.166145, -0.362394, -0.527694, 0.723942, -0.098124, -0.098124, 0.098124, 0.098124]
+    positive=4, negative=4, near_zero=0
+  basis[1] = [0.118065, 0.333072, -0.412435, -0.038701, 0.725568, -0.274432, -0.225568, -0.225568]
+    positive=3, negative=5, near_zero=0
+  basis[2] = [0.118065, 0.333072, -0.412435, -0.038701, -0.274432, 0.725568, -0.225568, -0.225568]
+    positive=3, negative=5, near_zero=0
+  basis[3] = [-0.533628, 0.368645, -0.056277, 0.221260, -0.082492, -0.082492, 0.582492, -0.417508]
+    positive=3, negative=5, near_zero=0
+  basis[4] = [-0.533628, 0.368645, -0.056277, 0.221260, -0.082492, -0.082492, -0.417508, 0.582492]
+    positive=3, negative=5, near_zero=0
+  legacy_positive_self_stress = false
+  legacy_positive_status = primal infeasible
+  legacy_positive_beta = nan
+  corrected_A2D
+  singular_values = [2.000000, 2.000000, 0.471297]
+  rank = 3
+  nullspace_dim = 5
+  basis[0] = [0.166145, -0.362394, -0.527694, 0.723942, -0.098124, -0.098124, 0.098124, 0.098124]
+    positive=4, negative=4, near_zero=0
+  basis[1] = [0.118065, 0.333072, -0.412435, -0.038701, 0.725568, -0.274432, -0.225568, -0.225568]
+    positive=3, negative=5, near_zero=0
+  basis[2] = [0.118065, 0.333072, -0.412435, -0.038701, -0.274432, 0.725568, -0.225568, -0.225568]
+    positive=3, negative=5, near_zero=0
+  basis[3] = [-0.533628, 0.368645, -0.056277, 0.221260, -0.082492, -0.082492, 0.582492, -0.417508]
+    positive=3, negative=5, near_zero=0
+  basis[4] = [-0.533628, 0.368645, -0.056277, 0.221260, -0.082492, -0.082492, -0.417508, 0.582492]
+    positive=3, negative=5, near_zero=0
+  corrected_positive_self_stress = false
+  corrected_positive_status = primal infeasible
+  corrected_positive_beta = nan
+  force_only_qualified = false
+  force_only_torque_row_norm = 0.471297
+
+sample = center_60deg
+  pose = [x=0.000000, y=0.000000, psi_deg=60.000000]
+  corrected_rank = 3
+  corrected_sigma_min = 0.556287
+  main_gamma_feasible = false
+  main_gamma_status = primal infeasible
+  main_gamma_margin = nan
+  legacy_A2D
+  singular_values = [2.000000, 2.000000, 0.556287]
+  rank = 3
+  nullspace_dim = 5
+  basis[0] = [0.165577, -0.363956, -0.525746, 0.724125, -0.099189, -0.099189, 0.099189, 0.099189]
+    positive=4, negative=4, near_zero=0
+  basis[1] = [0.122750, 0.329235, -0.413211, -0.038774, 0.725992, -0.274008, -0.225992, -0.225992]
+    positive=3, negative=5, near_zero=0
+  basis[2] = [0.122750, 0.329235, -0.413211, -0.038774, -0.274008, 0.725992, -0.225992, -0.225992]
+    positive=3, negative=5, near_zero=0
+  basis[3] = [-0.532658, 0.371312, -0.059602, 0.220948, -0.080673, -0.080673, 0.580673, -0.419327]
+    positive=3, negative=5, near_zero=0
+  basis[4] = [-0.532658, 0.371312, -0.059602, 0.220948, -0.080673, -0.080673, -0.419327, 0.580673]
+    positive=3, negative=5, near_zero=0
+  legacy_positive_self_stress = false
+  legacy_positive_status = primal infeasible
+  legacy_positive_beta = nan
+  corrected_A2D
+  singular_values = [2.000000, 2.000000, 0.556287]
+  rank = 3
+  nullspace_dim = 5
+  basis[0] = [0.165577, -0.363956, -0.525746, 0.724125, -0.099189, -0.099189, 0.099189, 0.099189]
+    positive=4, negative=4, near_zero=0
+  basis[1] = [0.122750, 0.329235, -0.413211, -0.038774, 0.725992, -0.274008, -0.225992, -0.225992]
+    positive=3, negative=5, near_zero=0
+  basis[2] = [0.122750, 0.329235, -0.413211, -0.038774, -0.274008, 0.725992, -0.225992, -0.225992]
+    positive=3, negative=5, near_zero=0
+  basis[3] = [-0.532658, 0.371312, -0.059602, 0.220948, -0.080673, -0.080673, 0.580673, -0.419327]
+    positive=3, negative=5, near_zero=0
+  basis[4] = [-0.532658, 0.371312, -0.059602, 0.220948, -0.080673, -0.080673, -0.419327, 0.580673]
+    positive=3, negative=5, near_zero=0
+  corrected_positive_self_stress = false
+  corrected_positive_status = primal infeasible
+  corrected_positive_beta = nan
+  force_only_qualified = false
+  force_only_torque_row_norm = 0.556287
+

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\A\Desktop\code\C++\HCDR_v6-codex--branch_for_WFW\cpp_workspace_static_mode1\build\CMakeFiles\26a04bf4741b3150d4303594db660bb1\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{8A514EB0-6CC3-32E9-8594-39EA3404748D}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

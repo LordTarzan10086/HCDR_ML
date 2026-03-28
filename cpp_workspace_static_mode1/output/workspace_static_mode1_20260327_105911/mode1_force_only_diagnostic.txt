@@ -1,0 +1,16 @@
+Mode 1 force-only diagnostic
+This diagnostic never changes the main 3-DOF WFW result.
+Qualification rule: rank == 2 and ||A_tau|| <= 0.000001
+diagnostic_force_only_mode = true
+
+fixed_psi_summary
+  qualified_points = 0
+  feasible_points = 0
+  min_gamma = nan
+  max_gamma = nan
+
+union_over_psi_summary
+  qualified_points = 3
+  feasible_points = 3
+  min_gamma = 247.500000
+  max_gamma = 247.500005

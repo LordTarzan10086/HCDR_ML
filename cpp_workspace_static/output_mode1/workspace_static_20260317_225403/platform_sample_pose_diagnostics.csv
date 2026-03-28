@@ -1,0 +1,10 @@
+sample_name,x_m,y_m,psi_rad,psi_deg,rank,sigma_min,gamma_feasible,gamma_n,closure_feasible,closure_margin,gamma_solver_status,closure_solver_status
+center,0,0,0,0,2,0,1,247.5,1,0.125,solved,solved
+corner,0.85,0.85,0,0,0,0,1,247.5,1,0.125,solved,solved
+edge_x,0.85,0,0,0,2,2.74485e-17,0,-inf,1,4.85625e-07,primal infeasible,solved
+center,0,0,0.785398,45,3,0.471297,0,-inf,0,-inf,primal infeasible,primal infeasible
+corner,0.85,0.85,0.785398,45,3,0.149985,0,-inf,0,-inf,primal infeasible,primal infeasible
+edge_x,0.85,0,0.785398,45,3,0.267696,0,-inf,0,-inf,primal infeasible,primal infeasible
+center,0,0,1.5708,90,3,0.593362,0,-inf,0,-inf,primal infeasible,primal infeasible
+corner,0.85,0.85,1.5708,90,3,0.363446,0,-inf,0,-inf,primal infeasible,primal infeasible
+edge_x,0.85,0,1.5708,90,3,0.405208,0,-inf,0,-inf,primal infeasible,primal infeasible
