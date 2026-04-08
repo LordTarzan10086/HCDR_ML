@@ -8,6 +8,9 @@ classdef test_workspace_geom_reachable_planar < matlab.unittest.TestCase
 
     methods (Test)
         function returnsPerModeGeometryFlags(testCase)
+            [workspaceEnabled, workspaceReason] = hcdr_workspace_scan_enabled(HCDR_config_planar("n_m", 2, "n_c", 8));
+            testCase.assumeTrue(workspaceEnabled, ...
+                "Skipping workspace geom-layer test: " + workspaceReason);
             testCase.assumeTrue(is_pinocchio_available(), ...
                 "Skipping workspace geom-layer test: pinocchio unavailable.");
 

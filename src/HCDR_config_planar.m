@@ -32,6 +32,7 @@ function cfg = HCDR_config_planar(varargin)
     cfg = struct();
     cfg.n_m = armJointCount;
     cfg.n_c = cableCount;
+    cfg.enable_workspace_scan = false;  % default off: workspace stays opt-in.
 
     % Numerical settings used by A2D checks and bias mapping.
     cfg.eps_sigma = 1e-4;

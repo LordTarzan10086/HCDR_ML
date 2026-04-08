@@ -12,6 +12,13 @@ else
 end
 
 cfg = HCDR_config_planar("n_m", 6, "n_c", 8);
+[workspaceEnabled, workspaceReason] = hcdr_workspace_scan_enabled(cfg, ...
+    "verbose", true, "context", "workspace");
+if ~workspaceEnabled
+    fprintf("Set cfg.enable_workspace_scan=true or HCDR_ENABLE_WORKSPACE=1 to run this demo.\n");
+    return;
+end
+
 qInit = [0.0; 0.0; 0.0; cfg.q_home(:)];
 kinInit = HCDR_kinematics_planar(qInit, cfg);
 tipInit = kinInit.p_ee;

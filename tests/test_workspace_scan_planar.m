@@ -8,6 +8,9 @@ classdef test_workspace_scan_planar < matlab.unittest.TestCase
 
     methods (Test)
         function scanReturnsConsistentSummary(testCase)
+            [workspaceEnabled, workspaceReason] = hcdr_workspace_scan_enabled(HCDR_config_planar("n_m", 2, "n_c", 8));
+            testCase.assumeTrue(workspaceEnabled, ...
+                "Skipping workspace scan test: " + workspaceReason);
             cfg = HCDR_config_planar("n_m", 2);
             cfg.T_min = -10.0 * ones(cfg.n_c, 1);
             cfg.T_max = 10.0 * ones(cfg.n_c, 1);

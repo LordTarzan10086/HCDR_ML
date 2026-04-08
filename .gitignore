@@ -14,3 +14,6 @@ cpp_workspace_static_mode1/build/
 cpp_workspace_static_mode1/output/
 cpp_workspace_static_mode1/output_smoke/
 cpp_workspace_static_mode1/output_tests/
+
+docs/
+.waylog/

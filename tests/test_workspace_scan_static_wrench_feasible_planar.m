@@ -8,6 +8,9 @@ classdef test_workspace_scan_static_wrench_feasible_planar < matlab.unittest.Tes
 
     methods (Test)
         function scanReturnsLayeredModeLabels(testCase)
+            [workspaceEnabled, workspaceReason] = hcdr_workspace_scan_enabled(HCDR_config_planar("n_m", 6, "n_c", 8));
+            testCase.assumeTrue(workspaceEnabled, ...
+                "Skipping static workspace scan test: " + workspaceReason);
             testCase.assumeTrue(is_pinocchio_available(), ...
                 "Skipping static workspace scan test: pinocchio unavailable.");
 

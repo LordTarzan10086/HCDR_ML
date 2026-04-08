@@ -1,0 +1,67 @@
+[mode1_workspace] mode1 only run started
+[mode1_workspace] fixed scan total points = 961
+[mode1_workspace] eps_rank = 0.000001
+[mode1_workspace] fixed psi = 45.000000 deg
+[mode1_workspace] optimizing over real cable tensions T_i
+[mode1_workspace] w_ext_2d = [0.000000, 0.000000, 0.000000]
+[mode1_workspace] zero external load mode = true
+[mode1_workspace] sample=center_0deg cable=1 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=2 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=3 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=4 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=5 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=6 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=7 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_0deg cable=8 L_xy=1.20208 L_3d=1.20208 c=1 legacy_col_norm=1 corrected_col_norm=1
+[mode1_workspace] sample=center_30deg cable=1 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=2 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=3 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=4 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=5 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=6 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=7 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_30deg cable=8 L_xy=1.23506 L_3d=1.23506 c=1 legacy_col_norm=1.00735 corrected_col_norm=1.00735
+[mode1_workspace] sample=center_45deg cable=1 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=2 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=3 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=4 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=5 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=6 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=7 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_45deg cable=8 L_xy=1.27308 L_3d=1.27308 c=1 legacy_col_norm=1.01379 corrected_col_norm=1.01379
+[mode1_workspace] sample=center_60deg cable=1 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=2 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=3 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=4 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=5 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=6 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=7 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] sample=center_60deg cable=8 L_xy=1.32098 L_3d=1.32098 c=1 legacy_col_norm=1.01916 corrected_col_norm=1.01916
+[mode1_workspace] fixed psi rank<3 rejected = 0
+[mode1_workspace] fixed psi sigma<eps rejected = 0
+[mode1_workspace] fixed psi gamma>=0 feasible = 0
+[mode1_workspace] fixed psi gamma min = nan
+[mode1_workspace] fixed psi gamma max = nan
+[mode1_workspace] fixed psi force-only qualified = 0
+[mode1_workspace] fixed psi force-only feasible = 0
+[mode1_workspace] psi 1/17 deg=-180 rank_rejected=961 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 2/17 deg=-157.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 3/17 deg=-135 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 4/17 deg=-112.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 5/17 deg=-90 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 6/17 deg=-67.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 7/17 deg=-45 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 8/17 deg=-22.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 9/17 deg=0 rank_rejected=961 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 10/17 deg=22.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 11/17 deg=45 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 12/17 deg=67.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 13/17 deg=90 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 14/17 deg=112.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 15/17 deg=135 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 16/17 deg=157.5 rank_rejected=0 sigma_rejected=0 feasible=0
+[mode1_workspace] psi 17/17 deg=180 rank_rejected=961 sigma_rejected=0 feasible=0
+[mode1_workspace] union force-only qualified = 3
+[mode1_workspace] union force-only feasible = 3
+[mode1_workspace] ee union raw points = 0
+[mode1_workspace] ee union voxel points = 0

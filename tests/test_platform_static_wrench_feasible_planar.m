@@ -8,6 +8,9 @@ classdef test_platform_static_wrench_feasible_planar < matlab.unittest.TestCase
 
     methods (Test)
         function checkerReturnsExpectedFieldsAndDimensions(testCase)
+            [workspaceEnabled, workspaceReason] = hcdr_workspace_scan_enabled(HCDR_config_planar("n_m", 2, "n_c", 8));
+            testCase.assumeTrue(workspaceEnabled, ...
+                "Skipping platform static wrench test: " + workspaceReason);
             cfg = HCDR_config_planar("n_m", 2, "n_c", 8);
             qPlatform = [0.0; 0.0; 0.0];
 

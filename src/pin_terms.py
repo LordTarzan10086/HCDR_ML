@@ -18,6 +18,10 @@ def ensure_model(
     n_m: int = 6,
     link_lengths: Optional[Iterable[float]] = None,
     urdf_path: Optional[str] = None,
+    platform_z0: Optional[float] = None,
+    root_mass_xy: Optional[float] = None,
+    root_inertia_z: Optional[float] = None,
+    microgravity: Optional[bool] = None,
     base_offset: Optional[Iterable[float]] = None,
     base_rotation: Optional[Iterable[Iterable[float]]] = None,
     gripper_joint_values: Optional[Iterable[float]] = None,
@@ -39,6 +43,9 @@ def ensure_model(
     normalized_link_lengths = _normalize_link_lengths(n_m, link_lengths)
     normalized_use_urdf = (n_m == 6) if use_urdf is None else bool(use_urdf)
     normalized_urdf_path = _normalize_path(urdf_path)
+    normalized_root_mass_xy = _normalize_scalar(root_mass_xy, default=2.0)
+    normalized_root_inertia_z = _normalize_scalar(root_inertia_z, default=2.0)
+    normalized_microgravity = True if microgravity is None else bool(microgravity)
     normalized_base_offset = _normalize_vector3(base_offset, default=(0.0, 0.0, -0.05))
     normalized_base_rotation = _normalize_matrix3(
         base_rotation, default=((1.0, 0.0, 0.0), (0.0, -1.0, 0.0), (0.0, 0.0, -1.0))
@@ -57,6 +64,9 @@ def ensure_model(
         normalized_link_lengths,
         normalized_use_urdf,
         normalized_urdf_path,
+        normalized_root_mass_xy,
+        normalized_root_inertia_z,
+        normalized_microgravity,
         normalized_base_offset,
         normalized_base_rotation,
         normalized_gripper,
@@ -73,18 +83,22 @@ def ensure_model(
         if normalized_use_urdf:
             urdf_file = _resolve_default_urdf_path(normalized_urdf_path)
             model = pin.buildModelFromUrdf(str(urdf_file))
+            if normalized_microgravity:
+                model.gravity.linear[:] = 0.0
             _ensure_unique_frame_names(model)
             model_meta = _build_model_meta(
                 model=model,
                 n_m=n_m,
                 use_urdf=True,
                 gripper_joint_values=normalized_gripper,
+                root_mass_xy=normalized_root_mass_xy,
+                root_inertia_z=normalized_root_inertia_z,
             )
         else:
             model = build_planar_root_arm_model(
                 n_m=n_m,
                 link_lengths=normalized_link_lengths,
-                micro_g=True,
+                micro_g=normalized_microgravity,
                 urdf_path=None,
                 base_offset=normalized_base_offset,
                 base_rotation=np.asarray(normalized_base_rotation, dtype=float).reshape(3, 3),
@@ -115,6 +129,9 @@ def get_M_h(
     qd: Iterable[float],
     link_lengths: Optional[Iterable[float]] = None,
     urdf_path: Optional[str] = None,
+    root_mass_xy: Optional[float] = None,
+    root_inertia_z: Optional[float] = None,
+    microgravity: Optional[bool] = None,
     base_offset: Optional[Iterable[float]] = None,
     base_rotation: Optional[Iterable[Iterable[float]]] = None,
     gripper_joint_values: Optional[Iterable[float]] = None,
@@ -126,6 +143,7 @@ def get_M_h(
     tip_right_local: Optional[Iterable[float]] = None,
     tip_body: str = "DUMMY",
     tip_local: Optional[Iterable[float]] = None,
+    platform_z0: Optional[float] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Return inertia matrix M and bias vector h for Route-B dynamics."""
 
@@ -139,6 +157,9 @@ def get_M_h(
         n_m=n_m,
         link_lengths=link_lengths,
         urdf_path=urdf_path,
+        root_mass_xy=root_mass_xy,
+        root_inertia_z=root_inertia_z,
+        microgravity=microgravity,
         base_offset=base_offset,
         base_rotation=base_rotation,
         gripper_joint_values=gripper_joint_values,
@@ -202,6 +223,9 @@ def get_J_wb_Jdot_qd(
     qd: Iterable[float],
     link_lengths: Optional[Iterable[float]] = None,
     urdf_path: Optional[str] = None,
+    root_mass_xy: Optional[float] = None,
+    root_inertia_z: Optional[float] = None,
+    microgravity: Optional[bool] = None,
     base_offset: Optional[Iterable[float]] = None,
     base_rotation: Optional[Iterable[Iterable[float]]] = None,
     gripper_joint_values: Optional[Iterable[float]] = None,
@@ -213,6 +237,7 @@ def get_J_wb_Jdot_qd(
     tip_right_local: Optional[Iterable[float]] = None,
     tip_body: str = "DUMMY",
     tip_local: Optional[Iterable[float]] = None,
+    platform_z0: Optional[float] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Return whole-body position Jacobian and Jdot*qd in world coordinates."""
 
@@ -226,6 +251,9 @@ def get_J_wb_Jdot_qd(
         n_m=n_m,
         link_lengths=link_lengths,
         urdf_path=urdf_path,
+        root_mass_xy=root_mass_xy,
+        root_inertia_z=root_inertia_z,
+        microgravity=microgravity,
         base_offset=base_offset,
         base_rotation=base_rotation,
         gripper_joint_values=gripper_joint_values,
@@ -260,6 +288,7 @@ def get_J_wb_Jdot_qd(
             ),
             dtype=float,
         ).reshape(3, 3)
+        normalized_platform_z0 = _normalize_scalar(platform_z0, default=0.0)
         tip_query = _resolve_urdf_tip_query(
             model=model,
             preferred_tip_frame=tip_frame_name,
@@ -278,6 +307,7 @@ def get_J_wb_Jdot_qd(
             model_meta=model_meta,
             q_platform=q_platform,
             q_arm_active=q_arm_active,
+            platform_z0=normalized_platform_z0,
             base_offset=normalized_base_offset,
             base_rotation=normalized_base_rotation,
             tip_query=tip_query,
@@ -296,6 +326,7 @@ def get_J_wb_Jdot_qd(
                 model_meta=model_meta,
                 q_platform=q_plus[:3],
                 q_arm_active=q_plus[3:],
+                platform_z0=normalized_platform_z0,
                 base_offset=normalized_base_offset,
                 base_rotation=normalized_base_rotation,
                 tip_query=tip_query,
@@ -307,6 +338,7 @@ def get_J_wb_Jdot_qd(
                 model_meta=model_meta,
                 q_platform=q_minus[:3],
                 q_arm_active=q_minus[3:],
+                platform_z0=normalized_platform_z0,
                 base_offset=normalized_base_offset,
                 base_rotation=normalized_base_rotation,
                 tip_query=tip_query,
@@ -351,6 +383,9 @@ def get_pose_jacobian_terms(
     qd: Iterable[float],
     link_lengths: Optional[Iterable[float]] = None,
     urdf_path: Optional[str] = None,
+    root_mass_xy: Optional[float] = None,
+    root_inertia_z: Optional[float] = None,
+    microgravity: Optional[bool] = None,
     base_offset: Optional[Iterable[float]] = None,
     base_rotation: Optional[Iterable[Iterable[float]]] = None,
     gripper_joint_values: Optional[Iterable[float]] = None,
@@ -362,6 +397,7 @@ def get_pose_jacobian_terms(
     tip_right_local: Optional[Iterable[float]] = None,
     tip_body: str = "DUMMY",
     tip_local: Optional[Iterable[float]] = None,
+    platform_z0: Optional[float] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return position-task pose/velocity/Jacobian/Jdot*qd from Pinocchio.
 
@@ -382,6 +418,9 @@ def get_pose_jacobian_terms(
         n_m=n_m,
         link_lengths=link_lengths,
         urdf_path=urdf_path,
+        root_mass_xy=root_mass_xy,
+        root_inertia_z=root_inertia_z,
+        microgravity=microgravity,
         base_offset=base_offset,
         base_rotation=base_rotation,
         gripper_joint_values=gripper_joint_values,
@@ -413,6 +452,7 @@ def get_pose_jacobian_terms(
             ),
             dtype=float,
         ).reshape(3, 3)
+        normalized_platform_z0 = _normalize_scalar(platform_z0, default=0.0)
         tip_query = _resolve_urdf_tip_query(
             model=model,
             preferred_tip_frame=tip_frame_name,
@@ -430,6 +470,7 @@ def get_pose_jacobian_terms(
             model_meta=model_meta,
             q_platform=q_platform,
             q_arm_active=q_arm_active,
+            platform_z0=normalized_platform_z0,
             base_offset=normalized_base_offset,
             base_rotation=normalized_base_rotation,
             tip_query=tip_query,
@@ -449,6 +490,7 @@ def get_pose_jacobian_terms(
                 model_meta=model_meta,
                 q_platform=q_plus[:3],
                 q_arm_active=q_plus[3:],
+                platform_z0=normalized_platform_z0,
                 base_offset=normalized_base_offset,
                 base_rotation=normalized_base_rotation,
                 tip_query=tip_query,
@@ -460,6 +502,7 @@ def get_pose_jacobian_terms(
                 model_meta=model_meta,
                 q_platform=q_minus[:3],
                 q_arm_active=q_minus[3:],
+                platform_z0=normalized_platform_z0,
                 base_offset=normalized_base_offset,
                 base_rotation=normalized_base_rotation,
                 tip_query=tip_query,
@@ -603,6 +646,7 @@ def _urdf_world_position_jacobian(
     model_meta: dict,
     q_platform: np.ndarray,
     q_arm_active: np.ndarray,
+    platform_z0: float,
     base_offset: np.ndarray,
     base_rotation: np.ndarray,
     tip_query: dict,
@@ -641,7 +685,7 @@ def _urdf_world_position_jacobian(
     )
     jacobian_world = np.hstack([jacobian_root, jacobian_arm_world])
 
-    tip_world = np.array([q_platform[0], q_platform[1], 0.0], dtype=float) + tip_relative_world
+    tip_world = np.array([q_platform[0], q_platform[1], float(platform_z0)], dtype=float) + tip_relative_world
     return jacobian_world, tip_world
 
 
@@ -697,6 +741,8 @@ def _build_model_meta(
     n_m: int,
     use_urdf: bool,
     gripper_joint_values: Tuple[float, ...],
+    root_mass_xy: float = 2.0,
+    root_inertia_z: float = 2.0,
 ) -> dict:
     """Create active/locked index maps and default full-state template."""
     if use_urdf:
@@ -738,8 +784,10 @@ def _build_model_meta(
             "active_arm_q_indices": tuple(int(v) for v in active_arm_q_indices),
             "active_arm_v_indices": tuple(int(v) for v in active_arm_v_indices),
             "q_template": q_template,
-            "root_mass_xy": 2.0,
-            "root_inertia_z": 2.0,
+            # Keep planar root inertia explicit so Pinocchio online dynamics
+            # can share the same platform mass/inertia convention as MuJoCo.
+            "root_mass_xy": float(root_mass_xy),
+            "root_inertia_z": float(root_inertia_z),
             "active_q_indices": tuple(range(3 + len(active_arm_q_indices))),
             "active_v_indices": tuple(range(3 + len(active_arm_v_indices))),
         }
@@ -922,6 +970,15 @@ def _normalize_optional_vector(values: Optional[Iterable[float]]) -> Tuple[float
     if arr.shape[0] == 0:
         return tuple()
     return tuple(float(v) for v in arr)
+
+
+def _normalize_scalar(value: Optional[float], default: float) -> float:
+    if value is None:
+        return float(default)
+    arr = np.asarray(value, dtype=float).reshape(-1)
+    if arr.shape[0] == 0:
+        return float(default)
+    return float(arr[0])
 
 
 def _pad_vector(values: Tuple[float, ...], expected_size: int, default_value: float) -> np.ndarray:

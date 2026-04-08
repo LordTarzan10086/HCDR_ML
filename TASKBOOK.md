@@ -1524,3 +1524,389 @@ $$
 - 默认不改旧代码，只新增分析层；若要改旧代码，必须先请求用户同意
 
 <!-- [ADDED-2026-03-15-END] -->
+
+
+## [ADDED-2026-03-28] v3.3 主线重定向：MATLAB 离线验证 → Python/C++ 在线控制 → 三模式统一轨迹跟踪
+<!-- [ADDED-2026-03-28-BEGIN] -->
+
+你现在直接修改当前 MATLAB 仓库 HCDR_v6-codex。不要只给建议，要实际改代码、补函数、改 demo、补测试，并在最后输出“修改文件清单 + 核心设计说明 + 运行方法 + 已知限制 + 下一步建议”。
+
+--------------------------------------------------
+一、近期主线与架构边界（必须严格遵守）
+--------------------------------------------------
+经过前期多轮排查，当前 workspace / 星形 fixed-psi 结果长期异常，极有可能不是单纯数值求解器问题，而是当前默认几何构型本身不支持期望的静力特性。因此，**近期主线不再继续消耗在 workspace 星形结果修复上**。
+
+从本节开始，项目主线调整为：
+
+### 1. MATLAB 仅作为离线控制验证环境
+MATLAB 的职责是：
+- 验证 Route-B / HQP 控制器逻辑是否正确；
+- 验证 `qdd / u_a / f` 多步闭环下是否平滑、有限、可解释；
+- 验证控制参数是否大致合理；
+- 做小扰动鲁棒性分析；
+- 产出离线闭环日志、曲线和指标。
+
+**MATLAB 不再作为在线控制主实现环境。**
+
+### 2. 一旦进入在线仿真，控制器必须切换到 Python 或 C++
+原因不是“先测再说”，而是原则上直接确定：
+- MATLAB 适合算法验证和离线闭环；
+- 在线控制需要更低时延、更稳定的数据通路和更清晰的工程化接口；
+- 因此，**只要开始 MuJoCo 在线闭环，就必须将高层控制器主实现迁移到 Python 或 C++**；
+- MATLAB 端最多保留为：
+  - 参考实现
+  - 对照基线
+  - 参数调试工具
+  - 离线结果复现工具
+
+### 3. MuJoCo 的角色
+MuJoCo 是**物理仿真后端**，不是控制器。
+它的职责是：
+- 接收控制输入
+- 执行物理积分推进
+- 返回最新状态 `q, qd`
+- 提供接触/约束/执行器后的真实系统响应
+
+因此，要避免的是：
+- 在仿真器桥接脚本里再写一份新的控制律；
+- 或在 MuJoCo step 侧偷偷做“状态纠偏控制”。
+
+允许做的事只有：
+- 状态读取
+- 输入施加
+- 一步推进
+- 数据返回
+- 必要的单位/索引映射
+
+--------------------------------------------------
+二、阶段 1：MATLAB 离线闭环平滑与鲁棒性修复（优先级最高）
+--------------------------------------------------
+### 2.1 当前目标
+先把 MATLAB 纯控制链打磨稳定，再谈在线迁移。近期最优先的不是“更复杂”，而是“每个控制周期都真实闭环、结果可重复、日志可解释”。
+
+### 2.2 必须完成的事
+1. 将 `simulate_routeB_step.m` 升级为真正使用当前状态的单步闭环：
+   - 输入：当前 `q, qd, x_des, xd_des, xdd_des, cfg`
+   - 流程：
+     1) Pinocchio 获取 `x_cur, J, Jdot_qd, M, h`
+     2) 构造误差 `e = x_des - x_cur`
+     3) 构造任务加速度  
+        `a_des = xdd_des + Kd*(xd_des - xdot_cur) + Kp*e`
+     4) 计算 `h_a`
+     5) HQP / QP 求 `qdd, u_{a,wo}`
+     6) 合成真实输入 `u_a = u_{a,wo} + h_a`
+     7) 用离线积分器推进到 `q_next, qd_next`
+
+2. 统一张力策略：
+   - 真实张力使用  
+     `f = u_{T,wo} + h_{a,T}`
+   - 不再只最小化 `|u_{T,wo}|^2`
+   - 统一代价项建议：
+     `w_s*|s|^2
+      + w_f*|f - f_ref|^2
+      + w_u*|u_{a,wo} - u_{a,wo}^{prev}|^2
+      + w_q*|qdd - qdd^{prev}|^2
+      + w_a*|qdd|^2
+      + w_tau*|u_{m,wo}|^2`
+
+3. 新增多步闭环鲁棒性评估：
+   - 建议新增：
+     - `src/run_closed_loop_rollout_planar.m`
+     - `src/evaluate_rollout_metrics_planar.m`
+   - 扰动维度至少包括：
+     - 初值扰动：`q0 + delta_q`, `qd0 + delta_qd`
+     - 步长变化：`dt * {0.5, 1.0, 2.0}`
+     - 目标点小扰动：`x_des + delta_x`
+
+### 2.3 输出指标
+至少输出：
+- 末端 RMSE
+- 最大误差
+- 张力上下界违反次数
+- 力矩上下界违反次数
+- `u_a` 一阶差分 RMS
+- `qdd` 一阶差分 RMS
+- NaN / Inf / solver fail 次数
+
+### 2.4 验收标准
+至少满足：
+- 100~300 步闭环 rollout 可稳定完成
+- 全程 `qdd, u_a, f` 为有限值
+- 无明显持续抖振
+- 小扰动下不立刻失稳
+- diagnostics 能明确区分：
+  - task infeasible
+  - tension bound hit
+  - torque bound hit
+  - solver fail
+  - integrator fail
+
+--------------------------------------------------
+三、阶段 2：在线仿真迁移（Python 或 C++，不再用 MATLAB 做在线主控）
+--------------------------------------------------
+### 3.1 目标
+在 MATLAB 离线闭环基本平稳后，将控制主链迁移到 Python 或 C++，并与 MuJoCo 组成真正的在线闭环：
+
+当前时刻：
+- 在线控制器读取 MuJoCo 返回的 `q, qd`
+- 在线控制器调用 Pinocchio / HQP 在线求新的 `qdd, u_a`
+- MuJoCo 执行一步推进
+- 返回新状态
+- 循环
+
+### 3.2 实现原则
+1. **在线主控代码不能继续放在 MATLAB**
+2. Python 方案优先级最高，原因：
+   - 与 MuJoCo Python 接口衔接直接
+   - 便于快速复用当前 MATLAB 逻辑
+   - 便于后续与 NumPy / SciPy / Pinocchio Python 绑定
+3. 若 Python 方案性能仍不理想，再迁移 C++
+
+### 3.3 推荐迁移结构
+建议形成如下结构：
+
+- MATLAB：
+  - `simulate_routeB_step.m`
+  - `run_closed_loop_rollout_planar.m`
+  - 只保留离线验证
+
+- Python：
+  - `python/controller_routeB_online.py`
+  - `python/pinocchio_terms_online.py`
+  - `python/mujoco_online_loop.py`
+  - `python/common_types.py`
+
+其中：
+- `controller_routeB_online.py`  
+  实现 Route-B 控制主链
+- `pinocchio_terms_online.py`  
+  获取 `M, h, J, Jdot_qd, x_cur`
+- `mujoco_online_loop.py`  
+  实现在线 while-loop / for-loop，与 MuJoCo 交互
+
+### 3.4 在线主链硬要求
+1. 每一步必须真实读取 MuJoCo 当前状态再控制
+2. 禁止预生成整段控制后重放
+3. 控制律只能在 Python/C++ 控制器侧计算
+4. MuJoCo 侧只做：
+   - 状态获取
+   - 输入施加
+   - 物理推进
+   - 状态返回
+
+### 3.5 一致性检查
+新增“一步一致性检查”：
+- 相同 `q, qd, u_a, dt` 下比较：
+  - MATLAB integrator 后端
+  - MuJoCo 后端
+- 对比 `q_next, qd_next`
+- 允许存在差异，但必须输出误差量级和解释
+
+### 3.6 在线仿真验收
+- 至少连续运行 100 步
+- 每步都真实闭环
+- 不是离线重放
+- 控制主实现已不依赖 MATLAB
+
+--------------------------------------------------
+四、阶段 3：轨迹跟踪实验（三种模式共用一条统一目标轨迹）
+--------------------------------------------------
+### 4.1 重要原则
+轨迹跟踪实验采用**一条 3 modes 均可达的统一目标轨迹**，然后比较：
+- Mode1: platform-only
+- Mode2: arm-only
+- Mode3: cooperative
+
+这样做的目的不是追求最难轨迹，而是保证横向对比公平、指标口径统一。
+
+### 4.2 轨迹设计要求
+统一目标轨迹必须满足：
+1. 对 Mode1 几何可达
+2. 对 Mode2 几何可达
+3. 对 Mode3 当然也可达
+4. 不触碰极端 joint limit / 张力边界
+5. 振幅适中，优先保证对比有效而不是故意制造失败
+
+建议优先使用：
+- 平面闭合轨迹：
+  - 小圆
+  - 小椭圆
+  - 小三角轨迹
+- 或固定一个高度/方向后的低幅 3D 轨迹
+
+### 4.3 必做实验
+#### Experiment A：三模式统一轨迹跟踪
+对同一条目标轨迹分别运行：
+- Mode1
+- Mode2
+- Mode3
+
+统一输出：
+- 目标轨迹 vs 实际轨迹
+- 误差随时间
+- 张力曲线
+- 力矩曲线
+- `u_a` / `qdd` 平滑性
+- 求解时间
+
+#### Experiment B：cooperative 运动分配分析
+在相同统一轨迹下，专门分析 Mode3：
+- 平台贡献了多少位移/速度
+- 机械臂贡献了多少位移/速度
+- 是否存在明显的任务分担趋势
+
+### 4.4 参考论文 5.2.2 时保留的比较维度
+保留论文的实验展示逻辑，而不是照抄轨迹类型：
+1. 目标轨迹与实际轨迹图
+2. 误差指标
+   - mean absolute error
+   - RMSE
+   - max error
+   - 分轴误差
+3. 张力统计
+   - min / max / mean / std
+   - 边界触发次数
+4. 求解时间
+   - mean ± std
+   - 最大耗时
+5. cooperative 的运动分配比例
+
+### 4.5 图表输出要求
+建议新增：
+- `results/tracking/common_traj_mode1_*`
+- `results/tracking/common_traj_mode2_*`
+- `results/tracking/common_traj_mode3_*`
+
+每组至少保存：
+- trajectory plot
+- error plot
+- tension plot
+- controls plot
+- metrics csv/json
+
+--------------------------------------------------
+五、测试策略：默认跳过 workspace 相关重扫描
+--------------------------------------------------
+### 5.1 原则
+当前测试与开发主线不再依赖 workspace 扫描结果。由于 workspace 代码运行时间长、动辄半小时，严重影响迭代速度，因此：
+
+**默认测试必须跳过 workspace 重扫描。**
+
+### 5.2 必须实现的机制
+新增统一开关，例如：
+- `cfg.enable_workspace_scan = false`
+- 或环境变量：
+  - `HCDR_SKIP_WORKSPACE=1`
+
+要求：
+1. 所有 demo / test / validation 默认关闭 workspace 扫描
+2. 只有用户显式打开时才运行 workspace 代码
+3. 日志中必须打印：
+   - `workspace scan skipped`
+   - 或 `workspace scan enabled`
+
+### 5.3 需要改的地方
+排查并修改以下类型入口：
+- `demo_*`
+- `validate_*`
+- `tests/*`
+- 任何在初始化阶段偷偷调用 workspace 计算的函数
+
+目标是：
+- 单元测试只测控制链、动力学链、轨迹跟踪链
+- workspace 保留为独立诊断工具，不再混进主测试流
+
+--------------------------------------------------
+六、建议新增/修改文件
+--------------------------------------------------
+### 6.1 MATLAB 离线闭环
+- `src/simulate_routeB_step.m`
+- `src/run_closed_loop_rollout_planar.m`
+- `src/evaluate_rollout_metrics_planar.m`
+- `src/task_space_pd_controller.m`
+- `src/hqp_routeB_solve.m`
+
+### 6.2 Python 在线控制
+- `python/controller_routeB_online.py`
+- `python/pinocchio_terms_online.py`
+- `python/mujoco_online_loop.py`
+- `python/common_types.py`
+
+### 6.3 实验与绘图
+- `demo/demo_tracking_commontraj_mode1_planar.m`
+- `demo/demo_tracking_commontraj_mode2_planar.m`
+- `demo/demo_tracking_commontraj_mode3_planar.m`
+- `src/plot_tracking_results_planar.m`
+- `src/export_tracking_metrics_planar.m`
+
+### 6.4 测试
+- `tests/test_routeB_rollout_stability.m`
+- `tests/test_routeB_robustness_small_perturbation.m`
+- `tests/test_tracking_commontraj_mode1_planar.m`
+- `tests/test_tracking_commontraj_mode2_planar.m`
+- `tests/test_tracking_commontraj_mode3_planar.m`
+- `tests/test_workspace_skip_switch.m`
+
+--------------------------------------------------
+七、近期不再作为主验收项的内容
+--------------------------------------------------
+以下内容保留，但不再作为本阶段必须完成的主验收：
+1. fixed-psi 星形 workspace 图是否出现
+2. Mode1 静态 workspace 是否非空
+3. 三种 mode 的大规模 workspace 全量扫描
+4. C++ workspace 工程的继续扩写
+
+说明：
+- 不删除相关代码；
+- 不否认其研究价值；
+- 但近期主线先保证控制链和仿真链跑顺；
+- workspace 只保留为可选诊断模块；
+- 默认测试与 demo 不再触发其重扫描。
+
+--------------------------------------------------
+八、最终交付要求
+--------------------------------------------------
+最后必须输出一份简洁但具体的报告，包括：
+1. 修改了哪些 MATLAB 文件
+2. 新增了哪些 Python/C++ 在线控制文件
+3. MATLAB 离线闭环链路如何走
+4. Python/C++ 在线闭环链路如何走
+5. 为什么在线主控不再使用 MATLAB
+6. MuJoCo 后端只负责哪些事情
+7. 统一轨迹如何定义，为什么三模式可以公平横比
+8. 每组实验的：
+   - 误差指标
+   - 张力统计
+   - 求解时间
+   - 平滑性指标
+9. workspace 跳过机制如何实现
+10. 已知限制
+11. 下一步建议
+
+--------------------------------------------------
+九、Definition of Done（本阶段验收标准）
+--------------------------------------------------
+### D1. MATLAB 离线验证
+- 多步闭环能稳定运行
+- `qdd, u_a, f` 有限、可解释
+- 小扰动下不立刻发散
+
+### D2. 在线控制迁移
+- 开始在线仿真后，控制主实现已切到 Python 或 C++
+- MATLAB 不再承担在线主控角色
+- 在线闭环至少稳定运行 100 步
+
+### D3. 轨迹实验
+- 三个 mode 对同一条统一轨迹各完成 1 组实验
+- 有轨迹图、误差图、张力图、指标表
+- cooperative 的运动分配有定量结果
+
+### D4. 测试效率
+- 默认测试流不再触发 workspace 重扫描
+- 有明确的 skip 开关和日志
+
+### D5. 诚实性
+- 哪些完成了，哪些没完成，必须明确标注
+- 不允许把“接口已预留”写成“实验已验证成功”
+
+<!-- [ADDED-2026-03-28-END] -->

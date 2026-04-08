@@ -8,6 +8,9 @@ classdef test_workspace_tension_feasible_planar < matlab.unittest.TestCase
 
     methods (Test)
         function layer2IsComputedOnTopOfLayer1(testCase)
+            [workspaceEnabled, workspaceReason] = hcdr_workspace_scan_enabled(HCDR_config_planar("n_m", 2, "n_c", 8));
+            testCase.assumeTrue(workspaceEnabled, ...
+                "Skipping workspace tension-layer test: " + workspaceReason);
             testCase.assumeTrue(is_pinocchio_available(), ...
                 "Skipping workspace tension-layer test: pinocchio unavailable.");
 
@@ -40,4 +43,3 @@ function tf = is_pinocchio_available()
         tf = false;
     end
 end
-

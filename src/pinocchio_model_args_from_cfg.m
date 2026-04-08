@@ -1,7 +1,7 @@
 function modelArgs = pinocchio_model_args_from_cfg(cfg, armJointCount)
 %PINOCCHIO_MODEL_ARGS_FROM_CFG Build Python model arguments from cfg.
 %
-%   MODELARGS = PINOCCHIO_MODEL_ARGS_FROM_CFG(CFG, N_M) returns a 1x13
+%   MODELARGS = PINOCCHIO_MODEL_ARGS_FROM_CFG(CFG, N_M) returns a 1x14
 %   cell array matching positional arguments of pin_terms.get_M_h and
 %   pin_terms.get_J_wb_Jdot_qd after (q, qd):
 %     1) link_lengths
@@ -17,6 +17,7 @@ function modelArgs = pinocchio_model_args_from_cfg(cfg, armJointCount)
 %    11) tip_right_local
 %    12) tip_body
 %    13) tip_local
+%    14) platform_z0
 %
 %   Purpose:
 %   Keep MATLAB->Python model-parameter mapping centralized so Route-B
@@ -27,7 +28,7 @@ function modelArgs = pinocchio_model_args_from_cfg(cfg, armJointCount)
         armJointCount (1, 1) double {mustBeInteger, mustBePositive}
     end
 
-    modelArgs = repmat({py.None}, 1, 13);
+    modelArgs = repmat({py.None}, 1, 14);
 
     % Keep one explicit operational tip frame name for Jacobian calls.
     modelArgs{7} = "HCDR_TIP";
@@ -85,5 +86,9 @@ function modelArgs = pinocchio_model_args_from_cfg(cfg, armJointCount)
     end
     if isfield(armCfg, "urdf_tip_local") && numel(armCfg.urdf_tip_local) == 3
         modelArgs{13} = py.numpy.array(double(armCfg.urdf_tip_local(:).'));
+    end
+
+    if isfield(cfg, "z0") && isscalar(cfg.z0)
+        modelArgs{14} = double(cfg.z0);
     end
 end

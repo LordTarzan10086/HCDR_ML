@@ -28,6 +28,7 @@ function setupInfo = hcdr_python_setup(opts)
 
     repoRoot = fileparts(fileparts(mfilename("fullpath")));
     srcDir = fullfile(repoRoot, "src");
+    pythonDir = fullfile(repoRoot, "python");
     desiredPythonExe = resolve_python_executable(opts.python_executable);
 
     % Stabilize embedded Python/Numpy/Pinocchio runtime on Windows MATLAB:
@@ -62,6 +63,9 @@ function setupInfo = hcdr_python_setup(opts)
     py.importlib.import_module("sys");
     ensure_python_path(repoRoot);
     ensure_python_path(srcDir);
+    if isfolder(pythonDir)
+        ensure_python_path(pythonDir);
+    end
 
     % Report module availability for diagnostics.
     numpyAvailable = module_exists("numpy");
@@ -73,6 +77,7 @@ function setupInfo = hcdr_python_setup(opts)
         "desired_python_executable", desiredPythonExe, ...
         "repo_root", string(repoRoot), ...
         "src_dir", string(srcDir), ...
+        "python_dir", string(pythonDir), ...
         "numpy_available", logical(numpyAvailable), ...
         "pinocchio_available", logical(pinocchioAvailable));
 

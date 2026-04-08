@@ -106,8 +106,11 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
         "pinocchio_error", "");
     targetWorldM = [];
     if taskEnabled
-        poseTerms = pin_get_pose_jacobian_terms(q, qd, cfg);
-        desiredPosition = poseTerms.x_cur;
+        [taskPoseTerms, jacobianDiagnostics] = resolve_task_pose_terms(q, qd, cfg, ...
+            "method", opts.jacobian_method, ...
+            "use_pinocchio_with_urdf", opts.use_pinocchio_with_urdf);
+
+        desiredPosition = taskPoseTerms.x_cur;
         if ~isempty(opts.x_d)
             desiredPosition = opts.x_d(:);
         end
@@ -123,26 +126,24 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
             desiredAcceleration = opts.xdd_d(:);
         end
 
-        J_wb = poseTerms.J_task;
-        Jdot_qd = poseTerms.Jdot_qd;
-        jacobianDiagnostics.backend = "pinocchio";
-        jacobianDiagnostics.pinocchio_attempted = true;
+        J_wb = taskPoseTerms.J_task;
+        Jdot_qd = taskPoseTerms.Jdot_qd;
         if isempty(opts.Kp) && isempty(opts.Kd)
             [xddReference, pdDiagnostics] = task_space_pd_controller( ...
                 desiredPosition, desiredVelocity, desiredAcceleration, ...
-                poseTerms.x_cur, J_wb, qd);
+                taskPoseTerms.x_cur, J_wb, qd);
         elseif isempty(opts.Kd)
             [xddReference, pdDiagnostics] = task_space_pd_controller( ...
                 desiredPosition, desiredVelocity, desiredAcceleration, ...
-                poseTerms.x_cur, J_wb, qd, "Kp", opts.Kp);
+                taskPoseTerms.x_cur, J_wb, qd, "Kp", opts.Kp);
         elseif isempty(opts.Kp)
             [xddReference, pdDiagnostics] = task_space_pd_controller( ...
                 desiredPosition, desiredVelocity, desiredAcceleration, ...
-                poseTerms.x_cur, J_wb, qd, "Kd", opts.Kd);
+                taskPoseTerms.x_cur, J_wb, qd, "Kd", opts.Kd);
         else
             [xddReference, pdDiagnostics] = task_space_pd_controller( ...
                 desiredPosition, desiredVelocity, desiredAcceleration, ...
-                poseTerms.x_cur, J_wb, qd, "Kp", opts.Kp, "Kd", opts.Kd);
+                taskPoseTerms.x_cur, J_wb, qd, "Kp", opts.Kp, "Kd", opts.Kd);
         end
 
         hqpResult = hqp_routeB_solve(M, actuationMapST, biasMapping.h_a, cfg, ...
@@ -161,7 +162,7 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
 
         taskDiagnostics = struct( ...
             "x_d", double(desiredPosition), ...
-            "x_e", double(poseTerms.x_cur), ...
+            "x_e", double(taskPoseTerms.x_cur), ...
             "xd_d", double(desiredVelocity), ...
             "xdd_d", double(desiredAcceleration), ...
             "xdd_ref", double(xddReference), ...
@@ -169,6 +170,7 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
             "platform_qdd_ref", double(platformQddRef), ...
             "J_wb", double(J_wb), ...
             "Jdot_qd", double(Jdot_qd), ...
+            "xdot_e", double(taskPoseTerms.xdot_cur), ...
             "pd", pdDiagnostics);
     elseif ~isempty(opts.qdd_ref) || any(abs(platformQddRef) > 0.0)
         % Solve Route-B HQP with direct qdd reference when provided.
@@ -205,7 +207,7 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
     qd_next = qd + opts.dt * qdd;
     q_next = q + opts.dt * qd_next;
     mujocoPayload = struct();
-    mujocoBackendInfo = struct("backend", "integrator", "success", true, "message", "");
+    mujocoBackendInfo = struct("backend", "integrator", "success", true, "message", "ok");
     if opts.sim_backend == "mujoco"
         mujocoPayload = pack_mujoco_payload_from_routeB(q, qd, hqpResult.u_a, cfg, opts.dt, ...
             "qdd", qdd, ...
@@ -234,6 +236,13 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
         end
         if isfield(mujocoOut, "bridge_viewer_active")
             mujocoBackendInfo.bridge_viewer_active = logical(mujocoOut.bridge_viewer_active);
+        end
+    else
+        if any(~isfinite(q_next)) || any(~isfinite(qd_next))
+            q_next = q;
+            qd_next = qd;
+            mujocoBackendInfo.success = false;
+            mujocoBackendInfo.message = "integrator_nonfinite";
         end
     end
 
@@ -289,7 +298,10 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
         "du_norm", get_diag_field(hqpResult, "du_norm", NaN), ...
         "dqdd_norm", get_diag_field(hqpResult, "dqdd_norm", NaN), ...
         "solver_status", string(get_diag_field(hqpResult, "solver_status", "unknown")), ...
-        "fail_reason", string(get_diag_field(hqpResult, "fail_reason", "")));
+        "fail_reason", string(get_diag_field(hqpResult, "fail_reason", "")), ...
+        "backend_name", string(mujocoBackendInfo.backend), ...
+        "backend_success", logical(mujocoBackendInfo.success), ...
+        "backend_message", string(mujocoBackendInfo.message));
 
     % Return unchanged public output schema.
     out = struct();
@@ -323,6 +335,33 @@ function out = simulate_routeB_step(q, qd, cfg, opts)
         out.step_log = stepLog;
     end
     out.diagnostics = diagnosticsOut;
+end
+
+function [poseTerms, jacobianDiagnostics] = resolve_task_pose_terms(q, qd, cfg, opts)
+%RESOLVE_TASK_POSE_TERMS Build task pose/Jacobian terms with backend trace.
+%
+%   Task pose uses the project FK tip definition so tracking, visualization,
+%   and exported diagnostics share one end-effector point convention.
+%   Jacobian/Jdot*qd are computed through the requested backend policy.
+
+    arguments
+        q (:, 1) double
+        qd (:, 1) double
+        cfg (1, 1) struct
+        opts.method (1, 1) string = "auto"
+        opts.use_pinocchio_with_urdf (1, 1) logical = true
+    end
+
+    kinematicsResult = HCDR_kinematics_planar(q, cfg);
+    [J_wb, Jdot_qd, jacobianDiagnostics] = jacobian_whole_body(q, qd, cfg, ...
+        "method", opts.method, ...
+        "use_pinocchio_with_urdf", opts.use_pinocchio_with_urdf);
+
+    poseTerms = struct();
+    poseTerms.x_cur = double(kinematicsResult.p_ee);
+    poseTerms.J_task = double(J_wb);
+    poseTerms.Jdot_qd = double(Jdot_qd);
+    poseTerms.xdot_cur = double(J_wb * qd);
 end
 
 function expandedBound = expand_bound(rawBound, expectedLength)

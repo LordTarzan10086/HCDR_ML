@@ -1,0 +1,1467 @@
+"""Python-side Route-B online controller.
+
+This module is the Python/C++ migration start point required by TASKBOOK
+v3.3 front-half:
+1) Pinocchio provides M, h, x_cur, xdot_cur, J, Jdot_qd
+2) controller builds task-space PD acceleration reference
+3) Route-B bias mapping h -> h_a stays unconstrained
+4) two-level HQP-like solve is executed in Python
+5) final actuation is returned as u_a = u_{a,wo} + h_a
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Iterable, Mapping, Optional
+
+import numpy as np
+
+from common_types import OnlineStepResult, RouteBCommand, RouteBState, TaskReference
+from pinocchio_terms_online import compute_pinocchio_terms
+from qp_solver_backends import solve_qp
+
+
+def build_task_acceleration_reference(
+    x_des: Iterable[float],
+    xd_des: Iterable[float],
+    xdd_des: Iterable[float],
+    x_cur: Iterable[float],
+    xdot_cur: Iterable[float],
+    kp: np.ndarray,
+    kd: np.ndarray,
+    ki: np.ndarray | None = None,
+    integral_error: Iterable[float] | None = None,
+) -> tuple[np.ndarray, Dict[str, np.ndarray]]:
+    """Compute a_des = xdd_des + Kd*(xd_des-xdot_cur) + Kp*(x_des-x_cur)."""
+
+    x_des_vec = _as_vector(x_des)
+    xd_des_vec = _as_vector(xd_des, expected=x_des_vec.size)
+    xdd_des_vec = _as_vector(xdd_des, expected=x_des_vec.size)
+    x_cur_vec = _as_vector(x_cur, expected=x_des_vec.size)
+    xdot_cur_vec = _as_vector(xdot_cur, expected=x_des_vec.size)
+    error = x_des_vec - x_cur_vec
+    error_dot = xd_des_vec - xdot_cur_vec
+    a_des = xdd_des_vec + kp @ error + kd @ error_dot
+    integral_vec = np.zeros_like(error)
+    if integral_error is not None:
+        integral_vec = _as_vector(integral_error, expected=x_des_vec.size)
+    if ki is not None:
+        a_des = a_des + ki @ integral_vec
+    return a_des, {
+        "error": error,
+        "error_dot": error_dot,
+        "integral_error": integral_vec,
+        "x_cur": x_cur_vec,
+        "xdot_cur": xdot_cur_vec,
+    }
+
+
+@dataclass
+class EqualityTaskLevel:
+    """One explicit HQP task level with optional slack."""
+
+    name: str
+    A: np.ndarray
+    b: np.ndarray
+    slack_weight: float
+
+
+@dataclass
+class ModeAwareTaskPlan:
+    """Resolved control-mode task stack and min-task weights."""
+
+    control_mode: str
+    task_levels: list[EqualityTaskLevel]
+    qdd_min_ref: np.ndarray
+    platform_posture_weight: float
+    arm_posture_weight: float
+
+
+def solve_routeb_online_step(
+    q: Iterable[float],
+    qd: Iterable[float],
+    x_des: Iterable[float],
+    xd_des: Iterable[float],
+    xdd_des: Iterable[float],
+    model_kwargs: Mapping[str, Any],
+    controller_cfg: Mapping[str, Any],
+    *,
+    prev_u_a_wo: Optional[Iterable[float]] = None,
+    prev_qdd: Optional[Iterable[float]] = None,
+    platform_pose_des: Optional[Iterable[float]] = None,
+    arm_posture_ref: Optional[Iterable[float]] = None,
+    time_s: float = 0.0,
+    current_tip_world: Optional[Iterable[float]] = None,
+    dt: float = 0.02,
+    arrival_hold_latched: bool = False,
+    terminal_reference_active: bool = False,
+    reference_complete: Optional[bool] = None,
+    integral_error: Optional[Iterable[float]] = None,
+) -> Dict[str, Any]:
+    """Solve one Python-side Route-B step and return command + diagnostics."""
+
+    q_vec = _as_vector(q)
+    qd_vec = _as_vector(qd, expected=q_vec.size)
+    dof_count = q_vec.size
+    n_c = int(controller_cfg["n_c"])
+    n_m = int(controller_cfg["n_m"])
+    if dof_count != 3 + n_m:
+        raise ValueError(f"Expected q/qd length {3 + n_m}, got {dof_count}.")
+
+    terms = compute_pinocchio_terms(q_vec, qd_vec, dict(model_kwargs))
+    if current_tip_world is not None:
+        terms.x_cur = _as_vector(current_tip_world, expected=3)
+    xd_des_vec = _as_vector(xd_des, expected=3)
+    xdd_des_vec = _as_vector(xdd_des, expected=3)
+    desired_velocity_norm = float(np.linalg.norm(xd_des_vec))
+    desired_acceleration_norm = float(np.linalg.norm(xdd_des_vec))
+    hold_ref_velocity_tol = float(controller_cfg.get("hold_reference_velocity_tol", 1e-3))
+    hold_ref_acceleration_tol = float(controller_cfg.get("hold_reference_acceleration_tol", 1e-2))
+    if reference_complete is None:
+        reference_static_enough = bool(
+            desired_velocity_norm <= hold_ref_velocity_tol
+            and desired_acceleration_norm <= hold_ref_acceleration_tol
+        )
+    else:
+        reference_static_enough = bool(reference_complete)
+    kp = _as_matrix(controller_cfg.get("kp", 100.0 * np.eye(3)), shape=(3, 3))
+    kd = _as_matrix(controller_cfg.get("kd", 20.0 * np.eye(3)), shape=(3, 3))
+    ki_key = "hold_ki" if reference_static_enough else "ki"
+    ki = _as_matrix(controller_cfg.get(ki_key, np.zeros((3, 3), dtype=float)), shape=(3, 3))
+    a_des, pd_diag = build_task_acceleration_reference(
+        x_des,
+        xd_des,
+        xdd_des,
+        terms.x_cur,
+        terms.xdot_cur,
+        kp,
+        kd,
+        ki=ki,
+        integral_error=(integral_error if reference_static_enough else None),
+    )
+    position_error_norm = float(np.linalg.norm(pd_diag["error"]))
+    velocity_error_norm = float(np.linalg.norm(pd_diag["error_dot"]))
+
+    z0 = float(controller_cfg["z0"])
+    anchors_world = _as_matrix(controller_cfg["cable_anchors_world"], shape=(3, n_c))
+    attach_local = _as_matrix(controller_cfg["platform_attach_local"], shape=(3, n_c))
+    a2d, platform_attach_world = _compute_a2d(q_vec[:3], z0, anchors_world, attach_local)
+    st = np.block(
+        [
+            [a2d, np.zeros((3, n_m), dtype=float)],
+            [np.zeros((n_m, n_c), dtype=float), np.eye(n_m, dtype=float)],
+        ]
+    )
+
+    h_a = _map_bias_to_actuation(terms.h, a2d, float(controller_cfg.get("damped_pinv_lambda", 0.0)))
+
+    platform_pose_target = q_vec[:3] if platform_pose_des is None else _as_vector(platform_pose_des, expected=3)
+    platform_kp = _as_matrix(controller_cfg.get("platform_kp", np.diag([12.0, 12.0, 16.0])), shape=(3, 3))
+    platform_kd = _as_matrix(controller_cfg.get("platform_kd", np.diag([8.0, 8.0, 10.0])), shape=(3, 3))
+    platform_qdd_ref = platform_kp @ (platform_pose_target - q_vec[:3]) - platform_kd @ qd_vec[:3]
+    platform_limit_diag = _compute_platform_limit_diag(q_vec[:3], qd_vec[:3], controller_cfg)
+    platform_qdd_ref = platform_qdd_ref + platform_limit_diag["limit_qdd_correction"]
+
+    qdd_ref = np.zeros(dof_count, dtype=float)
+    qdd_ref[:3] = platform_qdd_ref
+    arm_posture_target = q_vec[3:].copy() if arm_posture_ref is None else _as_vector(arm_posture_ref, expected=n_m)
+    arm_posture_kp = float(controller_cfg.get("arm_posture_kp", 4.0))
+    arm_posture_kd = float(controller_cfg.get("arm_posture_kd", 2.0))
+    qdd_ref[3:] = arm_posture_kp * (arm_posture_target - q_vec[3:]) - arm_posture_kd * qd_vec[3:]
+
+    effective_controller_cfg = dict(controller_cfg)
+    hold_active = bool(arrival_hold_latched)
+    near_goal_tol = float(controller_cfg.get("near_goal_position_tol", 0.05))
+    base_platform_posture_weight = float(controller_cfg.get("platform_posture_weight", 0.0))
+    base_arm_posture_weight = float(
+        controller_cfg.get(
+            "cooperative_arm_posture_weight",
+            controller_cfg.get("arm_posture_weight", 0.0),
+        )
+    )
+    task_phase = "acquisition"
+    effective_controller_cfg["cooperative_add_arm_posture_task"] = False
+    effective_controller_cfg["arm_posture_weight"] = base_arm_posture_weight
+    effective_controller_cfg["cooperative_arm_posture_weight"] = base_arm_posture_weight
+    if hold_active:
+        task_phase = "hold"
+        effective_controller_cfg["platform_posture_weight"] = max(
+            base_platform_posture_weight,
+            float(controller_cfg.get("hold_platform_posture_weight", 18.0)),
+        )
+        hold_arm_posture_weight = float(controller_cfg.get("hold_arm_posture_weight", 8.0))
+        effective_controller_cfg["arm_posture_weight"] = max(base_arm_posture_weight, hold_arm_posture_weight)
+        effective_controller_cfg["cooperative_arm_posture_weight"] = max(base_arm_posture_weight, hold_arm_posture_weight)
+        effective_controller_cfg["cooperative_add_arm_posture_task"] = True
+        effective_controller_cfg["task_accel_limit"] = controller_cfg.get("hold_task_accel_limit", controller_cfg.get("task_accel_limit"))
+        effective_controller_cfg["platform_task_slack_weight"] = max(
+            float(controller_cfg.get("platform_task_slack_weight", 1e4)),
+            float(controller_cfg.get("terminal_platform_task_slack_weight", 2e4)),
+        )
+        effective_controller_cfg["smooth_weight_u"] = max(
+            float(controller_cfg.get("smooth_weight_u", 0.0)),
+            float(controller_cfg.get("hold_smooth_weight_u", 1.0)),
+        )
+        effective_controller_cfg["smooth_weight_qdd"] = max(
+            float(controller_cfg.get("smooth_weight_qdd", 0.0)),
+            float(controller_cfg.get("hold_smooth_weight_qdd", 4.0)),
+        )
+        effective_controller_cfg["weight_tension_ref"] = min(
+            float(controller_cfg.get("weight_tension_ref", 0.0)),
+            float(controller_cfg.get("hold_weight_tension_ref", 0.0)),
+        )
+    elif bool(terminal_reference_active):
+        task_phase = "terminal_approach"
+        effective_controller_cfg["platform_posture_weight"] = max(
+            base_platform_posture_weight,
+            float(controller_cfg.get("terminal_platform_posture_weight", 10.0)),
+        )
+        terminal_arm_posture_weight = float(controller_cfg.get("terminal_arm_posture_weight", 0.0))
+        effective_controller_cfg["arm_posture_weight"] = max(base_arm_posture_weight, terminal_arm_posture_weight)
+        effective_controller_cfg["cooperative_arm_posture_weight"] = max(base_arm_posture_weight, terminal_arm_posture_weight)
+        effective_controller_cfg["cooperative_add_arm_posture_task"] = bool(
+            controller_cfg.get("terminal_add_arm_posture_task", False)
+        )
+        effective_controller_cfg["task_accel_limit"] = controller_cfg.get("terminal_task_accel_limit", controller_cfg.get("task_accel_limit"))
+        effective_controller_cfg["platform_task_slack_weight"] = max(
+            float(controller_cfg.get("platform_task_slack_weight", 1e4)),
+            float(controller_cfg.get("terminal_platform_task_slack_weight", 2e4)),
+        )
+        effective_controller_cfg["smooth_weight_u"] = max(
+            float(controller_cfg.get("smooth_weight_u", 0.0)),
+            float(controller_cfg.get("terminal_smooth_weight_u", 0.1)),
+        )
+        effective_controller_cfg["smooth_weight_qdd"] = max(
+            float(controller_cfg.get("smooth_weight_qdd", 0.0)),
+            float(controller_cfg.get("terminal_smooth_weight_qdd", 0.1)),
+        )
+    elif position_error_norm <= near_goal_tol:
+        task_phase = "near_goal"
+        effective_controller_cfg["platform_posture_weight"] = max(
+            base_platform_posture_weight,
+            float(controller_cfg.get("near_goal_platform_posture_weight", 6.0)),
+        )
+        near_goal_arm_posture_weight = float(controller_cfg.get("near_goal_arm_posture_weight", 0.0))
+        effective_controller_cfg["arm_posture_weight"] = max(base_arm_posture_weight, near_goal_arm_posture_weight)
+        effective_controller_cfg["cooperative_arm_posture_weight"] = max(base_arm_posture_weight, near_goal_arm_posture_weight)
+        effective_controller_cfg["task_accel_limit"] = controller_cfg.get("near_goal_task_accel_limit", controller_cfg.get("task_accel_limit"))
+    else:
+        task_phase = "tracking"
+        effective_controller_cfg["platform_posture_weight"] = base_platform_posture_weight
+    requested_control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
+    effective_controller_cfg["control_mode"] = requested_control_mode
+    _apply_phase_controller_overrides(effective_controller_cfg, task_phase)
+    effective_controller_cfg["routeb_task_phase"] = task_phase
+    a_des = _clip_task_acceleration(a_des, effective_controller_cfg)
+
+    result = _solve_routeb_hqp(
+        M=np.asarray(terms.M, dtype=float),
+        ST=st,
+        h_a=h_a,
+        controller_cfg=effective_controller_cfg,
+        J_wb=np.asarray(terms.J_task, dtype=float),
+        Jdot_qd=np.asarray(terms.Jdot_qd, dtype=float),
+        xdd_ref=a_des,
+        qdd_ref=qdd_ref,
+        arm_qdd_ref=qdd_ref[3:].copy(),
+        prev_u_a_wo=prev_u_a_wo,
+        prev_qdd=prev_qdd,
+        platform_qdd_ref=platform_qdd_ref,
+        q=q_vec,
+        qd=qd_vec,
+        dt=float(dt),
+    )
+
+    result.update(
+        {
+            "state": RouteBState(q=q_vec.copy(), qd=qd_vec.copy(), time_s=float(time_s)),
+            "task": TaskReference(
+                x_des=_as_vector(x_des, expected=3),
+                xd_des=_as_vector(xd_des, expected=3),
+                xdd_des=_as_vector(xdd_des, expected=3),
+            ),
+            "terms": terms,
+            "a_des": a_des,
+            "pd_diagnostics": pd_diag,
+            "A2D": a2d,
+            "platform_attach_world": platform_attach_world,
+            "platform_qdd_ref": platform_qdd_ref,
+            "arm_posture_target": arm_posture_target,
+            "hold_active": hold_active,
+            "arrival_hold_latched": bool(arrival_hold_latched),
+            "platform_limit_diag": platform_limit_diag,
+            "effective_controller_cfg": effective_controller_cfg,
+            "position_error_norm": position_error_norm,
+            "velocity_error_norm": velocity_error_norm,
+            "desired_velocity_norm": desired_velocity_norm,
+            "desired_acceleration_norm": desired_acceleration_norm,
+            "reference_static_enough": reference_static_enough,
+            "control_mode": str(result["diagnostics"].get("control_mode", "")),
+            "task_phase": task_phase,
+        }
+    )
+    return result
+
+
+@dataclass
+class RouteBOnlineController:
+    """Python-side online controller with internal smoothness state."""
+
+    model_kwargs: Dict[str, Any]
+    controller_cfg: Dict[str, Any]
+    prev_u_a_wo: Optional[np.ndarray] = field(default=None)
+    prev_u_a: Optional[np.ndarray] = field(default=None)
+    prev_qdd: Optional[np.ndarray] = field(default=None)
+    arm_posture_ref: Optional[np.ndarray] = field(default=None)
+    arrival_hold_latched: bool = field(default=False)
+    hold_q_reference: Optional[np.ndarray] = field(default=None)
+    terminal_platform_reference: Optional[np.ndarray] = field(default=None)
+    terminal_arm_reference: Optional[np.ndarray] = field(default=None)
+    hold_integral_error: Optional[np.ndarray] = field(default=None)
+    stable_hold_counter: int = field(default=0)
+    terminal_reference_latched: bool = field(default=False)
+    terminal_reference_counter: int = field(default=0)
+
+    @classmethod
+    def from_exported_json(cls, json_path: str | Path) -> "RouteBOnlineController":
+        config_path = Path(json_path)
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        return cls.from_config_dict(payload["model_kwargs"], payload["controller_cfg"])
+
+    @classmethod
+    def from_config_dict(
+        cls,
+        model_kwargs: Mapping[str, Any],
+        controller_cfg: Mapping[str, Any],
+    ) -> "RouteBOnlineController":
+        return cls(
+            model_kwargs=_normalize_mapping(model_kwargs),
+            controller_cfg=_normalize_mapping(controller_cfg),
+        )
+
+    def solve_step(
+        self,
+        q: Iterable[float],
+        qd: Iterable[float],
+        x_des: Iterable[float],
+        xd_des: Iterable[float],
+        xdd_des: Iterable[float],
+        *,
+        time_s: float = 0.0,
+        platform_pose_des: Optional[Iterable[float]] = None,
+        current_tip_world: Optional[Iterable[float]] = None,
+        dt: float = 0.02,
+        reference_complete: Optional[bool] = None,
+    ) -> OnlineStepResult:
+        q_vec = np.asarray(q, dtype=float).reshape(-1)
+        if self.arm_posture_ref is None:
+            self.arm_posture_ref = q_vec[3:].copy()
+        xd_des_vec = np.asarray(xd_des, dtype=float).reshape(-1)
+        xdd_des_vec = np.asarray(xdd_des, dtype=float).reshape(-1)
+        hold_ref_velocity_tol = float(self.controller_cfg.get("hold_reference_velocity_tol", 1e-3))
+        hold_ref_acceleration_tol = float(self.controller_cfg.get("hold_reference_acceleration_tol", 1e-2))
+        if reference_complete is None:
+            reference_static_enough = bool(
+                np.linalg.norm(xd_des_vec) <= hold_ref_velocity_tol
+                and np.linalg.norm(xdd_des_vec) <= hold_ref_acceleration_tol
+            )
+        else:
+            reference_static_enough = bool(reference_complete)
+        current_tip_vec = None
+        if current_tip_world is not None:
+            current_tip_vec = np.asarray(current_tip_world, dtype=float).reshape(-1)
+        near_goal_tol = float(self.controller_cfg.get("near_goal_position_tol", 0.05))
+        platform_pose_reference = None if platform_pose_des is None else _as_vector(platform_pose_des, expected=3)
+        arm_posture_reference = self.arm_posture_ref
+        if self.arrival_hold_latched and self.hold_q_reference is not None:
+            hold_q = np.asarray(self.hold_q_reference, dtype=float).reshape(-1)
+            if hold_q.size == q_vec.size:
+                platform_pose_reference = hold_q[:3].copy()
+                arm_posture_reference = hold_q[3:].copy()
+        elif self.terminal_reference_latched and self.terminal_platform_reference is not None:
+            platform_pose_reference = self.terminal_platform_reference.copy()
+            if self.terminal_arm_reference is not None:
+                arm_posture_reference = self.terminal_arm_reference.copy()
+
+        result = solve_routeb_online_step(
+            q_vec,
+            qd,
+            x_des,
+            xd_des,
+            xdd_des,
+            self.model_kwargs,
+            self.controller_cfg,
+            prev_u_a_wo=self.prev_u_a_wo,
+            prev_qdd=self.prev_qdd,
+            platform_pose_des=platform_pose_reference,
+            arm_posture_ref=arm_posture_reference,
+            time_s=time_s,
+            current_tip_world=current_tip_world,
+            dt=float(dt),
+            arrival_hold_latched=bool(self.arrival_hold_latched),
+            terminal_reference_active=bool(self.terminal_reference_latched),
+            reference_complete=reference_complete,
+            integral_error=self.hold_integral_error,
+        )
+
+        fallback_applied = False
+        command_u_a = np.asarray(result["u_a"], dtype=float).reshape(-1)
+        command_qdd = np.asarray(result["qdd"], dtype=float).reshape(-1)
+        if not np.all(np.isfinite(command_u_a)) or not np.all(np.isfinite(command_qdd)):
+            fallback_applied = True
+            command_u_a = _build_fallback_actuation(
+                self.prev_u_a,
+                self.controller_cfg,
+                q=q_vec,
+                qd=np.asarray(qd, dtype=float).reshape(-1),
+                a2d=np.asarray(result["A2D"], dtype=float),
+                platform_pose_target=(platform_pose_reference if platform_pose_reference is not None else q_vec[:3]),
+            )
+            command_qdd = np.zeros_like(q_vec) if self.prev_qdd is None else np.asarray(self.prev_qdd, dtype=float).reshape(-1)
+
+        command = RouteBCommand(
+            u_a=command_u_a.copy(),
+            qdd=command_qdd.copy(),
+            metadata={
+                "target_world": np.asarray(x_des, dtype=float).reshape(-1),
+                "u_a_wo": np.asarray(result["u_a_wo"], dtype=float).reshape(-1),
+                "h_a": np.asarray(result["h_a"], dtype=float).reshape(-1),
+                "solver_status": str(result["diagnostics"]["solver_status"]),
+                "fail_reason": str(result["diagnostics"]["fail_reason"]),
+                "control_mode": str(result["diagnostics"].get("control_mode", "")),
+                "hold_active": bool(result["hold_active"]),
+                "fallback_applied": bool(fallback_applied),
+            },
+        )
+
+        if np.all(np.isfinite(np.asarray(result["u_a_wo"], dtype=float).reshape(-1))):
+            self.prev_u_a_wo = np.asarray(result["u_a_wo"], dtype=float).reshape(-1)
+        if np.all(np.isfinite(command_qdd)):
+            self.prev_qdd = command_qdd.copy()
+        self.prev_u_a = command_u_a.copy()
+        position_error_norm = float(result.get("position_error_norm", np.linalg.norm(result["pd_diagnostics"]["error"])))
+        velocity_error_norm = float(result.get("velocity_error_norm", np.linalg.norm(result["pd_diagnostics"]["error_dot"])))
+        reference_static_enough = bool(result.get("reference_static_enough", False))
+        terminal_enter_tol = float(self.controller_cfg.get("terminal_reference_position_tol", near_goal_tol))
+        terminal_release_tol = float(self.controller_cfg.get("terminal_reference_release_tol", self.controller_cfg.get("arrival_hold_release_tol", 0.04)))
+        terminal_velocity_tol = float(self.controller_cfg.get("terminal_reference_velocity_tol", self.controller_cfg.get("hold_velocity_tol", 0.05)))
+        terminal_capture_steps = int(max(1, round(float(self.controller_cfg.get("terminal_reference_capture_duration_s", 0.08)) / max(float(dt), 1e-9))))
+        candidate_terminal_reference = bool(
+            reference_static_enough
+            and position_error_norm <= terminal_enter_tol
+            and velocity_error_norm <= terminal_velocity_tol
+        )
+        if not reference_static_enough:
+            self.terminal_reference_latched = False
+            self.terminal_reference_counter = 0
+            self.terminal_platform_reference = None
+            self.terminal_arm_reference = None
+        else:
+            if candidate_terminal_reference:
+                self.terminal_reference_counter += 1
+            elif not self.terminal_reference_latched:
+                self.terminal_reference_counter = 0
+            if self.terminal_reference_latched:
+                if position_error_norm > terminal_release_tol:
+                    self.terminal_reference_latched = False
+                    self.terminal_reference_counter = 0
+                    self.terminal_platform_reference = None
+                    self.terminal_arm_reference = None
+            elif self.terminal_reference_counter >= terminal_capture_steps:
+                self.terminal_reference_latched = True
+                self.terminal_platform_reference = q_vec[:3].copy()
+                self.terminal_arm_reference = q_vec[3:].copy()
+        enter_tol = float(self.controller_cfg.get("arrival_hold_position_tol", self.controller_cfg.get("hold_position_tol", 0.02)))
+        velocity_tol = float(self.controller_cfg.get("hold_velocity_tol", 0.05))
+        stable_required = int(max(1, round(float(self.controller_cfg.get("hold_stable_duration_s", 0.12)) / max(float(dt), 1e-9))))
+        enable_arrival_hold = bool(self.controller_cfg.get("enable_arrival_hold", False))
+        was_hold_latched = bool(self.arrival_hold_latched)
+        candidate_hold = bool(
+            self.terminal_reference_latched
+            and position_error_norm <= enter_tol
+            and velocity_error_norm <= velocity_tol
+        )
+        if enable_arrival_hold and self.terminal_reference_latched:
+            if candidate_hold:
+                self.stable_hold_counter += 1
+            elif not self.arrival_hold_latched:
+                self.stable_hold_counter = 0
+            if self.arrival_hold_latched:
+                self.arrival_hold_latched = bool(position_error_norm <= float(self.controller_cfg.get("arrival_hold_release_tol", 0.04)))
+            else:
+                self.arrival_hold_latched = bool(self.stable_hold_counter >= stable_required)
+        else:
+            self.arrival_hold_latched = False
+            self.stable_hold_counter = 0
+        if self.arrival_hold_latched and not was_hold_latched:
+            self.hold_q_reference = q_vec.copy()
+            self.terminal_platform_reference = q_vec[:3].copy()
+            self.terminal_arm_reference = q_vec[3:].copy()
+        elif not self.arrival_hold_latched:
+            self.hold_q_reference = None
+        if not self.terminal_reference_latched:
+            self.hold_integral_error = np.zeros(3, dtype=float)
+        elif self.arrival_hold_latched:
+            if self.hold_integral_error is None or self.hold_integral_error.size != 3:
+                self.hold_integral_error = np.zeros(3, dtype=float)
+            integral_limit = _expand_optional(
+                self.controller_cfg.get("hold_integral_limit"),
+                3,
+                0.03,
+            )
+            self.hold_integral_error = np.clip(
+                self.hold_integral_error + float(dt) * np.asarray(result["pd_diagnostics"]["error"], dtype=float).reshape(3),
+                -integral_limit,
+                integral_limit,
+            )
+        else:
+            self.hold_integral_error = np.zeros(3, dtype=float)
+
+        return OnlineStepResult(
+            state=result["state"],
+            task=result["task"],
+            terms=result["terms"],
+            a_des=np.asarray(result["a_des"], dtype=float).reshape(-1),
+            command=command,
+            diagnostics={
+                "task_pd": result["pd_diagnostics"],
+                "solver": result["diagnostics"],
+                "A2D": result["A2D"],
+                "platform_qdd_ref": result["platform_qdd_ref"],
+                "arm_posture_target": result["arm_posture_target"],
+                "hold_active": bool(result["hold_active"]),
+                "arrival_hold_latched": bool(self.arrival_hold_latched),
+                "hold_q_reference": None if self.hold_q_reference is None else self.hold_q_reference.copy(),
+                "terminal_platform_reference": None if self.terminal_platform_reference is None else self.terminal_platform_reference.copy(),
+                "terminal_arm_reference": None if self.terminal_arm_reference is None else self.terminal_arm_reference.copy(),
+                "hold_integral_error": None if self.hold_integral_error is None else self.hold_integral_error.copy(),
+                "stable_hold_counter": int(self.stable_hold_counter),
+                "terminal_reference_latched": bool(self.terminal_reference_latched),
+                "terminal_reference_counter": int(self.terminal_reference_counter),
+                "fallback_applied": bool(fallback_applied),
+                "position_error_norm": position_error_norm,
+                "velocity_error_norm": velocity_error_norm,
+                "desired_velocity_norm": float(result.get("desired_velocity_norm", 0.0)),
+                "desired_acceleration_norm": float(result.get("desired_acceleration_norm", 0.0)),
+                "reference_static_enough": reference_static_enough,
+                "reference_complete": bool(reference_complete) if reference_complete is not None else reference_static_enough,
+                "task_phase": str(result.get("task_phase", "")),
+                "platform_limit_diag": result["platform_limit_diag"],
+            },
+        )
+
+
+def _solve_routeb_hqp(
+    *,
+    M: np.ndarray,
+    ST: np.ndarray,
+    h_a: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+    J_wb: np.ndarray,
+    Jdot_qd: np.ndarray,
+    xdd_ref: np.ndarray,
+    qdd_ref: np.ndarray,
+    arm_qdd_ref: np.ndarray,
+    prev_u_a_wo: Optional[Iterable[float]],
+    prev_qdd: Optional[Iterable[float]],
+    platform_qdd_ref: np.ndarray,
+    q: np.ndarray,
+    qd: np.ndarray,
+    dt: float,
+) -> Dict[str, Any]:
+    """Solve Route-B using an explicit HCDR_HQP-like task stack."""
+
+    dof_count = int(M.shape[0])
+    actuation_count = int(ST.shape[1])
+    n_c = int(controller_cfg["n_c"])
+    n_m = int(controller_cfg["n_m"])
+    decision_dim = dof_count + actuation_count
+    previous_uwo = np.zeros(actuation_count, dtype=float) if prev_u_a_wo is None else _as_vector(prev_u_a_wo, expected=actuation_count)
+    previous_qdd = np.zeros(dof_count, dtype=float) if prev_qdd is None else _as_vector(prev_qdd, expected=dof_count)
+    qp_backend = str(controller_cfg.get("qp_solver_backend", "auto"))
+
+    alpha_t = float(controller_cfg.get("alpha_T", 1e-3))
+    beta_tau = float(controller_cfg.get("beta_tau", 1e-3))
+    gamma_qdd = float(controller_cfg.get("gamma_qdd", 1.0))
+    smooth_weight_u = float(controller_cfg.get("smooth_weight_u", 0.0))
+    smooth_weight_qdd = float(controller_cfg.get("smooth_weight_qdd", 0.0))
+    tension_ref_weight = float(controller_cfg.get("weight_tension_ref", 0.0))
+    hard_lock_platform = bool(controller_cfg.get("hard_lock_platform", False))
+    task_level_regularization = float(controller_cfg.get("task_level_regularization", 1e-6))
+    control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
+    task_phase = str(controller_cfg.get("routeb_task_phase", "tracking")).strip().lower()
+
+    lower_uwo, upper_uwo, final_lower, final_upper, tension_policy = _build_actuation_bounds(h_a, controller_cfg)
+    qdd_lower, qdd_upper, platform_qdd_box_diag = _build_qdd_box_bounds(q, qd, float(dt), controller_cfg)
+    if np.any(qdd_lower > qdd_upper):
+        return _failure_result(
+            dof_count,
+            actuation_count,
+            n_c,
+            h_a,
+            "platform_state_box_infeasible",
+            {"success": False, "status": "platform_state_box_infeasible", "runtime_s": 0.0},
+        )
+
+    z_lower = np.concatenate([qdd_lower, lower_uwo])
+    z_upper = np.concatenate([qdd_upper, upper_uwo])
+    z_ref = np.concatenate([qdd_ref, previous_uwo])
+    desired_cable_uwo = tension_policy["reference"] - tension_policy["cable_bias"]
+
+    dynamics_eq = np.hstack([M, -ST])
+    dynamics_rhs = np.zeros(dof_count, dtype=float)
+    hard_eq_blocks = [dynamics_eq]
+    hard_rhs_blocks = [dynamics_rhs]
+    if hard_lock_platform:
+        hard_eq_blocks.append(np.hstack([np.eye(3, dof_count, dtype=float), np.zeros((3, actuation_count), dtype=float)]))
+        hard_rhs_blocks.append(platform_qdd_ref)
+    hard_eq = np.vstack(hard_eq_blocks)
+    hard_rhs = np.concatenate(hard_rhs_blocks)
+
+    mode_plan = _build_mode_task_plan(
+        controller_cfg=controller_cfg,
+        control_mode=control_mode,
+        task_phase=task_phase,
+        dof_count=dof_count,
+        actuation_count=actuation_count,
+        n_m=n_m,
+        J_wb=np.asarray(J_wb, dtype=float),
+        Jdot_qd=np.asarray(Jdot_qd, dtype=float),
+        xdd_ref=np.asarray(xdd_ref, dtype=float),
+        platform_qdd_ref=np.asarray(platform_qdd_ref, dtype=float),
+        arm_qdd_ref=np.asarray(arm_qdd_ref, dtype=float),
+    )
+    task_levels = mode_plan.task_levels
+    platform_posture_weight = float(mode_plan.platform_posture_weight)
+    arm_posture_weight = float(mode_plan.arm_posture_weight)
+
+    level_results = _solve_task_stack_levels(
+        task_levels,
+        hard_eq,
+        hard_rhs,
+        z_lower,
+        z_upper,
+        z_ref,
+        qp_backend,
+        task_level_regularization,
+    )
+    if not level_results["success"]:
+        return _failure_result(dof_count, actuation_count, n_c, h_a, level_results["fail_reason"], level_results["last_solver"])
+
+    z_stack = np.asarray(level_results["z"], dtype=float).reshape(-1)
+    qdd_stack = z_stack[:dof_count]
+    uwo_stack = z_stack[dof_count:]
+
+    min_h, min_g = _build_min_cost_objective(
+        qdd_ref=mode_plan.qdd_min_ref,
+        previous_qdd=previous_qdd,
+        previous_uwo=previous_uwo,
+        desired_cable_uwo=desired_cable_uwo,
+        dof_count=dof_count,
+        actuation_count=actuation_count,
+        n_c=n_c,
+        n_m=n_m,
+        gamma_qdd=gamma_qdd,
+        alpha_t=alpha_t,
+        beta_tau=beta_tau,
+        smooth_weight_qdd=smooth_weight_qdd,
+        smooth_weight_u=smooth_weight_u,
+        tension_ref_weight=tension_ref_weight,
+        platform_posture_weight=platform_posture_weight,
+        arm_posture_weight=arm_posture_weight,
+        platform_qdd_ref=platform_qdd_ref,
+    )
+    final_eq, final_rhs = _assemble_fixed_task_constraints(hard_eq, hard_rhs, task_levels, level_results["slacks"])
+    final_x0 = z_stack.copy()
+    final_solver = solve_qp(min_h, min_g, final_eq, final_rhs, z_lower, z_upper, final_x0, backend=qp_backend)
+
+    if not final_solver["success"] or final_solver["x"] is None:
+        z_final = z_stack
+        solver_status = "task_stack_only"
+        fail_reason = "min_task_infeasible"
+        final_backend = str(final_solver.get("backend", ""))
+    else:
+        z_final = np.asarray(final_solver["x"], dtype=float).reshape(-1)
+        solver_status = "min_task"
+        fail_reason = "none"
+        final_backend = str(final_solver.get("backend", ""))
+
+    qdd_final = z_final[:dof_count]
+    uwo_final = z_final[dof_count:]
+    u_final = uwo_final + h_a
+    dyn_residual = np.linalg.norm(M @ qdd_final - ST @ uwo_final)
+    task_residual_vec = J_wb @ qdd_final + Jdot_qd - xdd_ref
+    within_box = bool(np.all(u_final >= final_lower - 1e-6) and np.all(u_final <= final_upper + 1e-6))
+    success = bool(level_results["success"] and dyn_residual <= 1e-5 and within_box and final_solver["success"])
+    tension_margin = float(np.min(np.concatenate([u_final[:n_c] - final_lower[:n_c], final_upper[:n_c] - u_final[:n_c]])))
+    torque_margin = float(np.min(np.concatenate([u_final[n_c:] - final_lower[n_c:], final_upper[n_c:] - u_final[n_c:]])))
+
+    diagnostics = {
+        "solver_status": solver_status,
+        "fail_reason": fail_reason,
+        "hard_lock_platform": hard_lock_platform,
+        "control_mode": control_mode,
+        "task_phase": task_phase,
+        "qp_backend_requested": qp_backend,
+        "qp_backend_used": final_backend if final_backend else str(level_results.get("backend_used", "")),
+        "dyn_residual": float(dyn_residual),
+        "within_box": within_box,
+        "task_residual": float(np.linalg.norm(task_residual_vec)),
+        "slack_norm": float(level_results["tracking_slack_norm"]),
+        "du_norm": float(np.linalg.norm(uwo_final - previous_uwo)),
+        "dqdd_norm": float(np.linalg.norm(qdd_final - previous_qdd)),
+        "tension_margin": tension_margin,
+        "torque_margin": torque_margin,
+        "platform_posture_weight": platform_posture_weight,
+        "arm_posture_weight": arm_posture_weight,
+        "mode_task_names": [task.name for task in task_levels],
+        "platform_qdd_box_diag": platform_qdd_box_diag,
+        "f_ref": tension_policy["reference"].copy(),
+        "tension_safe_lower": tension_policy["safe_lower"].copy(),
+        "T_safe_margin": tension_policy["safe_margin"].copy(),
+        "task_stack": level_results["level_summaries"],
+        "solver_runtime_s": float(level_results["runtime_s"] + float(final_solver.get("runtime_s", 0.0))),
+    }
+
+    return {
+        "success": success,
+        "qdd": qdd_final,
+        "u_a_wo": uwo_final,
+        "u_a": u_final,
+        "h_a": h_a.copy(),
+        "diagnostics": diagnostics,
+    }
+
+
+def _compute_a2d(
+    platform_pose: np.ndarray,
+    z0: float,
+    anchors_world: np.ndarray,
+    attach_local: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute planar wrench map A2D using the MATLAB planar convention."""
+
+    x, y, psi = [float(v) for v in platform_pose.reshape(3)]
+    c = np.cos(psi)
+    s = np.sin(psi)
+    cable_count = int(attach_local.shape[1])
+    attach_world = np.zeros((3, cable_count), dtype=float)
+    lever_arms_world = np.zeros((3, cable_count), dtype=float)
+    a2d = np.zeros((3, cable_count), dtype=float)
+
+    for cable_index in range(cable_count):
+        attach_x_local = float(attach_local[0, cable_index])
+        attach_y_local = float(attach_local[1, cable_index])
+        attach_z_local = float(attach_local[2, cable_index])
+
+        lever_x = c * attach_x_local - s * attach_y_local
+        lever_y = s * attach_x_local + c * attach_y_local
+        lever_z = attach_z_local
+        attach_x_world = x + lever_x
+        attach_y_world = y + lever_y
+        attach_z_world = float(z0) + attach_z_local
+
+        attach_world[0, cable_index] = attach_x_world
+        attach_world[1, cable_index] = attach_y_world
+        attach_world[2, cable_index] = attach_z_world
+        lever_arms_world[0, cable_index] = lever_x
+        lever_arms_world[1, cable_index] = lever_y
+        lever_arms_world[2, cable_index] = lever_z
+
+        cable_dx = float(anchors_world[0, cable_index]) - attach_x_world
+        cable_dy = float(anchors_world[1, cable_index]) - attach_y_world
+        cable_planar_length = float(np.sqrt(cable_dx * cable_dx + cable_dy * cable_dy))
+        if cable_planar_length <= 0.0:
+            raise ValueError("Degenerate planar cable length encountered.")
+
+        unit_x = cable_dx / cable_planar_length
+        unit_y = cable_dy / cable_planar_length
+        a2d[0, cable_index] = unit_x
+        a2d[1, cable_index] = unit_y
+        a2d[2, cable_index] = lever_x * unit_y - lever_y * unit_x
+    return a2d, attach_world
+
+
+def _map_bias_to_actuation(h: Iterable[float], a2d: np.ndarray, damping_lambda: float) -> np.ndarray:
+    """Route-B D4 mapping: h=[h_p;h_m] -> h_a=[A2D^+ h_p; h_m]."""
+
+    h_vec = _as_vector(h)
+    h_p = h_vec[:3]
+    h_m = h_vec[3:]
+    effective_lambda = float(damping_lambda) if damping_lambda > 0.0 else 1e-8
+    aat = np.zeros((3, 3), dtype=float)
+    for row_index in range(3):
+        for col_index in range(3):
+            total = 0.0
+            for cable_index in range(a2d.shape[1]):
+                total += float(a2d[row_index, cable_index]) * float(a2d[col_index, cable_index])
+            if row_index == col_index:
+                total += effective_lambda
+            aat[row_index, col_index] = total
+    solved = _solve_linear_3x3(aat, h_p)
+    cable_bias = np.zeros(a2d.shape[1], dtype=float)
+    for cable_index in range(a2d.shape[1]):
+        total = 0.0
+        for row_index in range(3):
+            total += float(a2d[row_index, cable_index]) * float(solved[row_index])
+        cable_bias[cable_index] = total
+    return np.concatenate([cable_bias, h_m])
+
+
+def _compute_platform_limit_diag(
+    platform_q: np.ndarray,
+    platform_qd: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+) -> Dict[str, np.ndarray | float]:
+    """Build soft limit-avoidance acceleration for platform [x, y, psi]."""
+
+    xy_limit = float(controller_cfg.get("platform_tracking_xy_limit", controller_cfg.get("platform_xy_limit", 1.0)))
+    psi_limit = float(controller_cfg.get("platform_tracking_psi_limit", controller_cfg.get("platform_psi_limit", np.pi)))
+    avoid_margin = float(controller_cfg.get("platform_tracking_limit_margin", controller_cfg.get("platform_limit_margin", 0.15)))
+    avoid_margin = min(avoid_margin, 0.5 * max(xy_limit, psi_limit, 1e-9))
+    avoid_gain = float(controller_cfg.get("platform_limit_gain", 8.0))
+    velocity_gain = float(controller_cfg.get("platform_limit_velocity_gain", 2.0))
+
+    limits = np.array([xy_limit, xy_limit, psi_limit], dtype=float)
+    q_vec = np.asarray(platform_q, dtype=float).reshape(3)
+    qd_vec = np.asarray(platform_qd, dtype=float).reshape(3)
+    signed_distance = limits - np.abs(q_vec)
+    correction = np.zeros(3, dtype=float)
+
+    for axis_index in range(3):
+        margin = float(signed_distance[axis_index])
+        if margin >= avoid_margin:
+            continue
+        activation = max(0.0, avoid_margin - margin) / max(avoid_margin, 1e-9)
+        direction = -np.sign(q_vec[axis_index]) if abs(float(q_vec[axis_index])) > 1e-12 else 0.0
+        outward_velocity = float(qd_vec[axis_index] * np.sign(q_vec[axis_index]))
+        correction[axis_index] = direction * avoid_gain * activation * activation
+        if outward_velocity > 0.0:
+            correction[axis_index] += direction * velocity_gain * outward_velocity
+
+    return {
+        "platform_limits": limits.copy(),
+        "signed_distance": signed_distance.copy(),
+        "min_margin": float(np.min(signed_distance)),
+        "limit_qdd_correction": correction.copy(),
+    }
+
+
+def _clip_task_acceleration(a_des: np.ndarray, controller_cfg: Mapping[str, Any]) -> np.ndarray:
+    """Clip task acceleration request so online moving-target demos stay within a diagnosable regime."""
+
+    task_dim = int(a_des.size)
+    limits = _expand_optional(controller_cfg.get("task_accel_limit"), task_dim, np.inf)
+    return np.clip(np.asarray(a_des, dtype=float).reshape(-1), -limits, limits)
+
+
+def _apply_phase_controller_overrides(controller_cfg: Dict[str, Any], task_phase: str) -> None:
+    """Apply phase-dependent precision scheduling without changing control mode."""
+
+    phase_name = str(task_phase).strip().lower()
+    if phase_name == "hold":
+        alpha_key = "hold_alpha_T"
+        xy_key = "hold_platform_tracking_xy_limit"
+        psi_key = "hold_platform_tracking_psi_limit"
+    elif phase_name == "terminal_approach":
+        alpha_key = "terminal_alpha_T"
+        xy_key = "terminal_platform_tracking_xy_limit"
+        psi_key = "terminal_platform_tracking_psi_limit"
+    elif phase_name == "near_goal":
+        alpha_key = "near_goal_alpha_T"
+        xy_key = "near_goal_platform_tracking_xy_limit"
+        psi_key = "near_goal_platform_tracking_psi_limit"
+    else:
+        alpha_key = "tracking_alpha_T"
+        xy_key = "tracking_platform_tracking_xy_limit"
+        psi_key = "tracking_platform_tracking_psi_limit"
+
+    if alpha_key in controller_cfg:
+        controller_cfg["alpha_T"] = float(controller_cfg[alpha_key])
+    if xy_key in controller_cfg:
+        controller_cfg["platform_tracking_xy_limit"] = float(controller_cfg[xy_key])
+    if psi_key in controller_cfg:
+        controller_cfg["platform_tracking_psi_limit"] = float(controller_cfg[psi_key])
+
+
+def _build_qdd_box_bounds(
+    q: np.ndarray,
+    qd: np.ndarray,
+    dt: float,
+    controller_cfg: Mapping[str, Any],
+) -> tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray | float]]:
+    """Build qdd box bounds with platform state/velocity prediction guards."""
+
+    q_vec = np.asarray(q, dtype=float).reshape(-1)
+    qd_vec = np.asarray(qd, dtype=float).reshape(-1)
+    dof_count = int(q_vec.size)
+    n_m = int(controller_cfg["n_m"])
+    lower = -np.inf * np.ones(dof_count, dtype=float)
+    upper = np.inf * np.ones(dof_count, dtype=float)
+
+    platform_qdd_limit = _expand_optional(controller_cfg.get("platform_qdd_limit"), 3, np.inf)
+    lower[:3] = np.maximum(lower[:3], -platform_qdd_limit)
+    upper[:3] = np.minimum(upper[:3], platform_qdd_limit)
+
+    if n_m > 0:
+        arm_qdd_limit = _expand_optional(controller_cfg.get("arm_qdd_limit"), n_m, np.inf)
+        lower[3:] = np.maximum(lower[3:], -arm_qdd_limit)
+        upper[3:] = np.minimum(upper[3:], arm_qdd_limit)
+
+    xy_limit = float(controller_cfg.get("platform_tracking_xy_limit", controller_cfg.get("platform_xy_limit", np.inf)))
+    psi_limit = float(controller_cfg.get("platform_tracking_psi_limit", controller_cfg.get("platform_psi_limit", np.inf)))
+    state_guard_xy = float(controller_cfg.get("platform_tracking_state_guard_xy", controller_cfg.get("platform_state_guard_xy", 0.05)))
+    state_guard_psi = float(controller_cfg.get("platform_tracking_state_guard_psi", controller_cfg.get("platform_state_guard_psi", 0.10)))
+    safe_state_limits = np.array(
+        [
+            max(0.0, xy_limit - state_guard_xy),
+            max(0.0, xy_limit - state_guard_xy),
+            max(0.0, psi_limit - state_guard_psi),
+        ],
+        dtype=float,
+    )
+    velocity_limits = _expand_optional(controller_cfg.get("platform_velocity_limit"), 3, np.inf)
+    recovery_qdd = _expand_optional(controller_cfg.get("platform_recovery_qdd"), 3, 2.0)
+    recovery_velocity_gain = float(controller_cfg.get("platform_recovery_velocity_gain", 1.0))
+
+    for axis_index in range(3):
+        axis_limit = float(safe_state_limits[axis_index])
+        axis_position = float(q_vec[axis_index])
+        if axis_limit <= 0.0:
+            continue
+        if axis_position > axis_limit:
+            outward_velocity = max(0.0, float(qd_vec[axis_index]))
+            upper[axis_index] = min(
+                upper[axis_index],
+                -float(recovery_qdd[axis_index]) - recovery_velocity_gain * outward_velocity,
+            )
+        elif axis_position < -axis_limit:
+            outward_velocity = max(0.0, float(-qd_vec[axis_index]))
+            lower[axis_index] = max(
+                lower[axis_index],
+                float(recovery_qdd[axis_index]) + recovery_velocity_gain * outward_velocity,
+            )
+
+    return lower, upper, {
+        "lower": lower[:3].copy(),
+        "upper": upper[:3].copy(),
+        "safe_state_limits": safe_state_limits,
+        "velocity_limits": velocity_limits.copy(),
+    }
+
+
+def _build_actuation_bounds(h_a: np.ndarray, controller_cfg: Mapping[str, Any]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+    """Convert final-actuation bounds into bounds on u_{a,wo}."""
+
+    n_c = int(controller_cfg["n_c"])
+    n_m = int(controller_cfg["n_m"])
+    tension_min = _as_vector(controller_cfg["T_min"], expected=n_c)
+    tension_max = _as_vector(controller_cfg["T_max"], expected=n_c)
+    torque_min = _as_vector(controller_cfg["tau_min"], expected=n_m)
+    torque_max = _as_vector(controller_cfg["tau_max"], expected=n_m)
+    safe_margin = _expand_optional(controller_cfg.get("T_safe_margin"), n_c, 0.0)
+    center_offset = _expand_optional(controller_cfg.get("T_center_offset"), n_c, 0.0)
+    safe_lower = tension_min + safe_margin
+    if np.any(safe_lower > tension_max + 1e-9):
+        raise ValueError("T_min + T_safe_margin must be <= T_max.")
+
+    if controller_cfg.get("f_ref") is None or np.size(controller_cfg.get("f_ref")) == 0:
+        reference = safe_lower + center_offset
+    else:
+        reference = _as_vector(controller_cfg["f_ref"], expected=n_c)
+    reference = np.minimum(np.maximum(reference, safe_lower), tension_max)
+
+    cable_bias = h_a[:n_c]
+    arm_bias = h_a[n_c:]
+    lower_uwo = np.concatenate([safe_lower - cable_bias, torque_min - arm_bias])
+    upper_uwo = np.concatenate([tension_max - cable_bias, torque_max - arm_bias])
+    final_lower = np.concatenate([safe_lower, torque_min])
+    final_upper = np.concatenate([tension_max, torque_max])
+    return lower_uwo, upper_uwo, final_lower, final_upper, {
+        "reference": reference,
+        "safe_lower": safe_lower,
+        "safe_margin": safe_margin,
+        "cable_bias": cable_bias,
+    }
+
+
+def _build_fallback_actuation(
+    prev_u_a: Optional[np.ndarray],
+    controller_cfg: Mapping[str, Any],
+    *,
+    q: np.ndarray | None = None,
+    qd: np.ndarray | None = None,
+    a2d: np.ndarray | None = None,
+    platform_pose_target: np.ndarray | None = None,
+) -> np.ndarray:
+    """Return finite safe actuation when the online QP step fails."""
+
+    n_c = int(controller_cfg["n_c"])
+    n_m = int(controller_cfg["n_m"])
+    tension_min = _as_vector(controller_cfg["T_min"], expected=n_c)
+    tension_max = _as_vector(controller_cfg["T_max"], expected=n_c)
+    tau_min = _as_vector(controller_cfg["tau_min"], expected=n_m)
+    tau_max = _as_vector(controller_cfg["tau_max"], expected=n_m)
+    safe_margin = _expand_optional(controller_cfg.get("T_safe_margin"), n_c, 0.0)
+    center_offset = _expand_optional(controller_cfg.get("T_center_offset"), n_c, 0.0)
+    safe_lower = tension_min + safe_margin
+
+    if controller_cfg.get("f_ref") is None or np.size(controller_cfg.get("f_ref")) == 0:
+        reference = safe_lower + center_offset
+    else:
+        reference = _as_vector(controller_cfg["f_ref"], expected=n_c)
+    reference = np.minimum(np.maximum(reference, safe_lower), tension_max)
+
+    fallback = np.concatenate([reference, np.zeros(n_m, dtype=float)])
+    previous_blend = float(controller_cfg.get("fallback_prev_blend", 0.0))
+    if prev_u_a is not None and previous_blend > 0.0:
+        prev = np.asarray(prev_u_a, dtype=float).reshape(-1)
+        if prev.size == fallback.size and np.all(np.isfinite(prev)):
+            fallback = previous_blend * prev.copy() + (1.0 - previous_blend) * fallback
+
+    if (
+        q is not None
+        and qd is not None
+        and a2d is not None
+        and platform_pose_target is not None
+        and np.size(a2d) > 0
+    ):
+        q_vec = np.asarray(q, dtype=float).reshape(-1)
+        qd_vec = np.asarray(qd, dtype=float).reshape(-1)
+        target_vec = np.asarray(platform_pose_target, dtype=float).reshape(3)
+        fallback_kp = _expand_optional(controller_cfg.get("fallback_platform_kp"), 3, 15.0)
+        fallback_kd = _expand_optional(controller_cfg.get("fallback_platform_kd"), 3, 6.0)
+        desired_wrench = fallback_kp * (target_vec - q_vec[:3]) - fallback_kd * qd_vec[:3]
+        tension_correction = _damped_a2d_pseudoinverse(
+            np.asarray(a2d, dtype=float),
+            desired_wrench,
+            float(controller_cfg.get("damped_pinv_lambda", 0.0)),
+        )
+        if tension_correction.size == n_c and np.all(np.isfinite(tension_correction)):
+            fallback[:n_c] = fallback[:n_c] + tension_correction
+
+    fallback[:n_c] = np.clip(fallback[:n_c], safe_lower, tension_max)
+    if n_m > 0:
+        fallback[n_c:] = np.clip(fallback[n_c:], tau_min, tau_max)
+    return fallback
+
+
+def _damped_a2d_pseudoinverse(a2d: np.ndarray, wrench: np.ndarray, lambda_value: float) -> np.ndarray:
+    """Return damped least-squares cable correction solving A2D * dt ~= wrench."""
+
+    a2d_matrix = np.asarray(a2d, dtype=float).reshape(3, -1)
+    wrench_vec = np.asarray(wrench, dtype=float).reshape(3)
+    effective_lambda = max(float(lambda_value), 1e-6)
+    aat = a2d_matrix @ a2d_matrix.T + effective_lambda * np.eye(3, dtype=float)
+    solved = np.linalg.solve(aat, wrench_vec)
+    return a2d_matrix.T @ solved
+
+
+def _failure_result(
+    dof_count: int,
+    actuation_count: int,
+    n_c: int,
+    h_a: np.ndarray,
+    fail_reason: str,
+    solver_info: Mapping[str, Any],
+) -> Dict[str, Any]:
+    qdd = np.full(dof_count, np.nan, dtype=float)
+    u_a_wo = np.full(actuation_count, np.nan, dtype=float)
+    u_a = np.full(actuation_count, np.nan, dtype=float)
+    return {
+        "success": False,
+        "qdd": qdd,
+        "u_a_wo": u_a_wo,
+        "u_a": u_a,
+        "h_a": h_a.copy(),
+        "diagnostics": {
+            "solver_status": "failed",
+            "fail_reason": fail_reason,
+            "dyn_residual": float("nan"),
+            "within_box": False,
+            "task_residual": float("nan"),
+            "slack_norm": float("nan"),
+            "du_norm": float("nan"),
+            "dqdd_norm": float("nan"),
+            "tension_margin": float("nan"),
+            "torque_margin": float("nan"),
+            "f_ref": np.full(n_c, np.nan, dtype=float),
+            "tension_safe_lower": np.full(n_c, np.nan, dtype=float),
+            "T_safe_margin": np.full(n_c, np.nan, dtype=float),
+            "level1": {"success": bool(solver_info.get("success", False)), "status": str(solver_info.get("status", ""))},
+            "level2": {},
+            "solver_runtime_s": float(solver_info.get("runtime_s", 0.0)),
+        },
+    }
+
+
+def _build_mode_task_plan(
+    *,
+    controller_cfg: Mapping[str, Any],
+    control_mode: str,
+    task_phase: str,
+    dof_count: int,
+    actuation_count: int,
+    n_m: int,
+    J_wb: np.ndarray,
+    Jdot_qd: np.ndarray,
+    xdd_ref: np.ndarray,
+    platform_qdd_ref: np.ndarray,
+    arm_qdd_ref: np.ndarray,
+) -> ModeAwareTaskPlan:
+    """Resolve explicit task-stack order from the selected control mode."""
+
+    tracking_slack_weight = float(controller_cfg.get("tracking_task_slack_weight", 1e4))
+    platform_slack_weight = float(controller_cfg.get("platform_task_slack_weight", 1e4))
+    orientation_slack_weight = float(controller_cfg.get("orientation_task_slack_weight", platform_slack_weight))
+    arm_slack_weight = float(controller_cfg.get("arm_task_slack_weight", platform_slack_weight))
+
+    tracking_task = EqualityTaskLevel(
+        name="tracking",
+        A=np.hstack([J_wb, np.zeros((int(J_wb.shape[0]), actuation_count), dtype=float)]),
+        b=np.asarray(xdd_ref - Jdot_qd, dtype=float).reshape(-1),
+        slack_weight=tracking_slack_weight,
+    )
+
+    platform_pose_task = EqualityTaskLevel(
+        name="platform_posture_fix",
+        A=np.hstack([np.eye(3, dof_count, dtype=float), np.zeros((3, actuation_count), dtype=float)]),
+        b=np.asarray(platform_qdd_ref, dtype=float).reshape(3),
+        slack_weight=platform_slack_weight,
+    )
+
+    platform_orientation_matrix = np.zeros((1, dof_count + actuation_count), dtype=float)
+    platform_orientation_matrix[0, 2] = 1.0
+    platform_orientation_task = EqualityTaskLevel(
+        name="platform_orientation_fix",
+        A=platform_orientation_matrix,
+        b=np.asarray([float(platform_qdd_ref[2])], dtype=float),
+        slack_weight=orientation_slack_weight,
+    )
+
+    arm_posture_matrix = np.zeros((n_m, dof_count + actuation_count), dtype=float)
+    if n_m > 0:
+        arm_posture_matrix[:, 3 : 3 + n_m] = np.eye(n_m, dtype=float)
+    arm_posture_task = EqualityTaskLevel(
+        name="arm_posture_fix",
+        A=arm_posture_matrix,
+        b=np.asarray(arm_qdd_ref, dtype=float).reshape(n_m),
+        slack_weight=arm_slack_weight,
+    )
+
+    qdd_min_ref = np.zeros(dof_count, dtype=float)
+    platform_posture_weight = 0.0
+    arm_posture_weight = 0.0
+
+    task_phase_normalized = str(task_phase).strip().lower()
+
+    if control_mode == "platform_only":
+        task_levels = [arm_posture_task, tracking_task]
+        qdd_min_ref[3:] = arm_qdd_ref
+        arm_posture_weight = float(controller_cfg.get("platform_only_arm_posture_weight", 0.2))
+    elif control_mode == "arm_only":
+        task_levels = [tracking_task, platform_pose_task]
+        qdd_min_ref[:3] = platform_qdd_ref
+        platform_posture_weight = float(
+            controller_cfg.get(
+                "arm_only_platform_posture_weight",
+                controller_cfg.get("platform_posture_weight", 0.0),
+            )
+        )
+    else:
+        if task_phase_normalized == "hold":
+            task_levels = [platform_pose_task]
+            if n_m > 0 and bool(controller_cfg.get("hold_add_arm_posture_task", True)):
+                task_levels.append(arm_posture_task)
+            task_levels.append(tracking_task)
+        elif task_phase_normalized in ("terminal_approach", "near_goal"):
+            task_levels = [tracking_task]
+            if task_phase_normalized == "terminal_approach" and n_m > 0 and bool(controller_cfg.get("terminal_add_arm_posture_task", False)):
+                task_levels.append(arm_posture_task)
+        elif task_phase_normalized in ("tracking", "acquisition"):
+            task_levels = [tracking_task]
+        elif bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
+            task_levels = [tracking_task, platform_orientation_task]
+        else:
+            task_levels = [tracking_task]
+        if n_m > 0 and bool(controller_cfg.get("cooperative_add_arm_posture_task", True)):
+            task_levels.append(arm_posture_task)
+        if task_phase_normalized == "hold":
+            qdd_min_ref[3:] = arm_qdd_ref
+        else:
+            qdd_min_ref[3:] = 0.0
+        if task_phase_normalized in ("near_goal", "terminal_approach", "hold"):
+            qdd_min_ref[:3] = platform_qdd_ref
+        platform_posture_weight = float(controller_cfg.get("platform_posture_weight", 0.0))
+        arm_posture_weight = float(
+            controller_cfg.get(
+                "cooperative_arm_posture_weight",
+                controller_cfg.get("arm_posture_weight", 0.0),
+            )
+        )
+
+    return ModeAwareTaskPlan(
+        control_mode=control_mode,
+        task_levels=task_levels,
+        qdd_min_ref=qdd_min_ref,
+        platform_posture_weight=platform_posture_weight,
+        arm_posture_weight=arm_posture_weight,
+    )
+
+
+def _solve_task_stack_levels(
+    task_levels: list[EqualityTaskLevel],
+    hard_eq: np.ndarray,
+    hard_rhs: np.ndarray,
+    z_lower: np.ndarray,
+    z_upper: np.ndarray,
+    z_ref: np.ndarray,
+    qp_backend: str,
+    regularization: float,
+) -> Dict[str, Any]:
+    """Solve explicit HCDR_HQP-like task levels sequentially."""
+
+    decision_dim = int(z_lower.size)
+    z_current = np.asarray(z_ref, dtype=float).reshape(-1).copy()
+    slack_map: Dict[str, np.ndarray] = {}
+    level_summaries: list[dict[str, Any]] = []
+    backend_used = ""
+    total_runtime_s = 0.0
+
+    for task in task_levels:
+        slack_dim = int(task.A.shape[0])
+        H = np.zeros((decision_dim + slack_dim, decision_dim + slack_dim), dtype=float)
+        H[:decision_dim, :decision_dim] = regularization * np.eye(decision_dim, dtype=float)
+        H[decision_dim:, decision_dim:] = float(task.slack_weight) * np.eye(slack_dim, dtype=float)
+        g = np.zeros(decision_dim + slack_dim, dtype=float)
+        g[:decision_dim] = -regularization * z_current
+
+        fixed_eq, fixed_rhs = _assemble_fixed_task_constraints(hard_eq, hard_rhs, task_levels[: len(slack_map)], slack_map)
+        current_eq = np.hstack([task.A, np.eye(slack_dim, dtype=float)])
+        if fixed_eq.size > 0:
+            eq = np.vstack([np.hstack([fixed_eq, np.zeros((fixed_eq.shape[0], slack_dim), dtype=float)]), current_eq])
+            rhs = np.concatenate([fixed_rhs, task.b])
+        else:
+            eq = current_eq
+            rhs = task.b
+
+        lb = np.concatenate([z_lower, -np.inf * np.ones(slack_dim, dtype=float)])
+        ub = np.concatenate([z_upper, np.inf * np.ones(slack_dim, dtype=float)])
+        slack0 = np.asarray(task.b, dtype=float).reshape(-1) - np.asarray(task.A, dtype=float) @ z_current
+        x0 = np.concatenate([z_current, slack0])
+        solver = solve_qp(H, g, eq, rhs, lb, ub, x0, backend=qp_backend)
+        total_runtime_s += float(solver.get("runtime_s", 0.0))
+        backend_used = str(solver.get("backend", backend_used))
+        if not solver["success"] or solver["x"] is None:
+            return {
+                "success": False,
+                "fail_reason": f"{task.name}_infeasible",
+                "last_solver": solver,
+                "level_summaries": level_summaries,
+                "runtime_s": total_runtime_s,
+                "backend_used": backend_used,
+            }
+
+        level_x = np.asarray(solver["x"], dtype=float).reshape(-1)
+        z_current = level_x[:decision_dim]
+        slack_map[task.name] = level_x[decision_dim:].copy()
+        level_summaries.append(
+            {
+                "name": task.name,
+                "success": True,
+                "backend": str(solver.get("backend", "")),
+                "status": str(solver.get("status", "")),
+                "objective": float(solver.get("objective", float("nan"))),
+                "slack_norm": float(np.linalg.norm(slack_map[task.name])),
+            }
+        )
+
+    tracking_slack = slack_map.get("tracking", np.zeros(0, dtype=float))
+    return {
+        "success": True,
+        "fail_reason": "none",
+        "z": z_current.copy(),
+        "slacks": slack_map,
+        "tracking_slack_norm": float(np.linalg.norm(tracking_slack)),
+        "level_summaries": level_summaries,
+        "runtime_s": total_runtime_s,
+        "backend_used": backend_used,
+        "last_solver": {"success": True, "status": "ok", "runtime_s": total_runtime_s},
+    }
+
+
+def _assemble_fixed_task_constraints(
+    hard_eq: np.ndarray,
+    hard_rhs: np.ndarray,
+    task_levels: list[EqualityTaskLevel],
+    slack_map: Mapping[str, np.ndarray],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Stack hard constraints plus completed task equalities with fixed slacks."""
+
+    eq_blocks = []
+    rhs_blocks = []
+    if hard_eq.size > 0:
+        eq_blocks.append(np.asarray(hard_eq, dtype=float))
+        rhs_blocks.append(np.asarray(hard_rhs, dtype=float).reshape(-1))
+    for task in task_levels:
+        if task.name not in slack_map:
+            continue
+        eq_blocks.append(np.asarray(task.A, dtype=float))
+        rhs_blocks.append(np.asarray(task.b, dtype=float).reshape(-1) - np.asarray(slack_map[task.name], dtype=float).reshape(-1))
+    if not eq_blocks:
+        return np.zeros((0, 0), dtype=float), np.zeros(0, dtype=float)
+    return np.vstack(eq_blocks), np.concatenate(rhs_blocks)
+
+
+def _build_min_cost_objective(
+    *,
+    qdd_ref: np.ndarray,
+    previous_qdd: np.ndarray,
+    previous_uwo: np.ndarray,
+    desired_cable_uwo: np.ndarray,
+    dof_count: int,
+    actuation_count: int,
+    n_c: int,
+    n_m: int,
+    gamma_qdd: float,
+    alpha_t: float,
+    beta_tau: float,
+    smooth_weight_qdd: float,
+    smooth_weight_u: float,
+    tension_ref_weight: float,
+    platform_posture_weight: float,
+    arm_posture_weight: float,
+    platform_qdd_ref: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build final min-task quadratic objective for z=[qdd;uwo]."""
+
+    H = np.zeros((dof_count + actuation_count, dof_count + actuation_count), dtype=float)
+    g = np.zeros(dof_count + actuation_count, dtype=float)
+
+    H[:dof_count, :dof_count] = (gamma_qdd + smooth_weight_qdd) * np.eye(dof_count, dtype=float)
+    g[:dof_count] = -(gamma_qdd * qdd_ref + smooth_weight_qdd * previous_qdd)
+    if platform_posture_weight > 0.0:
+        H[:3, :3] += platform_posture_weight * np.eye(3, dtype=float)
+        g[:3] -= platform_posture_weight * platform_qdd_ref
+    if arm_posture_weight > 0.0 and dof_count > 3:
+        H[3:dof_count, 3:dof_count] += arm_posture_weight * np.eye(dof_count - 3, dtype=float)
+        g[3:dof_count] -= arm_posture_weight * qdd_ref[3:]
+
+    H[dof_count:dof_count + actuation_count, dof_count:dof_count + actuation_count] = _block_diag(
+        (alpha_t + smooth_weight_u + tension_ref_weight) * np.eye(n_c, dtype=float),
+        (beta_tau + smooth_weight_u) * np.eye(n_m, dtype=float),
+    )
+    g[dof_count:dof_count + actuation_count] = -(
+        smooth_weight_u * previous_uwo
+        + np.concatenate([tension_ref_weight * desired_cable_uwo, np.zeros(n_m, dtype=float)])
+    )
+    return H, g
+
+
+def _normalize_mapping(mapping: Mapping[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    for key, value in mapping.items():
+        normalized[str(key)] = _normalize_value(value)
+    return normalized
+
+
+def _normalize_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return _normalize_mapping(value)
+    if isinstance(value, (list, tuple)):
+        return [_normalize_value(v) for v in value]
+    return value
+
+
+def _normalize_control_mode(mode_value: Any) -> str:
+    """Map aliases onto the three explicit HCDR_HQP-style controller modes."""
+
+    requested = str(mode_value).strip().lower()
+    alias_map = {
+        "mode1": "platform_only",
+        "platform_only": "platform_only",
+        "platform-control": "platform_only",
+        "platform_control": "platform_only",
+        "mode2": "arm_only",
+        "arm_only": "arm_only",
+        "franka_control": "arm_only",
+        "franka-control": "arm_only",
+        "mode3": "cooperative",
+        "cooperative": "cooperative",
+        "wholebody": "cooperative",
+        "wholebody_compute": "cooperative",
+    }
+    return alias_map.get(requested, "cooperative")
+
+
+def _as_vector(values: Iterable[float], expected: Optional[int] = None) -> np.ndarray:
+    vector = np.asarray(values, dtype=float).reshape(-1)
+    if expected is not None and vector.size != expected:
+        raise ValueError(f"Expected vector length {expected}, got {vector.size}.")
+    return vector
+
+
+def _as_matrix(values: Iterable[Iterable[float]], shape: Optional[tuple[int, int]] = None) -> np.ndarray:
+    matrix = np.asarray(values, dtype=float)
+    if shape is not None and matrix.shape != shape:
+        raise ValueError(f"Expected matrix shape {shape}, got {matrix.shape}.")
+    return matrix
+
+
+def _expand_optional(values: Any, length: int, default_value: float) -> np.ndarray:
+    if values is None or np.size(values) == 0:
+        vector = default_value * np.ones(length, dtype=float)
+    else:
+        vector = np.asarray(values, dtype=float).reshape(-1)
+        if vector.size == 1:
+            vector = np.full(length, float(vector[0]), dtype=float)
+    if vector.size != length:
+        raise ValueError(f"Expected length {length}, got {vector.size}.")
+    return vector
+
+
+def _block_diag(*matrices: np.ndarray) -> np.ndarray:
+    total_rows = sum(matrix.shape[0] for matrix in matrices)
+    total_cols = sum(matrix.shape[1] for matrix in matrices)
+    out = np.zeros((total_rows, total_cols), dtype=float)
+    row = 0
+    col = 0
+    for matrix in matrices:
+        rows, cols = matrix.shape
+        out[row : row + rows, col : col + cols] = matrix
+        row += rows
+        col += cols
+    return out
+
+
+def _solve_linear_3x3(A: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Solve 3x3 linear system with explicit Gaussian elimination."""
+
+    augmented = np.zeros((3, 4), dtype=float)
+    augmented[:, :3] = np.asarray(A, dtype=float).reshape(3, 3)
+    augmented[:, 3] = _as_vector(b, expected=3)
+
+    for pivot_index in range(3):
+        pivot_row = pivot_index
+        pivot_abs = abs(float(augmented[pivot_index, pivot_index]))
+        for candidate_row in range(pivot_index + 1, 3):
+            candidate_abs = abs(float(augmented[candidate_row, pivot_index]))
+            if candidate_abs > pivot_abs:
+                pivot_abs = candidate_abs
+                pivot_row = candidate_row
+        if pivot_abs <= 1e-12:
+            raise ValueError("Singular 3x3 system encountered in damped bias mapping.")
+        if pivot_row != pivot_index:
+            augmented[[pivot_index, pivot_row], :] = augmented[[pivot_row, pivot_index], :]
+
+        pivot_value = float(augmented[pivot_index, pivot_index])
+        augmented[pivot_index, :] = augmented[pivot_index, :] / pivot_value
+        for row_index in range(3):
+            if row_index == pivot_index:
+                continue
+            factor = float(augmented[row_index, pivot_index])
+            augmented[row_index, :] = augmented[row_index, :] - factor * augmented[pivot_index, :]
+
+    return augmented[:, 3].copy()
