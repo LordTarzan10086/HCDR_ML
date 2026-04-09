@@ -1,0 +1,24 @@
+feat: 更新工作空间求解逻辑（Mode1/2/3）及可视化管线
+
+此提交包含了关于索驱动与机械臂复合静力工作空间的重大核心代码更迭，梳理内容如下：
+
+1. 物理定义与求解模型设定
+- Mode 1: 平台静力工作空间（WFW/DWFW）。引入外界扰动加载（w_ext），通过OSQP约束 (T_min+γ <= T_i <= T_max-γ) 求解获取 γ>=0 的最大安全裕度位姿点集。
+- Mode 2: 机械臂纯运动学包络。在不考虑整机倾覆矩的前提下，枚举关节角执行正向运动学得到的端点集。
+- Mode 3: 整体协作工作空间。以 Mode 1 所有存活网格点为基底，通过 Minkowski Sum 手段并行扫掠 Mode 2，获得机电整体终极有效容限包络。
+
+2. 二维热力与临界线逻辑 (PNG 生成)
+- mode1_platform_fixedpsi_45deg_gamma.png: C++底层直接渲染提取各个XY坐标的最小张力安全裕度(γ)场。
+- mode1_platform_fixedpsi_45deg_xy.png & mode1_ee_union_xy.png: 对应体素面域内合法格点的离散布尔覆盖阴影。
+- python_plot_wfw_boundary.png (由附加Python脚本导出): 使用Matplotlib追踪生成严格等于特定γ（默认γ=0）红线的物理裂解外围约束带。
+
+3. 三维体素打标逻辑 (PLY 生成)
+- 降采样体素化：通过 Voxel GridPointCloud 切片筛洗千万级原生数据点。
+- 五项PLY核心标定：
+  1/2) mode1_*_cloud.ply (平台独立固定/全并点云)
+  3) mode2_cloud.ply (臂载轨迹含mode_id=99边框参照)
+  4/5) mode3_*_cloud.ply (复合极限边界端点全集)
+- 引入了 scalar_ 系列头部标识属性（scalar_mode_id, scalar_gamma_n, scalar_hit_count），确保 CloudCompare 等外围软件能开箱挂载张力与频率探照热图。
+
+重要参数提醒（需通过json调节）：
+T_min/T_max定义限宽，mode1_xy_resolution定义解算光顺密度，w_ext挂载动态外力。

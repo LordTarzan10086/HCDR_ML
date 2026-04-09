@@ -376,6 +376,7 @@ WorkspaceStaticConfig load_workspace_static_config(const fs::path& json_path) {
     config.right_tip_local_m = get_vector3(json_text, "right_tip_local", config.right_tip_local_m);
     config.flange_body = get_string(json_text, "flange_body", config.flange_body);
     config.fixed_gripper_q = get_std_vector(json_text, "fixed_gripper_q", config.fixed_gripper_q);
+    config.cable_routing_mode = get_string(json_text, "cable_routing_mode", config.cable_routing_mode);
 
     const std::string platform_init = extract_json_value(json_text, "platform_init");
     if (!platform_init.empty()) {

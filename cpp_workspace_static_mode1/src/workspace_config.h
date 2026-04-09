@@ -50,6 +50,7 @@ struct WorkspaceStaticConfig {
     Eigen::Vector3d right_tip_local_m = Eigen::Vector3d(0.04, 0.0, 0.0);
     std::string flange_body = "END_EFFECTOR";
     std::vector<double> fixed_gripper_q{0.0, 0.0, 0.0, 0.0};
+    std::string cable_routing_mode = "crossed";
 };
 
 WorkspaceStaticConfig load_workspace_static_config(const std::filesystem::path& json_path);

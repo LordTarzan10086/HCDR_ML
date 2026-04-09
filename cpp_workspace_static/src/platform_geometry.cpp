@@ -32,11 +32,18 @@ PlatformGeometry::PlatformGeometry(const WorkspaceStaticConfig& config) : config
             sign_y * config_.platform_half_side_m,
             -config_.platform_half_thickness_m;
 
-        cable_anchors_world_m_.col(upper_index) << screw_positions_xy_m_(0, corner_index),
-            screw_positions_xy_m_(1, corner_index),
+        int upper_frame_corner = corner_index;
+        int lower_frame_corner = corner_index;
+        if (config_.cable_routing_mode == "crossed") {
+            upper_frame_corner = (corner_index + 1) % 4;
+            lower_frame_corner = (corner_index + 3) % 4;
+        }
+
+        cable_anchors_world_m_.col(upper_index) << screw_positions_xy_m_(0, upper_frame_corner),
+            screw_positions_xy_m_(1, upper_frame_corner),
             config_.z0_m + 0.5 * config_.pulley_spacing_m;
-        cable_anchors_world_m_.col(lower_index) << screw_positions_xy_m_(0, corner_index),
-            screw_positions_xy_m_(1, corner_index),
+        cable_anchors_world_m_.col(lower_index) << screw_positions_xy_m_(0, lower_frame_corner),
+            screw_positions_xy_m_(1, lower_frame_corner),
             config_.z0_m - 0.5 * config_.pulley_spacing_m;
     }
 }

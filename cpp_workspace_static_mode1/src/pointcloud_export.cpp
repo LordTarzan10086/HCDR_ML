@@ -86,12 +86,14 @@ void write_point_cloud_ply(const fs::path& output_path, const std::vector<PointR
     output << "property float x\n";
     output << "property float y\n";
     output << "property float z\n";
+    output << "property float scalar_gamma\n";
     output << "end_header\n";
 
     for (const PointRecord& point : ordered_points) {
         output << point.point_m.x() << ' '
                << point.point_m.y() << ' '
-               << point.point_m.z() << '\n';
+               << point.point_m.z() << ' '
+               << point.best_gamma_n << '\n';
     }
 }
 

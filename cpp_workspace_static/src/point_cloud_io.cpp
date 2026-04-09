@@ -90,10 +90,10 @@ void write_point_cloud_ply(
     output << "property float x\n";
     output << "property float y\n";
     output << "property float z\n";
-    output << "property float psi_rad\n";
-    output << "property float gamma_n\n";
-    output << "property int mode_id\n";
-    output << "property uint hit_count\n";
+    output << "property float scalar_psi_rad\n";
+    output << "property float scalar_gamma_n\n";
+    output << "property int scalar_mode_id\n";
+    output << "property uint scalar_hit_count\n";
     output << "end_header\n";
 
     for (const PointRecord& point : ordered_points) {

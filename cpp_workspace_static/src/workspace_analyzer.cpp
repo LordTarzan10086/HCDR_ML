@@ -39,6 +39,39 @@ std::size_t worker_count_for_tasks(std::size_t task_count) {
     return std::max<std::size_t>(1U, std::min(task_count, requested_threads));
 }
 
+std::vector<Eigen::Vector3d> build_frame_skeleton(double half_span, double height, double step) {
+    std::vector<Eigen::Vector3d> points;
+
+    auto add_line = [&](Eigen::Vector3d p1, Eigen::Vector3d p2) {
+        Eigen::Vector3d dir = p2 - p1;
+        double len = dir.norm();
+        int n = std::max(1, static_cast<int>(std::ceil(len / step)));
+        for (int i = 0; i <= n; ++i) {
+            points.push_back(p1 + dir * (static_cast<double>(i) / n));
+        }
+    };
+
+    const double w = half_span;
+    const double h = height;
+
+    add_line(Eigen::Vector3d(w, w, 0.0), Eigen::Vector3d(-w, w, 0.0));
+    add_line(Eigen::Vector3d(-w, w, 0.0), Eigen::Vector3d(-w, -w, 0.0));
+    add_line(Eigen::Vector3d(-w, -w, 0.0), Eigen::Vector3d(w, -w, 0.0));
+    add_line(Eigen::Vector3d(w, -w, 0.0), Eigen::Vector3d(w, w, 0.0));
+
+    add_line(Eigen::Vector3d(w, w, h), Eigen::Vector3d(-w, w, h));
+    add_line(Eigen::Vector3d(-w, w, h), Eigen::Vector3d(-w, -w, h));
+    add_line(Eigen::Vector3d(-w, -w, h), Eigen::Vector3d(w, -w, h));
+    add_line(Eigen::Vector3d(w, -w, h), Eigen::Vector3d(w, w, h));
+
+    add_line(Eigen::Vector3d(w, w, 0.0), Eigen::Vector3d(w, w, h));
+    add_line(Eigen::Vector3d(-w, w, 0.0), Eigen::Vector3d(-w, w, h));
+    add_line(Eigen::Vector3d(-w, -w, 0.0), Eigen::Vector3d(-w, -w, h));
+    add_line(Eigen::Vector3d(w, -w, 0.0), Eigen::Vector3d(w, -w, h));
+
+    return points;
+}
+
 }  // namespace
 
 WorkspaceAnalyzer::WorkspaceAnalyzer(const WorkspaceStaticConfig& config)
@@ -186,8 +219,15 @@ WorkspaceRunSummary WorkspaceAnalyzer::run() {
     }
 
     // -------- Mode 2: arm-only --------
+    const std::vector<Eigen::Vector3d> frame_points = build_frame_skeleton(
+        config_.frame_half_length_m, config_.frame_height_m, config_.voxel_size_m / 2.0);
+
     if (config_.enable_mode2) {
         VoxelGridPointCloud mode2_cloud(config_.voxel_size_m);
+        for (const Eigen::Vector3d& p : frame_points) {
+            mode2_cloud.insert_xyz(p.x(), p.y(), p.z(), 0.0, std::numeric_limits<double>::quiet_NaN(), 99);
+        }
+
         const Eigen::Matrix3d initial_platform_rotation =
             platform_geometry_.yaw_rotation(config_.platform_init.psi_rad);
         const QuantizedPoint initial_platform_translation = quantize_point(Eigen::Vector3d(
@@ -216,6 +256,10 @@ WorkspaceRunSummary WorkspaceAnalyzer::run() {
     // -------- Mode 3: cooperative --------
     if (config_.enable_mode3) {
         VoxelGridPointCloud mode3_union(config_.voxel_size_m);
+        for (const Eigen::Vector3d& p : frame_points) {
+            mode3_union.insert_xyz(p.x(), p.y(), p.z(), 0.0, std::numeric_limits<double>::quiet_NaN(), 99);
+        }
+
         if (config_.output_union) {
             std::mutex merge_mutex;
             std::mutex log_mutex;
@@ -287,6 +331,10 @@ WorkspaceRunSummary WorkspaceAnalyzer::run() {
 
         if (config_.output_fixedpsi_diagnostics) {
             VoxelGridPointCloud mode3_fixedpsi_cloud(config_.voxel_size_m);
+            for (const Eigen::Vector3d& p : frame_points) {
+                mode3_fixedpsi_cloud.insert_xyz(p.x(), p.y(), p.z(), 0.0, std::numeric_limits<double>::quiet_NaN(), 99);
+            }
+
             const PlatformPsiSlice mode3_fixed_slice = scan_platform_slice(
                 config_.fixed_psi_rad,
                 config_.mode3_xy_resolution,

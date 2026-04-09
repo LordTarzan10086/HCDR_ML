@@ -417,7 +417,15 @@ GridScanResult Mode1WorkspaceSolver::scan_platform_grid(
 
     double min_gamma_n = std::numeric_limits<double>::infinity();
     double max_gamma_n = -std::numeric_limits<double>::infinity();
-    for (double x_m : xy_grid) {
+    
+    // Scan inner loop with progress mapping
+    std::size_t x_total = xy_grid.size();
+    for (std::size_t x_idx = 0; x_idx < x_total; ++x_idx) {
+        if (x_total > 10 && x_idx % (x_total / 10) == 0) {
+            std::cout << "[mode1_workspace] scanning psi=" << (psi_rad * 180.0 / 3.1415926535) 
+                      << " deg ... progress " << (100 * x_idx / x_total) << "%" << std::endl;
+        }
+        double x_m = xy_grid[x_idx];
         for (double y_m : xy_grid) {
             const PlatformPoseData pose = geometry_.evaluate_pose(x_m, y_m, psi_rad);
             const StaticFeasibilityResult feasibility = static_solver_.evaluate(
