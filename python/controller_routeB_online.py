@@ -77,6 +77,7 @@ class ModeAwareTaskPlan:
     qdd_min_ref: np.ndarray
     platform_posture_weight: float
     arm_posture_weight: float
+    priority_audit: Dict[str, Any]
 
 
 def solve_routeb_online_step(
@@ -99,6 +100,7 @@ def solve_routeb_online_step(
     terminal_reference_active: bool = False,
     reference_complete: Optional[bool] = None,
     integral_error: Optional[Iterable[float]] = None,
+    backend_platform_wrench_map: Optional[Iterable[Iterable[float]]] = None,
 ) -> Dict[str, Any]:
     """Solve one Python-side Route-B step and return command + diagnostics."""
 
@@ -147,7 +149,24 @@ def solve_routeb_online_step(
     z0 = float(controller_cfg["z0"])
     anchors_world = _as_matrix(controller_cfg["cable_anchors_world"], shape=(3, n_c))
     attach_local = _as_matrix(controller_cfg["platform_attach_local"], shape=(3, n_c))
-    a2d, platform_attach_world = _compute_a2d(q_vec[:3], z0, anchors_world, attach_local)
+    internal_a2d, platform_attach_world = _compute_a2d(q_vec[:3], z0, anchors_world, attach_local)
+    a2d = internal_a2d.copy()
+    a2d_source = "controller_internal"
+    a2d_backend_internal_max_abs_diff = float("nan")
+    a2d_backend_status = "not_provided"
+    if backend_platform_wrench_map is not None:
+        try:
+            backend_a2d = _as_matrix(backend_platform_wrench_map, shape=(3, n_c))
+            if not np.all(np.isfinite(backend_a2d)):
+                raise ValueError("backend A2D contains non-finite values")
+            a2d_backend_internal_max_abs_diff = float(np.max(np.abs(backend_a2d - internal_a2d)))
+            a2d = backend_a2d.copy()
+            a2d_source = "backend_snapshot"
+            a2d_backend_status = "used"
+        except Exception as exc:
+            # Keep the controller deterministic if the backend snapshot is stale
+            # or absent; the mismatch is still reported for diagnostics.
+            a2d_backend_status = f"fallback_controller_internal:{type(exc).__name__}"
     st = np.block(
         [
             [a2d, np.zeros((3, n_m), dtype=float)],
@@ -161,8 +180,6 @@ def solve_routeb_online_step(
     platform_kp = _as_matrix(controller_cfg.get("platform_kp", np.diag([12.0, 12.0, 16.0])), shape=(3, 3))
     platform_kd = _as_matrix(controller_cfg.get("platform_kd", np.diag([8.0, 8.0, 10.0])), shape=(3, 3))
     platform_qdd_ref = platform_kp @ (platform_pose_target - q_vec[:3]) - platform_kd @ qd_vec[:3]
-    platform_limit_diag = _compute_platform_limit_diag(q_vec[:3], qd_vec[:3], controller_cfg)
-    platform_qdd_ref = platform_qdd_ref + platform_limit_diag["limit_qdd_correction"]
 
     qdd_ref = np.zeros(dof_count, dtype=float)
     qdd_ref[:3] = platform_qdd_ref
@@ -170,6 +187,13 @@ def solve_routeb_online_step(
     arm_posture_kp = float(controller_cfg.get("arm_posture_kp", 4.0))
     arm_posture_kd = float(controller_cfg.get("arm_posture_kd", 2.0))
     qdd_ref[3:] = arm_posture_kp * (arm_posture_target - q_vec[3:]) - arm_posture_kd * qd_vec[3:]
+    sweet_zone_diag = _compute_arm_sweet_zone_diagnostics(
+        q_vec,
+        qd_vec,
+        np.asarray(terms.J_task, dtype=float),
+        arm_posture_target,
+        controller_cfg,
+    )
 
     effective_controller_cfg = dict(controller_cfg)
     hold_active = bool(arrival_hold_latched)
@@ -182,7 +206,10 @@ def solve_routeb_online_step(
         )
     )
     task_phase = "acquisition"
+    base_cooperative_sweet_zone_enabled = bool(controller_cfg.get("cooperative_add_arm_sweet_zone_task", False))
     effective_controller_cfg["cooperative_add_arm_posture_task"] = False
+    effective_controller_cfg["cooperative_add_arm_sweet_zone_task"] = base_cooperative_sweet_zone_enabled
+    effective_controller_cfg["cooperative_orientation_first"] = bool(controller_cfg.get("cooperative_orientation_first", True))
     effective_controller_cfg["arm_posture_weight"] = base_arm_posture_weight
     effective_controller_cfg["cooperative_arm_posture_weight"] = base_arm_posture_weight
     if hold_active:
@@ -253,26 +280,88 @@ def solve_routeb_online_step(
     requested_control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
     effective_controller_cfg["control_mode"] = requested_control_mode
     _apply_phase_controller_overrides(effective_controller_cfg, task_phase)
+    if requested_control_mode == "arm_only":
+        # Arm-only uses a second-level platform-posture task. Let OSQP fall back
+        # to SLSQP for this mode instead of converting a numerical QP failure
+        # into a control fallback.
+        effective_controller_cfg["qp_solver_backend"] = str(controller_cfg.get("arm_only_qp_solver_backend", "auto"))
+    if requested_control_mode == "platform_only":
+        # Platform-only deliberately spends platform travel to track the tip.
+        # Do not reuse the cooperative near-goal/terminal posture budget here,
+        # otherwise a valid 10 cm platform move is treated as a limit event.
+        effective_controller_cfg["platform_tracking_xy_limit"] = float(
+            controller_cfg.get("platform_xy_limit", effective_controller_cfg.get("platform_tracking_xy_limit", 1.0))
+        )
+        effective_controller_cfg["platform_tracking_psi_limit"] = float(
+            controller_cfg.get("platform_psi_limit", effective_controller_cfg.get("platform_tracking_psi_limit", np.pi))
+        )
+        effective_controller_cfg["platform_tracking_limit_margin"] = float(
+            controller_cfg.get("platform_only_tracking_limit_margin", controller_cfg.get("platform_tracking_state_guard_xy", 0.02))
+        )
+    elif requested_control_mode == "cooperative":
+        # Cooperative needs a wider platform travel budget for far 3D targets;
+        # phase-specific 0.18/0.12/0.08 m limits are smoke-test posture budgets,
+        # not physical safety limits.
+        effective_controller_cfg["platform_tracking_xy_limit"] = float(
+            controller_cfg.get(
+                "cooperative_platform_tracking_xy_limit",
+                min(0.35, float(controller_cfg.get("platform_xy_limit", 0.35))),
+            )
+        )
+        effective_controller_cfg["platform_tracking_psi_limit"] = float(
+            controller_cfg.get(
+                "cooperative_platform_tracking_psi_limit",
+                effective_controller_cfg.get("platform_tracking_psi_limit", np.deg2rad(18.0)),
+            )
+        )
+        effective_controller_cfg["platform_tracking_limit_margin"] = float(
+            controller_cfg.get(
+                "cooperative_platform_tracking_limit_margin",
+                controller_cfg.get("platform_tracking_state_guard_xy", 0.02),
+            )
+        )
     effective_controller_cfg["routeb_task_phase"] = task_phase
+    platform_limit_diag = _compute_platform_limit_diag(q_vec[:3], qd_vec[:3], effective_controller_cfg)
+    platform_qdd_ref = (
+        platform_kp @ (platform_pose_target - q_vec[:3])
+        - platform_kd @ qd_vec[:3]
+        + platform_limit_diag["limit_qdd_correction"]
+    )
+    qdd_ref[:3] = platform_qdd_ref
     a_des = _clip_task_acceleration(a_des, effective_controller_cfg)
 
-    result = _solve_routeb_hqp(
-        M=np.asarray(terms.M, dtype=float),
-        ST=st,
-        h_a=h_a,
-        controller_cfg=effective_controller_cfg,
-        J_wb=np.asarray(terms.J_task, dtype=float),
-        Jdot_qd=np.asarray(terms.Jdot_qd, dtype=float),
-        xdd_ref=a_des,
-        qdd_ref=qdd_ref,
-        arm_qdd_ref=qdd_ref[3:].copy(),
-        prev_u_a_wo=prev_u_a_wo,
-        prev_qdd=prev_qdd,
-        platform_qdd_ref=platform_qdd_ref,
-        q=q_vec,
-        qd=qd_vec,
-        dt=float(dt),
-    )
+    if requested_control_mode == "arm_only_osc_baseline":
+        result = _solve_arm_only_osc_baseline(
+            M=np.asarray(terms.M, dtype=float),
+            ST=st,
+            h_a=h_a,
+            controller_cfg=effective_controller_cfg,
+            J_wb=np.asarray(terms.J_task, dtype=float),
+            Jdot_qd=np.asarray(terms.Jdot_qd, dtype=float),
+            xdd_ref=a_des,
+            arm_qdd_ref=qdd_ref[3:].copy(),
+            platform_qdd_ref=platform_qdd_ref,
+            q=q_vec,
+            qd=qd_vec,
+        )
+    else:
+        result = _solve_routeb_hqp(
+            M=np.asarray(terms.M, dtype=float),
+            ST=st,
+            h_a=h_a,
+            controller_cfg=effective_controller_cfg,
+            J_wb=np.asarray(terms.J_task, dtype=float),
+            Jdot_qd=np.asarray(terms.Jdot_qd, dtype=float),
+            xdd_ref=a_des,
+            qdd_ref=qdd_ref,
+            arm_qdd_ref=qdd_ref[3:].copy(),
+            prev_u_a_wo=prev_u_a_wo,
+            prev_qdd=prev_qdd,
+            platform_qdd_ref=platform_qdd_ref,
+            q=q_vec,
+            qd=qd_vec,
+            dt=float(dt),
+        )
 
     result.update(
         {
@@ -286,9 +375,14 @@ def solve_routeb_online_step(
             "a_des": a_des,
             "pd_diagnostics": pd_diag,
             "A2D": a2d,
+            "A2D_internal": internal_a2d,
+            "A2D_source": a2d_source,
+            "A2D_backend_status": a2d_backend_status,
+            "A2D_backend_internal_max_abs_diff": a2d_backend_internal_max_abs_diff,
             "platform_attach_world": platform_attach_world,
             "platform_qdd_ref": platform_qdd_ref,
             "arm_posture_target": arm_posture_target,
+            "sweet_zone_diagnostics": sweet_zone_diag,
             "hold_active": hold_active,
             "arrival_hold_latched": bool(arrival_hold_latched),
             "platform_limit_diag": platform_limit_diag,
@@ -354,6 +448,7 @@ class RouteBOnlineController:
         current_tip_world: Optional[Iterable[float]] = None,
         dt: float = 0.02,
         reference_complete: Optional[bool] = None,
+        backend_platform_wrench_map: Optional[Iterable[Iterable[float]]] = None,
     ) -> OnlineStepResult:
         q_vec = np.asarray(q, dtype=float).reshape(-1)
         if self.arm_posture_ref is None:
@@ -404,6 +499,7 @@ class RouteBOnlineController:
             terminal_reference_active=bool(self.terminal_reference_latched),
             reference_complete=reference_complete,
             integral_error=self.hold_integral_error,
+            backend_platform_wrench_map=backend_platform_wrench_map,
         )
 
         fallback_applied = False
@@ -421,6 +517,23 @@ class RouteBOnlineController:
             )
             command_qdd = np.zeros_like(q_vec) if self.prev_qdd is None else np.asarray(self.prev_qdd, dtype=float).reshape(-1)
 
+        arm_hold_diagnostics = {"enabled": False, "reason": "not_platform_only"}
+        result_control_mode = _normalize_control_mode(result["diagnostics"].get("control_mode", self.controller_cfg.get("control_mode", "cooperative")))
+        if result_control_mode == "platform_only" and bool(self.controller_cfg.get("platform_only_arm_hold_enabled", False)):
+            command_u_a, command_qdd, arm_hold_diagnostics = _apply_platform_only_arm_hold_command(
+                command_u_a=command_u_a,
+                command_qdd=command_qdd,
+                q=q_vec,
+                qd=np.asarray(qd, dtype=float).reshape(-1),
+                arm_posture_reference=arm_posture_reference,
+                h_a=np.asarray(result["h_a"], dtype=float).reshape(-1),
+                controller_cfg=self.controller_cfg,
+            )
+        arm_kinematic_hold_enabled = bool(
+            result_control_mode == "platform_only"
+            and self.controller_cfg.get("platform_only_arm_kinematic_hold_enabled", True)
+        )
+
         command = RouteBCommand(
             u_a=command_u_a.copy(),
             qdd=command_qdd.copy(),
@@ -433,6 +546,10 @@ class RouteBOnlineController:
                 "control_mode": str(result["diagnostics"].get("control_mode", "")),
                 "hold_active": bool(result["hold_active"]),
                 "fallback_applied": bool(fallback_applied),
+                "arm_hold_enabled": bool(arm_hold_diagnostics.get("enabled", False)),
+                "lock_arm_state": bool(arm_kinematic_hold_enabled),
+                "arm_q_hold": np.asarray(arm_posture_reference, dtype=float).reshape(-1),
+                "arm_qd_hold": np.zeros_like(np.asarray(arm_posture_reference, dtype=float).reshape(-1)),
             },
         )
 
@@ -529,8 +646,15 @@ class RouteBOnlineController:
                 "task_pd": result["pd_diagnostics"],
                 "solver": result["diagnostics"],
                 "A2D": result["A2D"],
+                "A2D_internal": result["A2D_internal"],
+                "A2D_source": result["A2D_source"],
+                "A2D_backend_status": result["A2D_backend_status"],
+                "A2D_backend_internal_max_abs_diff": result["A2D_backend_internal_max_abs_diff"],
                 "platform_qdd_ref": result["platform_qdd_ref"],
                 "arm_posture_target": result["arm_posture_target"],
+                "sweet_zone": result["sweet_zone_diagnostics"],
+                "arm_hold": arm_hold_diagnostics,
+                "arm_kinematic_hold_enabled": bool(arm_kinematic_hold_enabled),
                 "hold_active": bool(result["hold_active"]),
                 "arrival_hold_latched": bool(self.arrival_hold_latched),
                 "hold_q_reference": None if self.hold_q_reference is None else self.hold_q_reference.copy(),
@@ -551,6 +675,205 @@ class RouteBOnlineController:
                 "platform_limit_diag": result["platform_limit_diag"],
             },
         )
+
+
+def _apply_platform_only_arm_hold_command(
+    *,
+    command_u_a: np.ndarray,
+    command_qdd: np.ndarray,
+    q: np.ndarray,
+    qd: np.ndarray,
+    arm_posture_reference: np.ndarray,
+    h_a: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+) -> tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
+    """Override platform-only arm torques with an explicit joint PD hold."""
+
+    n_c = int(controller_cfg["n_c"])
+    n_m = int(controller_cfg["n_m"])
+    if n_m <= 0:
+        return command_u_a, command_qdd, {"enabled": False, "reason": "no_arm_dofs"}
+
+    q_vec = np.asarray(q, dtype=float).reshape(-1)
+    qd_vec = np.asarray(qd, dtype=float).reshape(-1)
+    target = np.asarray(arm_posture_reference, dtype=float).reshape(n_m)
+    arm_q = q_vec[3 : 3 + n_m]
+    arm_qd = qd_vec[3 : 3 + n_m]
+    kp = _expand_optional(controller_cfg.get("platform_only_arm_hold_kp"), n_m, 30.0)
+    kd = _expand_optional(controller_cfg.get("platform_only_arm_hold_kd"), n_m, 8.0)
+    qdd_hold_ref = kp * (target - arm_q) - kd * arm_qd
+    torque_hold = qdd_hold_ref.copy()
+    if bool(controller_cfg.get("platform_only_arm_hold_feedforward", False)) and h_a.size >= n_c + n_m:
+        torque_hold = torque_hold + h_a[n_c : n_c + n_m]
+
+    tau_min = _expand_optional(controller_cfg.get("tau_min"), n_m, -np.inf)
+    tau_max = _expand_optional(controller_cfg.get("tau_max"), n_m, np.inf)
+    torque_clipped = np.clip(torque_hold, tau_min, tau_max)
+
+    updated_u = np.asarray(command_u_a, dtype=float).reshape(-1).copy()
+    updated_qdd = np.asarray(command_qdd, dtype=float).reshape(-1).copy()
+    if updated_u.size >= n_c + n_m:
+        updated_u[n_c : n_c + n_m] = torque_clipped
+    if updated_qdd.size >= 3 + n_m:
+        updated_qdd[3 : 3 + n_m] = qdd_hold_ref
+
+    return updated_u, updated_qdd, {
+        "enabled": True,
+        "reason": "platform_only_joint_pd_hold",
+        "q_error_norm": float(np.linalg.norm(target - arm_q)),
+        "qd_norm": float(np.linalg.norm(arm_qd)),
+        "torque_norm": float(np.linalg.norm(torque_clipped)),
+        "torque_unclipped_norm": float(np.linalg.norm(torque_hold)),
+        "torque_saturated": bool(np.any(np.abs(torque_clipped - torque_hold) > 1e-9)),
+        "qdd_ref": qdd_hold_ref.copy(),
+        "torque": torque_clipped.copy(),
+    }
+
+
+def _solve_arm_only_osc_baseline(
+    *,
+    M: np.ndarray,
+    ST: np.ndarray,
+    h_a: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+    J_wb: np.ndarray,
+    Jdot_qd: np.ndarray,
+    xdd_ref: np.ndarray,
+    arm_qdd_ref: np.ndarray,
+    platform_qdd_ref: np.ndarray,
+    q: np.ndarray,
+    qd: np.ndarray,
+) -> Dict[str, Any]:
+    """Return a simple arm-only OSC/impedance baseline command."""
+
+    dof_count = int(M.shape[0])
+    n_c = int(controller_cfg["n_c"])
+    n_m = int(controller_cfg["n_m"])
+    actuation_count = n_c + n_m
+    lower_uwo, upper_uwo, final_lower, final_upper, tension_policy = _build_actuation_bounds(h_a, controller_cfg)
+
+    qdd = np.zeros(dof_count, dtype=float)
+    qdd[:3] = np.asarray(platform_qdd_ref, dtype=float).reshape(3)
+    u_a = np.concatenate([tension_policy["reference"].copy(), np.zeros(n_m, dtype=float)])
+
+    J = np.asarray(J_wb, dtype=float).reshape(-1, dof_count)
+    Jdot_vec = np.asarray(Jdot_qd, dtype=float).reshape(J.shape[0])
+    xdd_vec = np.asarray(xdd_ref, dtype=float).reshape(J.shape[0])
+    osc_diag: Dict[str, Any] = {
+        "enabled": bool(n_m > 0),
+        "lambda": float(controller_cfg.get("arm_only_osc_lambda", 0.05)),
+        "condition_number": float("nan"),
+        "sigma_min": float("nan"),
+        "torque_saturated": False,
+    }
+
+    if n_m > 0:
+        J_arm = J[:, 3 : 3 + n_m]
+        M_arm = np.asarray(M[3 : 3 + n_m, 3 : 3 + n_m], dtype=float)
+        lambda_value = max(float(controller_cfg.get("arm_only_osc_lambda", 0.05)), 1e-8)
+        task_accel = xdd_vec - Jdot_vec
+        regularized_mass = M_arm + 1e-8 * np.eye(n_m, dtype=float)
+        invM_JT = np.linalg.solve(regularized_mass, J_arm.T)
+        lambda_inv = J_arm @ invM_JT
+        op_inertia = np.linalg.solve(
+            lambda_inv + (lambda_value * lambda_value) * np.eye(J_arm.shape[0], dtype=float),
+            np.eye(J_arm.shape[0], dtype=float),
+        )
+        task_force = op_inertia @ task_accel
+        tau = J_arm.T @ task_force
+        if h_a.size >= n_c + n_m:
+            tau = tau + h_a[n_c : n_c + n_m]
+        joint_damping = float(controller_cfg.get("arm_only_osc_joint_damping", 0.5))
+        tau = tau - joint_damping * np.asarray(qd, dtype=float).reshape(-1)[3 : 3 + n_m]
+        posture_weight = float(controller_cfg.get("arm_only_osc_posture_qdd_weight", 0.0))
+        if posture_weight > 0.0:
+            tau = tau + posture_weight * (M_arm @ np.asarray(arm_qdd_ref, dtype=float).reshape(n_m))
+
+        tau_min = _expand_optional(controller_cfg.get("tau_min"), n_m, -np.inf)
+        tau_max = _expand_optional(controller_cfg.get("tau_max"), n_m, np.inf)
+        tau_unclipped = tau.copy()
+        tau = np.clip(tau_unclipped, tau_min, tau_max)
+        torque_saturated = bool(np.any(np.abs(tau - tau_unclipped) > 1e-9))
+        u_a[n_c : n_c + n_m] = tau
+
+        qdd_arm = invM_JT @ task_force
+        if joint_damping > 0.0:
+            qdd_arm = qdd_arm - joint_damping * np.asarray(qd, dtype=float).reshape(-1)[3 : 3 + n_m]
+        if posture_weight > 0.0:
+            qdd_arm = qdd_arm + posture_weight * np.asarray(arm_qdd_ref, dtype=float).reshape(n_m)
+        qdd[3 : 3 + n_m] = qdd_arm
+
+        singular_values = np.linalg.svd(J_arm, compute_uv=False)
+        sigma_min = float(np.min(singular_values)) if singular_values.size > 0 else float("nan")
+        sigma_max = float(np.max(singular_values)) if singular_values.size > 0 else float("nan")
+        osc_diag.update(
+            {
+                "sigma_min": sigma_min,
+                "condition_number": float(sigma_max / max(sigma_min, 1e-12)) if np.isfinite(sigma_max) else float("nan"),
+                "task_force_norm": float(np.linalg.norm(task_force)),
+                "torque_norm": float(np.linalg.norm(tau)),
+                "torque_unclipped_norm": float(np.linalg.norm(tau_unclipped)),
+                "torque_saturated": torque_saturated,
+            }
+        )
+
+    u_a = np.minimum(np.maximum(u_a, final_lower), final_upper)
+    u_a_wo = u_a - h_a
+    task_residual_vec = J @ qdd + Jdot_vec - xdd_vec
+    dyn_residual = float(np.linalg.norm(np.asarray(M, dtype=float) @ qdd - np.asarray(ST, dtype=float) @ u_a_wo))
+    within_box = bool(np.all(u_a >= final_lower - 1e-6) and np.all(u_a <= final_upper + 1e-6))
+    tension_margin = float(np.min(np.concatenate([u_a[:n_c] - final_lower[:n_c], final_upper[:n_c] - u_a[:n_c]])))
+    torque_margin = float(np.min(np.concatenate([u_a[n_c:] - final_lower[n_c:], final_upper[n_c:] - u_a[n_c:]]))) if n_m > 0 else float("inf")
+
+    osc_fail_reason = "none"
+    if bool(osc_diag.get("torque_saturated", False)):
+        osc_fail_reason = "osc_torque_saturated"
+    elif not within_box:
+        osc_fail_reason = "osc_command_out_of_box"
+
+    return {
+        "success": bool(osc_fail_reason == "none" and np.all(np.isfinite(qdd)) and np.all(np.isfinite(u_a))),
+        "qdd": qdd,
+        "u_a_wo": u_a_wo,
+        "u_a": u_a,
+        "h_a": h_a.copy(),
+        "diagnostics": {
+            "solver_status": "osc_baseline",
+            "fail_reason": osc_fail_reason,
+            "hard_lock_platform": False,
+            "hard_lock_arm": False,
+            "control_mode": "arm_only_osc_baseline",
+            "task_phase": str(controller_cfg.get("routeb_task_phase", "")),
+            "qp_backend_requested": "none",
+            "qp_backend_used": "osc_baseline",
+            "dyn_residual": dyn_residual,
+            "within_box": within_box,
+            "task_residual": float(np.linalg.norm(task_residual_vec)),
+            "slack_norm": 0.0,
+            "du_norm": float("nan"),
+            "dqdd_norm": float("nan"),
+            "tension_margin": tension_margin,
+            "torque_margin": torque_margin,
+            "platform_posture_weight": 0.0,
+            "arm_posture_weight": 0.0,
+            "mode_task_names": ["arm_only_osc_baseline"],
+            "mode_task_priority_audit": {
+                "audit_only": True,
+                "control_mode": "arm_only_osc_baseline",
+                "actual_task_order": ["arm_only_osc_baseline"],
+                "reference_family": "OSC baseline, not HCDR_HQP",
+                "reference_prefix": ["arm_only_osc_baseline"],
+                "matches_reference_prefix": True,
+            },
+            "platform_qdd_box_diag": {},
+            "f_ref": tension_policy["reference"].copy(),
+            "tension_safe_lower": tension_policy["safe_lower"].copy(),
+            "T_safe_margin": tension_policy["safe_margin"].copy(),
+            "task_stack": [{"level": 1, "name": "arm_only_osc_baseline", "slack_norm": 0.0, "success": True}],
+            "solver_runtime_s": 0.0,
+            "osc_baseline": osc_diag,
+        },
+    }
 
 
 def _solve_routeb_hqp(
@@ -592,6 +915,7 @@ def _solve_routeb_hqp(
     task_level_regularization = float(controller_cfg.get("task_level_regularization", 1e-6))
     control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
     task_phase = str(controller_cfg.get("routeb_task_phase", "tracking")).strip().lower()
+    hard_lock_arm = bool(controller_cfg.get("hard_lock_arm", False))
 
     lower_uwo, upper_uwo, final_lower, final_upper, tension_policy = _build_actuation_bounds(h_a, controller_cfg)
     qdd_lower, qdd_upper, platform_qdd_box_diag = _build_qdd_box_bounds(q, qd, float(dt), controller_cfg)
@@ -617,6 +941,11 @@ def _solve_routeb_hqp(
     if hard_lock_platform:
         hard_eq_blocks.append(np.hstack([np.eye(3, dof_count, dtype=float), np.zeros((3, actuation_count), dtype=float)]))
         hard_rhs_blocks.append(platform_qdd_ref)
+    if hard_lock_arm and n_m > 0:
+        hard_arm_eq = np.zeros((n_m, dof_count + actuation_count), dtype=float)
+        hard_arm_eq[:, 3 : 3 + n_m] = np.eye(n_m, dtype=float)
+        hard_eq_blocks.append(hard_arm_eq)
+        hard_rhs_blocks.append(arm_qdd_ref)
     hard_eq = np.vstack(hard_eq_blocks)
     hard_rhs = np.concatenate(hard_rhs_blocks)
 
@@ -636,6 +965,7 @@ def _solve_routeb_hqp(
     task_levels = mode_plan.task_levels
     platform_posture_weight = float(mode_plan.platform_posture_weight)
     arm_posture_weight = float(mode_plan.arm_posture_weight)
+    priority_audit = dict(mode_plan.priority_audit)
 
     level_results = _solve_task_stack_levels(
         task_levels,
@@ -648,7 +978,24 @@ def _solve_routeb_hqp(
         task_level_regularization,
     )
     if not level_results["success"]:
-        return _failure_result(dof_count, actuation_count, n_c, h_a, level_results["fail_reason"], level_results["last_solver"])
+        failure = _failure_result(dof_count, actuation_count, n_c, h_a, level_results["fail_reason"], level_results["last_solver"])
+        failure["diagnostics"].update(
+            {
+                "hard_lock_platform": hard_lock_platform,
+                "hard_lock_arm": hard_lock_arm,
+                "control_mode": control_mode,
+                "task_phase": task_phase,
+                "qp_backend_requested": qp_backend,
+                "qp_backend_used": str(level_results.get("backend_used", "")),
+                "platform_posture_weight": platform_posture_weight,
+                "arm_posture_weight": arm_posture_weight,
+                "mode_task_names": [task.name for task in task_levels],
+                "mode_task_priority_audit": priority_audit,
+                "platform_qdd_box_diag": platform_qdd_box_diag,
+                "task_stack": level_results.get("level_summaries", []),
+            }
+        )
+        return failure
 
     z_stack = np.asarray(level_results["z"], dtype=float).reshape(-1)
     qdd_stack = z_stack[:dof_count]
@@ -672,6 +1019,7 @@ def _solve_routeb_hqp(
         platform_posture_weight=platform_posture_weight,
         arm_posture_weight=arm_posture_weight,
         platform_qdd_ref=platform_qdd_ref,
+        arm_qdd_ref=arm_qdd_ref,
     )
     final_eq, final_rhs = _assemble_fixed_task_constraints(hard_eq, hard_rhs, task_levels, level_results["slacks"])
     final_x0 = z_stack.copy()
@@ -702,6 +1050,7 @@ def _solve_routeb_hqp(
         "solver_status": solver_status,
         "fail_reason": fail_reason,
         "hard_lock_platform": hard_lock_platform,
+        "hard_lock_arm": hard_lock_arm,
         "control_mode": control_mode,
         "task_phase": task_phase,
         "qp_backend_requested": qp_backend,
@@ -717,6 +1066,7 @@ def _solve_routeb_hqp(
         "platform_posture_weight": platform_posture_weight,
         "arm_posture_weight": arm_posture_weight,
         "mode_task_names": [task.name for task in task_levels],
+        "mode_task_priority_audit": priority_audit,
         "platform_qdd_box_diag": platform_qdd_box_diag,
         "f_ref": tension_policy["reference"].copy(),
         "tension_safe_lower": tension_policy["safe_lower"].copy(),
@@ -741,7 +1091,12 @@ def _compute_a2d(
     anchors_world: np.ndarray,
     attach_local: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Compute planar wrench map A2D using the MATLAB planar convention."""
+    """Compute planar wrench map from the true 3D cable directions.
+
+    The platform task remains planar `[x, y, psi]`, but each cable direction is
+    computed in 3D first. This preserves distinct upper/lower cable geometry in
+    the solver instead of collapsing each corner pair onto the same planar line.
+    """
 
     x, y, psi = [float(v) for v in platform_pose.reshape(3)]
     c = np.cos(psi)
@@ -772,12 +1127,13 @@ def _compute_a2d(
 
         cable_dx = float(anchors_world[0, cable_index]) - attach_x_world
         cable_dy = float(anchors_world[1, cable_index]) - attach_y_world
-        cable_planar_length = float(np.sqrt(cable_dx * cable_dx + cable_dy * cable_dy))
-        if cable_planar_length <= 0.0:
-            raise ValueError("Degenerate planar cable length encountered.")
+        cable_dz = float(anchors_world[2, cable_index]) - attach_z_world
+        cable_length = float(np.sqrt(cable_dx * cable_dx + cable_dy * cable_dy + cable_dz * cable_dz))
+        if cable_length <= 0.0:
+            raise ValueError("Degenerate 3D cable length encountered.")
 
-        unit_x = cable_dx / cable_planar_length
-        unit_y = cable_dy / cable_planar_length
+        unit_x = cable_dx / cable_length
+        unit_y = cable_dy / cable_length
         a2d[0, cable_index] = unit_x
         a2d[1, cable_index] = unit_y
         a2d[2, cable_index] = lever_x * unit_y - lever_y * unit_x
@@ -828,6 +1184,8 @@ def _compute_platform_limit_diag(
     q_vec = np.asarray(platform_q, dtype=float).reshape(3)
     qd_vec = np.asarray(platform_qd, dtype=float).reshape(3)
     signed_distance = limits - np.abs(q_vec)
+    distance_margin_xy = float(np.min(signed_distance[:2]))
+    angle_margin_psi = float(signed_distance[2])
     correction = np.zeros(3, dtype=float)
 
     for axis_index in range(3):
@@ -844,6 +1202,8 @@ def _compute_platform_limit_diag(
     return {
         "platform_limits": limits.copy(),
         "signed_distance": signed_distance.copy(),
+        "distance_margin_xy": distance_margin_xy,
+        "angle_margin_psi": angle_margin_psi,
         "min_margin": float(np.min(signed_distance)),
         "limit_qdd_correction": correction.copy(),
     }
@@ -1115,13 +1475,47 @@ def _build_mode_task_plan(
 
     tracking_slack_weight = float(controller_cfg.get("tracking_task_slack_weight", 1e4))
     platform_slack_weight = float(controller_cfg.get("platform_task_slack_weight", 1e4))
-    orientation_slack_weight = float(controller_cfg.get("orientation_task_slack_weight", platform_slack_weight))
+    orientation_slack_weight = float(
+        controller_cfg.get(
+            "cooperative_orientation_task_slack_weight",
+            controller_cfg.get("orientation_task_slack_weight", platform_slack_weight),
+        )
+    )
     arm_slack_weight = float(controller_cfg.get("arm_task_slack_weight", platform_slack_weight))
+
+    tracking_rows = int(J_wb.shape[0])
+    tracking_rhs = np.asarray(xdd_ref - Jdot_qd, dtype=float).reshape(-1)
+    full_tracking_jacobian = np.asarray(J_wb, dtype=float).reshape(tracking_rows, dof_count)
 
     tracking_task = EqualityTaskLevel(
         name="tracking",
-        A=np.hstack([J_wb, np.zeros((int(J_wb.shape[0]), actuation_count), dtype=float)]),
-        b=np.asarray(xdd_ref - Jdot_qd, dtype=float).reshape(-1),
+        A=np.hstack([full_tracking_jacobian, np.zeros((tracking_rows, actuation_count), dtype=float)]),
+        b=tracking_rhs,
+        slack_weight=tracking_slack_weight,
+    )
+
+    platform_tracking_jacobian = full_tracking_jacobian.copy()
+    if dof_count > 3:
+        platform_tracking_jacobian[:, 3:] = 0.0
+    platform_tracking_rows = [0, 1]
+    platform_tracking_task = EqualityTaskLevel(
+        name="tracking",
+        A=np.hstack(
+            [
+                platform_tracking_jacobian[platform_tracking_rows, :],
+                np.zeros((len(platform_tracking_rows), actuation_count), dtype=float),
+            ]
+        ),
+        b=tracking_rhs[platform_tracking_rows],
+        slack_weight=tracking_slack_weight,
+    )
+
+    arm_tracking_jacobian = full_tracking_jacobian.copy()
+    arm_tracking_jacobian[:, :3] = 0.0
+    arm_tracking_task = EqualityTaskLevel(
+        name="tracking",
+        A=np.hstack([arm_tracking_jacobian, np.zeros((tracking_rows, actuation_count), dtype=float)]),
+        b=tracking_rhs,
         slack_weight=tracking_slack_weight,
     )
 
@@ -1150,6 +1544,24 @@ def _build_mode_task_plan(
         b=np.asarray(arm_qdd_ref, dtype=float).reshape(n_m),
         slack_weight=arm_slack_weight,
     )
+    platform_only_arm_task = EqualityTaskLevel(
+        name="arm_posture_fix",
+        A=arm_posture_matrix,
+        b=np.asarray(arm_qdd_ref, dtype=float).reshape(n_m),
+        slack_weight=float(controller_cfg.get("platform_only_arm_task_slack_weight", arm_slack_weight)),
+    )
+    arm_sweet_zone_task = EqualityTaskLevel(
+        name="arm_sweet_zone",
+        A=arm_posture_matrix,
+        b=np.asarray(arm_qdd_ref, dtype=float).reshape(n_m),
+        slack_weight=float(controller_cfg.get("cooperative_sweet_zone_task_slack_weight", arm_slack_weight)),
+    )
+    arm_only_platform_task = EqualityTaskLevel(
+        name="platform_posture_fix",
+        A=platform_pose_task.A,
+        b=platform_pose_task.b,
+        slack_weight=float(controller_cfg.get("arm_only_platform_task_slack_weight", platform_slack_weight)),
+    )
 
     qdd_min_ref = np.zeros(dof_count, dtype=float)
     platform_posture_weight = 0.0
@@ -1158,11 +1570,11 @@ def _build_mode_task_plan(
     task_phase_normalized = str(task_phase).strip().lower()
 
     if control_mode == "platform_only":
-        task_levels = [arm_posture_task, tracking_task]
+        task_levels = [platform_only_arm_task, platform_tracking_task]
         qdd_min_ref[3:] = arm_qdd_ref
         arm_posture_weight = float(controller_cfg.get("platform_only_arm_posture_weight", 0.2))
     elif control_mode == "arm_only":
-        task_levels = [tracking_task, platform_pose_task]
+        task_levels = [arm_tracking_task, arm_only_platform_task]
         qdd_min_ref[:3] = platform_qdd_ref
         platform_posture_weight = float(
             controller_cfg.get(
@@ -1171,36 +1583,44 @@ def _build_mode_task_plan(
             )
         )
     else:
-        if task_phase_normalized == "hold":
-            task_levels = [platform_pose_task]
-            if n_m > 0 and bool(controller_cfg.get("hold_add_arm_posture_task", True)):
-                task_levels.append(arm_posture_task)
-            task_levels.append(tracking_task)
-        elif task_phase_normalized in ("terminal_approach", "near_goal"):
-            task_levels = [tracking_task]
-            if task_phase_normalized == "terminal_approach" and n_m > 0 and bool(controller_cfg.get("terminal_add_arm_posture_task", False)):
-                task_levels.append(arm_posture_task)
-        elif task_phase_normalized in ("tracking", "acquisition"):
-            task_levels = [tracking_task]
-        elif bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
-            task_levels = [tracking_task, platform_orientation_task]
+        cooperative_use_platform_posture_min_ref = bool(controller_cfg.get("cooperative_use_platform_posture_min_ref", False))
+        if bool(controller_cfg.get("cooperative_orientation_first", True)) or bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
+            task_levels = [platform_orientation_task, tracking_task]
         else:
             task_levels = [tracking_task]
+        if task_phase_normalized == "hold" and n_m > 0 and bool(controller_cfg.get("hold_add_arm_posture_task", True)):
+            task_levels.append(arm_sweet_zone_task)
+        elif n_m > 0 and bool(controller_cfg.get("cooperative_add_arm_sweet_zone_task", True)):
+            task_levels.append(arm_sweet_zone_task)
+        elif task_phase_normalized == "terminal_approach" and n_m > 0 and bool(controller_cfg.get("terminal_add_arm_posture_task", False)):
+            task_levels.append(arm_posture_task)
         if n_m > 0 and bool(controller_cfg.get("cooperative_add_arm_posture_task", True)):
             task_levels.append(arm_posture_task)
+        sweet_zone_min_weight = float(controller_cfg.get("cooperative_sweet_zone_min_weight", 0.0))
         if task_phase_normalized == "hold":
+            qdd_min_ref[3:] = arm_qdd_ref
+        elif bool(controller_cfg.get("cooperative_sweet_zone_min_ref_enabled", False)) and sweet_zone_min_weight > 0.0:
             qdd_min_ref[3:] = arm_qdd_ref
         else:
             qdd_min_ref[3:] = 0.0
-        if task_phase_normalized in ("near_goal", "terminal_approach", "hold"):
+        if cooperative_use_platform_posture_min_ref and task_phase_normalized in ("near_goal", "terminal_approach", "hold"):
             qdd_min_ref[:3] = platform_qdd_ref
-        platform_posture_weight = float(controller_cfg.get("platform_posture_weight", 0.0))
+        platform_posture_weight = (
+            float(controller_cfg.get("platform_posture_weight", 0.0))
+            if cooperative_use_platform_posture_min_ref
+            else 0.0
+        )
         arm_posture_weight = float(
             controller_cfg.get(
                 "cooperative_arm_posture_weight",
                 controller_cfg.get("arm_posture_weight", 0.0),
             )
         )
+        if n_m > 0:
+            arm_posture_weight = max(arm_posture_weight, sweet_zone_min_weight)
+
+    task_names = [task.name for task in task_levels]
+    priority_audit = _build_mode_task_priority_audit(control_mode, task_phase_normalized, task_names)
 
     return ModeAwareTaskPlan(
         control_mode=control_mode,
@@ -1208,7 +1628,44 @@ def _build_mode_task_plan(
         qdd_min_ref=qdd_min_ref,
         platform_posture_weight=platform_posture_weight,
         arm_posture_weight=arm_posture_weight,
+        priority_audit=priority_audit,
     )
+
+
+def _build_mode_task_priority_audit(control_mode: str, task_phase: str, task_names: list[str]) -> Dict[str, Any]:
+    """Return an audit-only comparison against the HCDR_HQP mode references."""
+
+    actual = list(task_names)
+    mode = str(control_mode).strip().lower()
+    phase = str(task_phase).strip().lower()
+    if mode == "platform_only":
+        reference_family = "HCDR_HQP platform_control: Franka_pos_fix -> tracking"
+        expected_prefix = ["arm_posture_fix", "tracking"]
+    elif mode == "arm_only":
+        reference_family = "HCDR_HQP Franka_control: tracking -> PF_pos_fix"
+        expected_prefix = ["tracking", "platform_posture_fix"]
+    else:
+        reference_family = "HCDR_HQP wholebody_compute: PF_ori_fix -> tracking"
+        if phase in ("tracking", "acquisition", "terminal_approach", "near_goal", "hold"):
+            expected_prefix = ["platform_orientation_fix", "tracking"]
+        else:
+            expected_prefix = ["tracking"]
+
+    prefix_match = actual[: len(expected_prefix)] == expected_prefix
+    return {
+        "audit_only": True,
+        "control_mode": mode,
+        "task_phase": phase,
+        "actual_task_order": actual,
+        "reference_family": reference_family,
+        "reference_prefix": expected_prefix,
+        "matches_reference_prefix": bool(prefix_match),
+        "note": (
+            "Diagnostics only; current cooperative stack is intentionally not reordered here."
+            if mode == "cooperative"
+            else "Diagnostics only."
+        ),
+    }
 
 
 def _solve_task_stack_levels(
@@ -1334,6 +1791,7 @@ def _build_min_cost_objective(
     platform_posture_weight: float,
     arm_posture_weight: float,
     platform_qdd_ref: np.ndarray,
+    arm_qdd_ref: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build final min-task quadratic objective for z=[qdd;uwo]."""
 
@@ -1347,7 +1805,7 @@ def _build_min_cost_objective(
         g[:3] -= platform_posture_weight * platform_qdd_ref
     if arm_posture_weight > 0.0 and dof_count > 3:
         H[3:dof_count, 3:dof_count] += arm_posture_weight * np.eye(dof_count - 3, dtype=float)
-        g[3:dof_count] -= arm_posture_weight * qdd_ref[3:]
+        g[3:dof_count] -= arm_posture_weight * np.asarray(arm_qdd_ref, dtype=float).reshape(dof_count - 3)
 
     H[dof_count:dof_count + actuation_count, dof_count:dof_count + actuation_count] = _block_diag(
         (alpha_t + smooth_weight_u + tension_ref_weight) * np.eye(n_c, dtype=float),
@@ -1358,6 +1816,82 @@ def _build_min_cost_objective(
         + np.concatenate([tension_ref_weight * desired_cable_uwo, np.zeros(n_m, dtype=float)])
     )
     return H, g
+
+
+def _compute_arm_sweet_zone_diagnostics(
+    q: np.ndarray,
+    qd: np.ndarray,
+    j_wb: np.ndarray,
+    arm_posture_target: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Record arm sweet-zone indicators without changing the control output."""
+
+    q_vec = np.asarray(q, dtype=float).reshape(-1)
+    qd_vec = np.asarray(qd, dtype=float).reshape(-1)
+    n_m = max(0, q_vec.size - 3)
+    if n_m <= 0:
+        return {
+            "enabled": False,
+            "reason": "no_arm_dofs",
+            "arm_sigma_min": float("nan"),
+            "joint_limit_min_margin": float("nan"),
+            "sweetspot_cost": float("nan"),
+        }
+
+    q_arm = q_vec[3 : 3 + n_m]
+    qd_arm = qd_vec[3 : 3 + n_m]
+    target_arm = np.asarray(arm_posture_target, dtype=float).reshape(-1)
+    if target_arm.size != n_m:
+        target_arm = q_arm.copy()
+
+    arm_min = _expand_optional(controller_cfg.get("arm_position_min"), n_m, -np.pi)
+    arm_max = _expand_optional(controller_cfg.get("arm_position_max"), n_m, np.pi)
+    arm_margin = _expand_optional(controller_cfg.get("arm_joint_limit_margin"), n_m, 0.0)
+    safe_lower = arm_min + arm_margin
+    safe_upper = arm_max - arm_margin
+    midpoint = 0.5 * (safe_lower + safe_upper)
+    lower_margin = q_arm - safe_lower
+    upper_margin = safe_upper - q_arm
+    joint_limit_min_margin = float(np.min(np.concatenate([lower_margin, upper_margin])))
+
+    j_task = np.asarray(j_wb, dtype=float)
+    if j_task.ndim != 2 or j_task.shape[1] < 3 + n_m:
+        singular_values = np.zeros(0, dtype=float)
+        sigma_min = float("nan")
+    else:
+        arm_jacobian = j_task[:, 3 : 3 + n_m]
+        singular_values = np.linalg.svd(arm_jacobian, compute_uv=False)
+        sigma_min = float(np.min(singular_values)) if singular_values.size > 0 else float("nan")
+    sigma_max = float(np.max(singular_values)) if singular_values.size > 0 else float("nan")
+    condition_number = float(sigma_max / max(sigma_min, 1e-12)) if np.isfinite(sigma_max) and np.isfinite(sigma_min) else float("nan")
+
+    center_error = q_arm - midpoint
+    posture_error = q_arm - target_arm
+    velocity_norm = float(np.linalg.norm(qd_arm))
+    sigma_threshold = float(controller_cfg.get("sweet_zone_sigma_min_threshold", 0.05))
+    sigma_penalty = max(0.0, sigma_threshold - sigma_min) if np.isfinite(sigma_min) else 0.0
+    limit_violation = np.maximum(0.0, -np.concatenate([lower_margin, upper_margin]))
+    sweetspot_cost = (
+        float(controller_cfg.get("sweet_zone_joint_center_weight", 1.0)) * float(center_error @ center_error)
+        + float(controller_cfg.get("sweet_zone_joint_limit_weight", 1.0)) * float(limit_violation @ limit_violation)
+        + float(controller_cfg.get("sweet_zone_singularity_weight", 1.0)) * float(sigma_penalty * sigma_penalty)
+    )
+
+    return {
+        "enabled": True,
+        "arm_sigma_min": sigma_min,
+        "arm_condition_number": condition_number,
+        "arm_near_singular": bool(np.isfinite(sigma_min) and sigma_min < sigma_threshold),
+        "arm_singular_values": singular_values.copy(),
+        "joint_limit_min_margin": joint_limit_min_margin,
+        "joint_center_error_norm": float(np.linalg.norm(center_error)),
+        "posture_error_norm": float(np.linalg.norm(posture_error)),
+        "joint_velocity_norm": velocity_norm,
+        "sigma_penalty": float(sigma_penalty),
+        "sweetspot_cost": float(sweetspot_cost),
+        "note": "diagnostic_only_not_in_objective",
+    }
 
 
 def _normalize_mapping(mapping: Mapping[str, Any]) -> Dict[str, Any]:
@@ -1388,6 +1922,10 @@ def _normalize_control_mode(mode_value: Any) -> str:
         "arm_only": "arm_only",
         "franka_control": "arm_only",
         "franka-control": "arm_only",
+        "arm_only_osc_baseline": "arm_only_osc_baseline",
+        "arm-only-osc-baseline": "arm_only_osc_baseline",
+        "osc_baseline": "arm_only_osc_baseline",
+        "osc-baseline": "arm_only_osc_baseline",
         "mode3": "cooperative",
         "cooperative": "cooperative",
         "wholebody": "cooperative",

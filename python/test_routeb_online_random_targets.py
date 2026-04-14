@@ -49,6 +49,11 @@ def main() -> None:
     parser.add_argument("--settle-duration", type=float, default=0.0)
     parser.add_argument("--control-mode", type=str, default="")
     parser.add_argument("--seed", type=int, default=20260402)
+    parser.add_argument(
+        "--allow-negative-z",
+        action="store_true",
+        help="Include negative delta-z targets as diagnostic cases. They are not required by the default smoke suite.",
+    )
     parser.add_argument("--save-results", action="store_true", help="Save per-case CSV/JSON under results/online_random_targets")
     args = parser.parse_args()
 
@@ -73,7 +78,7 @@ def main() -> None:
     detailed_cases: list[dict] = []
     try:
         for band in bands:
-            for case_index, delta in enumerate(sample_target_deltas(rng, band, int(args.steps))):
+            for case_index, delta in enumerate(sample_target_deltas(rng, band, int(args.steps), allow_negative_z=args.allow_negative_z)):
                 controller = RouteBOnlineController.from_config_dict(payload["model_kwargs"], controller_cfg)
                 initial_snapshot = services["backend_client"].reset(q0, qd0)["snapshot"]
                 target_start = np.asarray(initial_snapshot["tip_world"], dtype=float).reshape(3)
@@ -117,10 +122,16 @@ def main() -> None:
                     "hold_ratio": float(metrics["hold_ratio"]),
                     "terminal_static_drift_max": float(metrics["terminal_static_drift_max"]),
                     "hold_drift_max": float(metrics["hold_drift_max"]),
+                    "pre_hold_last10_rmse": np.asarray(metrics["pre_hold_last10_rmse"], dtype=float).reshape(3),
+                    "pre_hold_last10_max_error": float(metrics["pre_hold_last10_max_error"]),
+                    "pre_hold_last10_count": int(metrics["pre_hold_last10_count"]),
+                    "pre_hold_last10_source": str(metrics["pre_hold_last10_source"]),
                     "phase_metrics": metrics["phase_metrics"],
                     "max_platform_abs": np.asarray(metrics["max_platform_abs"], dtype=float).reshape(3),
+                    "platform_delta": np.asarray(metrics["platform_delta"], dtype=float).reshape(3),
                     "min_platform_limit_margin": float(metrics["min_platform_limit_margin"]),
                     "max_cable_force": float(metrics["max_cable_force"]),
+                    "final_mode_task_names": list(last["diagnostics"]["solver"].get("mode_task_names", [])),
                     "final_solver_status": str(last["diagnostics"]["solver"]["solver_status"]),
                     "final_fail_reason": str(last["diagnostics"]["solver"]["fail_reason"]),
                 }
@@ -148,6 +159,8 @@ def sample_target_deltas(
     rng: np.random.Generator,
     band: TargetBand,
     requested_count: int,
+    *,
+    allow_negative_z: bool = False,
 ) -> list[np.ndarray]:
     """Sample deterministic 3D target deltas inside a distance shell."""
 
@@ -161,6 +174,11 @@ def sample_target_deltas(
         if direction_norm <= 1e-9:
             continue
         direction = direction / direction_norm
+        # The q=0 hanging-arm initial posture is already close to a stretched
+        # direction.  Negative z targets are diagnostic stress cases, not
+        # default required successes for the online smoke suite.
+        if not allow_negative_z and float(direction[2]) < 0.0:
+            direction[2] = abs(float(direction[2]))
         distance = float(rng.uniform(band.min_distance, band.max_distance))
         delta = distance * direction
         if abs(float(delta[2])) > 0.06:
@@ -186,6 +204,7 @@ def format_case_line(case_result: dict) -> str:
         f"delta=[{delta[0]:+.3f},{delta[1]:+.3f},{delta[2]:+.3f}] "
         f"rmse=[{rmse[0]:.3f},{rmse[1]:.3f},{rmse[2]:.3f}] "
         f"maxe={case_result['traj_max_error']:.3f} "
+        f"prehold={case_result['pre_hold_last10_max_error']:.3f} "
         f"hold_drift={case_result['terminal_static_drift_max']:.3f} "
         f"fail={case_result['final_fail_reason']} "
         f"hold={case_result['hold_ratio']:.2f}"
@@ -202,6 +221,8 @@ def summarize_case_results(results: list[dict], seed: int, control_mode: str) ->
     traj_max_errors = np.array([float(item["traj_max_error"]) for item in results], dtype=float)
     hold_drift_maxes = np.array([float(item["terminal_static_drift_max"]) for item in results], dtype=float)
     platform_margins = np.array([float(item["min_platform_limit_margin"]) for item in results], dtype=float)
+    pre_hold_max_errors = np.array([float(item["pre_hold_last10_max_error"]) for item in results], dtype=float)
+    platform_delta_norms = np.array([np.linalg.norm(np.asarray(item["platform_delta"], dtype=float)) for item in results], dtype=float)
     solver_fail_counts = np.array([int(item["solver_fail_count"]) for item in results], dtype=int)
     fallback_counts = np.array([int(item["fallback_count"]) for item in results], dtype=int)
     final_fail_count = sum(1 for item in results if str(item["final_fail_reason"]) != "none")
@@ -213,8 +234,10 @@ def summarize_case_results(results: list[dict], seed: int, control_mode: str) ->
             "worst_rmse_norm_m": float(max(np.linalg.norm(np.asarray(item["traj_rmse"], dtype=float)) for item in band_cases)),
             "worst_max_error_m": float(max(float(item["traj_max_error"]) for item in band_cases)),
             "worst_hold_drift_m": float(max(float(item["terminal_static_drift_max"]) for item in band_cases)),
+            "worst_pre_hold_last10_error_m": float(max(float(item["pre_hold_last10_max_error"]) for item in band_cases)),
             "final_fail_count": int(sum(1 for item in band_cases if str(item["final_fail_reason"]) != "none")),
             "max_platform_abs_m": np.max(np.vstack([np.asarray(item["max_platform_abs"], dtype=float).reshape(1, 3) for item in band_cases]), axis=0).tolist(),
+            "max_platform_delta_norm": float(max(np.linalg.norm(np.asarray(item["platform_delta"], dtype=float)) for item in band_cases)),
         }
 
     return {
@@ -224,7 +247,10 @@ def summarize_case_results(results: list[dict], seed: int, control_mode: str) ->
         "worst_rmse_norm_m": float(np.max(traj_rmse_norms)),
         "worst_max_error_m": float(np.max(traj_max_errors)),
         "hold_drift_worst_m": float(np.max(hold_drift_maxes)),
+        "pre_hold_last10_worst_error_m": float(np.max(pre_hold_max_errors)),
         "mean_rmse_norm_m": float(np.mean(traj_rmse_norms)),
+        "mean_platform_delta_norm": float(np.mean(platform_delta_norms)),
+        "max_platform_delta_norm": float(np.max(platform_delta_norms)),
         "min_platform_limit_margin_m": float(np.min(platform_margins)),
         "solver_fail_case_count": int(np.sum(solver_fail_counts > 0)),
         "fallback_case_count": int(np.sum(fallback_counts > 0)),
@@ -243,7 +269,7 @@ def export_random_suite_results(
     """Write per-case CSV plus summary JSON."""
 
     export_root = Path(__file__).resolve().parent.parent / "results" / "online_random_targets"
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     export_dir = export_root / f"routeb_random_{timestamp}"
     export_dir.mkdir(parents=True, exist_ok=True)
 
@@ -270,11 +296,18 @@ def export_random_suite_results(
         "hold_ratio",
         "terminal_static_drift_max",
         "hold_drift_max",
+        "pre_hold_last10_max_error",
+        "pre_hold_last10_count",
+        "pre_hold_last10_source",
         "max_platform_x",
         "max_platform_y",
         "max_platform_psi",
+        "platform_delta_x",
+        "platform_delta_y",
+        "platform_delta_psi",
         "min_platform_limit_margin",
         "max_cable_force",
+        "final_mode_task_names",
         "final_solver_status",
         "final_fail_reason",
     ]
@@ -286,6 +319,7 @@ def export_random_suite_results(
             final_err = np.asarray(item["final_tip_error"], dtype=float).reshape(3)
             rmse = np.asarray(item["traj_rmse"], dtype=float).reshape(3)
             max_platform = np.asarray(item["max_platform_abs"], dtype=float).reshape(3)
+            platform_delta = np.asarray(item["platform_delta"], dtype=float).reshape(3)
             writer.writerow(
                 {
                     "band": item["band"],
@@ -309,11 +343,18 @@ def export_random_suite_results(
                     "hold_ratio": float(item["hold_ratio"]),
                     "terminal_static_drift_max": float(item["terminal_static_drift_max"]),
                     "hold_drift_max": float(item["hold_drift_max"]),
+                    "pre_hold_last10_max_error": float(item["pre_hold_last10_max_error"]),
+                    "pre_hold_last10_count": int(item["pre_hold_last10_count"]),
+                    "pre_hold_last10_source": str(item["pre_hold_last10_source"]),
                     "max_platform_x": float(max_platform[0]),
                     "max_platform_y": float(max_platform[1]),
                     "max_platform_psi": float(max_platform[2]),
+                    "platform_delta_x": float(platform_delta[0]),
+                    "platform_delta_y": float(platform_delta[1]),
+                    "platform_delta_psi": float(platform_delta[2]),
                     "min_platform_limit_margin": float(item["min_platform_limit_margin"]),
                     "max_cable_force": float(item["max_cable_force"]),
+                    "final_mode_task_names": "|".join(str(name) for name in item.get("final_mode_task_names", [])),
                     "final_solver_status": str(item["final_solver_status"]),
                     "final_fail_reason": str(item["final_fail_reason"]),
                 }
@@ -328,6 +369,7 @@ def export_random_suite_results(
         "medium_count": int(args.medium_count),
         "far_count": int(args.far_count),
         "settle_duration": float(args.settle_duration),
+        "allow_negative_z": bool(args.allow_negative_z),
         "summary": summary,
     }
     summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")

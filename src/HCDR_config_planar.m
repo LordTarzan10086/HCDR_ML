@@ -136,7 +136,9 @@ function cfg = HCDR_config_planar(varargin)
         % Installation / tool convention for URDF-aligned visualization:
         % - base_rotation_in_platform flips the arm to "face downward"
         %   relative to platform frame (user-required mounting direction).
-        % - Tip point is midpoint of left/right fingertip local points.
+        % - Tip point is the midpoint of the left/right distal finger body
+        %   origins.  Do not use opposite +/- local x offsets here: on the
+        %   Gen3 Lite 2F URDF that biases the marker toward one finger.
         cfg.arm.base_rotation_in_platform = [ ...
             1.0,  0.0,  0.0;
             0.0, -1.0,  0.0;
@@ -148,8 +150,8 @@ function cfg = HCDR_config_planar(varargin)
         cfg.arm.urdf_flange_body = "END_EFFECTOR";
         cfg.arm.urdf_left_tip_body = "LEFT_FINGER_DIST";
         cfg.arm.urdf_right_tip_body = "RIGHT_FINGER_DIST";
-        cfg.arm.urdf_left_tip_local = [-0.040; 0.0; 0.0];
-        cfg.arm.urdf_right_tip_local = [0.040; 0.0; 0.0];
+        cfg.arm.urdf_left_tip_local = [0.0; 0.0; 0.0];
+        cfg.arm.urdf_right_tip_local = [0.0; 0.0; 0.0];
         cfg.arm.use_urdf_kinematics = true;
         cfg.arm.urdf_path = string(fullfile(repoRoot, "kortex_description", "robots", ...
             "gen3_lite_gen3_lite_2f_local.urdf"));

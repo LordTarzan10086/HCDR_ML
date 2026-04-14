@@ -116,8 +116,8 @@ def build_planar_root_arm_model(
             tip_frame_name=str(tip_frame_name),
             tip_left_body=str(tip_left_body),
             tip_right_body=str(tip_right_body),
-            tip_left_local=_normalize_vector3(tip_left_local, default=(-0.040, 0.0, 0.0)),
-            tip_right_local=_normalize_vector3(tip_right_local, default=(0.040, 0.0, 0.0)),
+            tip_left_local=_normalize_vector3(tip_left_local, default=(0.0, 0.0, 0.0)),
+            tip_right_local=_normalize_vector3(tip_right_local, default=(0.0, 0.0, 0.0)),
             tip_body=str(tip_body),
             tip_local=_normalize_vector3(tip_local, default=(0.0, 0.0, 0.0)),
         )

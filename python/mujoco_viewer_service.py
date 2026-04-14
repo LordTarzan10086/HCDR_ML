@@ -95,6 +95,8 @@ class ViewerApp:
 
         q = np.asarray(snapshot["q"], dtype=float).reshape(-1)
         target_world = snapshot.get("target_world", None)
+        desired_traj_world = snapshot.get("desired_traj_world", None)
+        actual_traj_world = snapshot.get("actual_traj_world", None)
         self._sync_model_from_snapshot(q)
 
         try:
@@ -110,6 +112,8 @@ class ViewerApp:
                         show_platform=False,
                         show_cables=False,
                         show_target=bool(self.viewer_cfg.get("show_target", True)),
+                        desired_traj_world=desired_traj_world,
+                        actual_traj_world=actual_traj_world,
                     )
                 else:
                     draw_overlay(
@@ -122,6 +126,8 @@ class ViewerApp:
                         show_platform=bool(self.viewer_cfg.get("show_platform", True)),
                         show_cables=bool(self.viewer_cfg.get("show_cables", True)),
                         show_target=bool(self.viewer_cfg.get("show_target", True)),
+                        desired_traj_world=desired_traj_world,
+                        actual_traj_world=actual_traj_world,
                     )
             self.viewer.sync()
             self.status_code = "ok_viewer"

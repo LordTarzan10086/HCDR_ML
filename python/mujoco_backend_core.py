@@ -196,6 +196,14 @@ class HeadlessMujocoBackend:
                 q_next[3 : 3 + arm_state_dim] = np.asarray(self.data.qpos[:arm_state_dim], dtype=float)
                 qd_next[3 : 3 + arm_state_dim] = np.asarray(self.data.qvel[:arm_state_dim], dtype=float)
 
+        if bool(payload.get("lock_arm_state", False)):
+            arm_state_dim = min(self.arm_joint_count, max(0, q_next.size - 3))
+            if arm_state_dim > 0:
+                q_hold = _payload_vector(payload, "arm_q_hold", arm_state_dim, default_value=0.0)
+                qd_hold = _payload_vector(payload, "arm_qd_hold", arm_state_dim, default_value=0.0)
+                q_next[3 : 3 + arm_state_dim] = q_hold[:arm_state_dim]
+                qd_next[3 : 3 + arm_state_dim] = qd_hold[:arm_state_dim]
+
         self.q_state = q_next
         self.qd_state = qd_next
         self.time_s += dt
@@ -234,6 +242,7 @@ class HeadlessMujocoBackend:
             snapshot["actuator_ctrl"] = np.concatenate([self.last_cable_ctrl_applied, self.last_arm_ctrl_applied])
         else:
             snapshot["u_a"] = self.last_u_a.copy()
+        snapshot.update(self._platform_wrench_snapshot())
         return snapshot
 
     def _load_model(self) -> tuple[mujoco.MjModel, mujoco.MjData, dict[str, Any]]:
@@ -351,6 +360,28 @@ class HeadlessMujocoBackend:
             dtype=float,
         )
 
+    def _platform_wrench_snapshot(self) -> dict[str, Any]:
+        """Expose backend-current A2D and cable wrench for controller/log audits."""
+
+        cable_count = int(self.controller_cfg["n_c"])
+        anchors_world = np.asarray(self.controller_cfg["cable_anchors_world"], dtype=float).reshape(3, cable_count)
+        attach_local = np.asarray(self.controller_cfg["platform_attach_local"], dtype=float).reshape(3, cable_count)
+        a2d, attach_world = _compute_a2d(self.q_state[:3], float(self.controller_cfg["z0"]), anchors_world, attach_local)
+        if self.native_mode:
+            tensions = np.asarray(self.last_cable_ctrl_applied, dtype=float).reshape(-1)
+        else:
+            tensions = np.asarray(self.last_u_a[:cable_count], dtype=float).reshape(-1)
+        if tensions.size != cable_count:
+            padded_tensions = np.zeros(cable_count, dtype=float)
+            padded_tensions[: min(cable_count, tensions.size)] = tensions[: min(cable_count, tensions.size)]
+            tensions = padded_tensions
+        return {
+            "platform_wrench_map_A2D": a2d.copy(),
+            "platform_attach_world": attach_world.copy(),
+            "platform_wrench_from_cable_forces": a2d @ tensions,
+            "platform_wrench_map_source": "mujoco_backend_core_3d",
+        }
+
 
 def _payload_scalar(payload: Mapping[str, Any], key: str, default_value: float) -> float:
     if key not in payload:
@@ -390,7 +421,7 @@ def _extract_arm_torques(payload: Mapping[str, Any], u_a: np.ndarray, cable_coun
 
 
 def _compute_a2d(platform_pose: np.ndarray, z0: float, anchors_world: np.ndarray, attach_local: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Compute planar wrench map A2D using the project convention."""
+    """Compute planar wrench map A2D from true 3D cable directions."""
 
     x, y, psi = [float(v) for v in np.asarray(platform_pose, dtype=float).reshape(3)]
     c = float(np.cos(psi))
@@ -413,12 +444,13 @@ def _compute_a2d(platform_pose: np.ndarray, z0: float, anchors_world: np.ndarray
 
         cable_dx = float(anchors_world[0, cable_index]) - attach_x_world
         cable_dy = float(anchors_world[1, cable_index]) - attach_y_world
-        cable_planar_length = float(np.hypot(cable_dx, cable_dy))
-        if cable_planar_length <= 1e-12:
-            raise ValueError("Degenerate planar cable length encountered.")
+        cable_dz = float(anchors_world[2, cable_index]) - attach_z_world
+        cable_length = float(np.sqrt(cable_dx * cable_dx + cable_dy * cable_dy + cable_dz * cable_dz))
+        if cable_length <= 1e-12:
+            raise ValueError("Degenerate 3D cable length encountered.")
 
-        unit_x = cable_dx / cable_planar_length
-        unit_y = cable_dy / cable_planar_length
+        unit_x = cable_dx / cable_length
+        unit_y = cable_dy / cable_length
         a2d[0, cable_index] = unit_x
         a2d[1, cable_index] = unit_y
         a2d[2, cable_index] = lever_x * unit_y - lever_y * unit_x

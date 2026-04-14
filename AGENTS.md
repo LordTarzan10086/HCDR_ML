@@ -34,6 +34,12 @@
 4) If failing: fix code + update tests; repeat until green.
 5) Summarize changes and risks at the end.
 
+## Online Python Regression Notes
+- For `hcdr_pin` Python commands, use `scripts/run_hcdr_pin_python.cmd` so native runtime environment variables are set before importing NumPy/Pinocchio/MuJoCo.
+- Pytest-collected online cases live under `python/test_*_pytest.py`; legacy `python/test_*.py` files may still be script-style and should be run directly when they collect zero pytest tests.
+- At the current q=0 hanging-arm initial posture, negative `delta_z` targets are diagnostic stress cases, not default required successes. Do not count them against the default online random-target smoke unless the user explicitly asks for full negative-z robustness.
+- The Gen3 Lite 2F tool tip is the midpoint of `LEFT_FINGER_DIST` and `RIGHT_FINGER_DIST` body origins. Do not restore the old opposite local offsets `[-0.04,0,0]` / `[0.04,0,0]`.
+
 ## Prompt Template (recommended for Codex/Claude)
 Goal: Implement/modify `src/<file>.m` without breaking existing interfaces.
 Scope: Only touch `src/` + `tests/` (scripts/ if needed).

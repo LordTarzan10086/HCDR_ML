@@ -224,8 +224,8 @@ def compute_tip_world(model: mujoco.MjModel, data: mujoco.MjData, backend_cfg: M
 
     left_name = str(backend_cfg.get("tip_left_body", "LEFT_FINGER_DIST"))
     right_name = str(backend_cfg.get("tip_right_body", "RIGHT_FINGER_DIST"))
-    left_local = np.asarray(backend_cfg.get("tip_left_local", [-0.04, 0.0, 0.0]), dtype=float).reshape(3)
-    right_local = np.asarray(backend_cfg.get("tip_right_local", [0.04, 0.0, 0.0]), dtype=float).reshape(3)
+    left_local = np.asarray(backend_cfg.get("tip_left_local", [0.0, 0.0, 0.0]), dtype=float).reshape(3)
+    right_local = np.asarray(backend_cfg.get("tip_right_local", [0.0, 0.0, 0.0]), dtype=float).reshape(3)
     tip_name = str(backend_cfg.get("tip_body", "DUMMY"))
     tip_local = np.asarray(backend_cfg.get("tip_local", [0.0, 0.0, 0.0]), dtype=float).reshape(3)
 
@@ -256,6 +256,8 @@ def draw_overlay(
     show_platform: bool = True,
     show_cables: bool = True,
     show_target: bool = True,
+    desired_traj_world: Sequence[Sequence[float]] | None = None,
+    actual_traj_world: Sequence[Sequence[float]] | None = None,
 ) -> None:
     """Draw frame/platform/cables/target into a passive viewer user scene."""
 
@@ -322,6 +324,15 @@ def draw_overlay(
         if target_vec.size >= 3:
             _add_sphere(scene, target_vec[:3], 0.02, rgba_target)
 
+    desired_points = _coerce_traj_points(desired_traj_world)
+    actual_points = _coerce_traj_points(actual_traj_world)
+    if desired_points.size > 0:
+        _add_polyline(scene, desired_points, np.array([1.0, 0.15, 0.15, 1.0], dtype=np.float32), 2.2)
+        _add_sphere(scene, desired_points[-1, :], 0.012, np.array([1.0, 0.15, 0.15, 1.0], dtype=np.float32))
+    if actual_points.size > 0:
+        _add_polyline(scene, actual_points, np.array([0.10, 0.85, 0.35, 1.0], dtype=np.float32), 3.2)
+        _add_sphere(scene, actual_points[-1, :], 0.014, np.array([0.10, 0.85, 0.35, 1.0], dtype=np.float32))
+
 
 def _add_line(scene: Any, p0: Sequence[float], p1: Sequence[float], rgba: np.ndarray, width: float) -> None:
     if scene.ngeom >= scene.maxgeom:
@@ -343,6 +354,16 @@ def _add_line(scene: Any, p0: Sequence[float], p1: Sequence[float], rgba: np.nda
         np.array([float(p1[0]), float(p1[1]), float(p1[2])], dtype=float),
     )
     scene.ngeom += 1
+
+
+def _add_polyline(scene: Any, points: np.ndarray, rgba: np.ndarray, width: float) -> None:
+    """Draw a polyline as chained line connectors."""
+
+    polyline = np.asarray(points, dtype=float).reshape(-1, 3)
+    if polyline.shape[0] < 2:
+        return
+    for point_index in range(polyline.shape[0] - 1):
+        _add_line(scene, polyline[point_index, :], polyline[point_index + 1, :], rgba, width)
 
 
 def _add_sphere(scene: Any, center: Sequence[float], radius: float, rgba: np.ndarray) -> None:
@@ -392,6 +413,17 @@ def _add_box(
         rgba,
     )
     scene.ngeom += 1
+
+
+def _coerce_traj_points(points: Sequence[Sequence[float]] | None) -> np.ndarray:
+    """Return an N-by-3 trajectory array or an empty array."""
+
+    if points is None:
+        return np.zeros((0, 3), dtype=float)
+    array = np.asarray(points, dtype=float)
+    if array.size == 0:
+        return np.zeros((0, 3), dtype=float)
+    return array.reshape(-1, 3)
 
 
 def _body_exists(model: mujoco.MjModel, body_name: str) -> bool:

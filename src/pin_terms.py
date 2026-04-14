@@ -54,8 +54,8 @@ def ensure_model(
     normalized_tip_frame_name = _normalize_string(tip_frame_name, _DEFAULT_TIP_FRAME_NAME)
     normalized_tip_left_body = _normalize_string(tip_left_body, "LEFT_FINGER_DIST")
     normalized_tip_right_body = _normalize_string(tip_right_body, "RIGHT_FINGER_DIST")
-    normalized_tip_left_local = _normalize_vector3(tip_left_local, default=(-0.040, 0.0, 0.0))
-    normalized_tip_right_local = _normalize_vector3(tip_right_local, default=(0.040, 0.0, 0.0))
+    normalized_tip_left_local = _normalize_vector3(tip_left_local, default=(0.0, 0.0, 0.0))
+    normalized_tip_right_local = _normalize_vector3(tip_right_local, default=(0.0, 0.0, 0.0))
     normalized_tip_body = _normalize_string(tip_body, "DUMMY")
     normalized_tip_local = _normalize_vector3(tip_local, default=(0.0, 0.0, 0.0))
 
@@ -604,10 +604,10 @@ def _resolve_urdf_tip_query(
     right_name = _normalize_string(tip_right_body, "RIGHT_FINGER_DIST")
     tip_name = _normalize_string(tip_body, "DUMMY")
     left_local = np.asarray(
-        _normalize_vector3(tip_left_local, default=(-0.040, 0.0, 0.0)), dtype=float
+        _normalize_vector3(tip_left_local, default=(0.0, 0.0, 0.0)), dtype=float
     ).reshape(3)
     right_local = np.asarray(
-        _normalize_vector3(tip_right_local, default=(0.040, 0.0, 0.0)), dtype=float
+        _normalize_vector3(tip_right_local, default=(0.0, 0.0, 0.0)), dtype=float
     ).reshape(3)
     single_local = np.asarray(_normalize_vector3(tip_local, default=(0.0, 0.0, 0.0)), dtype=float).reshape(3)
 

@@ -8,6 +8,11 @@ from typing import Any, Mapping
 import numpy as np
 
 
+_TIP_LOCAL_ZERO = [0.0, 0.0, 0.0]
+_LEGACY_TIP_LEFT_LOCAL = [-0.04, 0.0, 0.0]
+_LEGACY_TIP_RIGHT_LOCAL = [0.04, 0.0, 0.0]
+
+
 def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: str | Path) -> dict[str, Any]:
     """Fill v3.3 runtime/backend/viewer sections when older JSON is loaded."""
 
@@ -15,7 +20,20 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
     normalized = dict(payload)
     model_kwargs = dict(normalized["model_kwargs"])
     controller_cfg = dict(normalized["controller_cfg"])
-    controller_cfg.setdefault("platform_xy_limit", max(0.1, float(np.max(np.abs(np.asarray(controller_cfg["cable_anchors_world"], dtype=float).reshape(3, -1)[:2, :]))) - float(np.max(np.abs(np.asarray(controller_cfg["platform_attach_local"], dtype=float).reshape(3, -1)[:2, :])))))
+    anchors_for_limits = np.asarray(controller_cfg["cable_anchors_world"], dtype=float).reshape(3, -1)
+    attach_for_limits = np.asarray(controller_cfg["platform_attach_local"], dtype=float).reshape(3, -1)
+    frame_half_xy = float(np.max(np.abs(anchors_for_limits[:2, :])))
+    platform_half_xy = float(np.max(np.abs(attach_for_limits[:2, :])))
+    geometric_platform_xy_limit = max(0.1, frame_half_xy - platform_half_xy - 0.10)
+    smoke_platform_xy_limit = min(0.45, geometric_platform_xy_limit)
+    controller_cfg.setdefault("platform_xy_limit", geometric_platform_xy_limit)
+    legacy_platform_xy_limit = float(controller_cfg.get("platform_xy_limit", geometric_platform_xy_limit))
+    if legacy_platform_xy_limit <= 0.251 and smoke_platform_xy_limit > legacy_platform_xy_limit:
+        controller_cfg["platform_xy_limit_legacy_value"] = legacy_platform_xy_limit
+        controller_cfg["platform_xy_limit"] = smoke_platform_xy_limit
+        controller_cfg["platform_xy_limit_source"] = "upgraded_from_legacy_online_smoke_limit"
+    else:
+        controller_cfg.setdefault("platform_xy_limit_source", "config_or_geometric_default")
     controller_cfg.setdefault("platform_psi_limit", float(np.pi))
     controller_cfg.setdefault("platform_tracking_xy_limit", min(0.18, float(controller_cfg["platform_xy_limit"])))
     controller_cfg.setdefault("platform_tracking_psi_limit", min(float(np.deg2rad(18.0)), float(controller_cfg["platform_psi_limit"])))
@@ -27,6 +45,9 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
     controller_cfg.setdefault("terminal_platform_tracking_psi_limit", min(float(np.deg2rad(8.0)), float(controller_cfg["platform_psi_limit"])))
     controller_cfg.setdefault("hold_platform_tracking_xy_limit", min(0.06, float(controller_cfg["platform_xy_limit"])))
     controller_cfg.setdefault("hold_platform_tracking_psi_limit", min(float(np.deg2rad(6.0)), float(controller_cfg["platform_psi_limit"])))
+    controller_cfg.setdefault("cooperative_platform_tracking_xy_limit", min(0.35, float(controller_cfg["platform_xy_limit"])))
+    controller_cfg.setdefault("cooperative_platform_tracking_psi_limit", min(float(np.deg2rad(18.0)), float(controller_cfg["platform_psi_limit"])))
+    controller_cfg.setdefault("cooperative_platform_tracking_limit_margin", 0.02)
     controller_cfg.setdefault("platform_limit_margin", 0.15)
     controller_cfg.setdefault("platform_tracking_limit_margin", 0.04)
     controller_cfg.setdefault("platform_limit_gain", 12.0)
@@ -34,6 +55,7 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
     controller_cfg.setdefault("platform_tracking_state_guard_xy", 0.02)
     controller_cfg.setdefault("platform_tracking_state_guard_psi", 0.05)
     controller_cfg.setdefault("qp_solver_backend", "osqp")
+    controller_cfg.setdefault("arm_only_qp_solver_backend", "auto")
     controller_cfg.setdefault("fallback_prev_blend", 0.0)
     controller_cfg.setdefault("fallback_platform_kp", [15.0, 15.0, 8.0])
     controller_cfg.setdefault("fallback_platform_kd", [6.0, 6.0, 3.0])
@@ -73,26 +95,53 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
     controller_cfg.setdefault("near_goal_position_tol", 0.05)
     controller_cfg.setdefault("near_goal_platform_posture_weight", 10.0)
     controller_cfg.setdefault("near_goal_arm_posture_weight", 0.0)
-    controller_cfg.setdefault("enable_arrival_hold", False)
-    controller_cfg.setdefault("terminal_reference_position_tol", 0.03)
+    controller_cfg.setdefault("enable_arrival_hold", True)
+    controller_cfg.setdefault("hold_stable_duration_s", 0.08)
+    controller_cfg.setdefault("terminal_reference_position_tol", 0.015)
     controller_cfg.setdefault("terminal_reference_release_tol", 0.05)
-    controller_cfg.setdefault("terminal_reference_velocity_tol", 0.05)
+    controller_cfg.setdefault("terminal_reference_velocity_tol", 0.03)
     controller_cfg.setdefault("terminal_reference_capture_duration_s", 0.08)
+    controller_cfg["terminal_reference_position_tol"] = min(float(controller_cfg["terminal_reference_position_tol"]), 0.015)
+    controller_cfg["terminal_reference_velocity_tol"] = min(float(controller_cfg["terminal_reference_velocity_tol"]), 0.03)
     controller_cfg.setdefault("platform_task_slack_weight", 1.0e4)
     controller_cfg.setdefault("orientation_task_slack_weight", 1.0e4)
+    controller_cfg.setdefault("cooperative_orientation_task_slack_weight", 50.0)
     controller_cfg.setdefault("arm_task_slack_weight", 1.0e4)
+    controller_cfg.setdefault("platform_only_arm_task_slack_weight", 1.0e6)
+    controller_cfg.setdefault("platform_only_arm_hold_enabled", False)
+    controller_cfg.setdefault("platform_only_arm_kinematic_hold_enabled", True)
+    controller_cfg.setdefault("platform_only_arm_hold_kp", 30.0)
+    controller_cfg.setdefault("platform_only_arm_hold_kd", 8.0)
+    controller_cfg.setdefault("platform_only_arm_hold_feedforward", False)
+    controller_cfg.setdefault("arm_only_platform_task_slack_weight", 1.0e4)
+    controller_cfg.setdefault("arm_only_osc_lambda", 0.5)
+    controller_cfg.setdefault("arm_only_osc_joint_damping", 0.5)
+    controller_cfg.setdefault("arm_only_osc_posture_qdd_weight", 0.0)
+    controller_cfg.setdefault("cooperative_sweet_zone_task_slack_weight", 2.0e3)
     controller_cfg.setdefault("tracking_task_slack_weight", 1.0e5)
     controller_cfg.setdefault("cooperative_arm_posture_weight", 0.0)
     controller_cfg.setdefault("cooperative_fix_orientation_only", False)
+    controller_cfg.setdefault("cooperative_orientation_first", False)
+    controller_cfg.setdefault("cooperative_add_arm_sweet_zone_task", False)
+    controller_cfg.setdefault("cooperative_sweet_zone_min_weight", 0.25)
+    controller_cfg.setdefault("cooperative_sweet_zone_min_ref_enabled", True)
+    controller_cfg.setdefault("cooperative_use_platform_posture_min_ref", False)
     controller_cfg.setdefault("reference_speed_mps", 0.07)
     controller_cfg.setdefault("min_move_duration_s", 0.8)
     controller_cfg.setdefault("max_move_duration_s", 1.2)
+    controller_cfg["max_move_duration_s"] = max(float(controller_cfg["max_move_duration_s"]), 1.8)
     controller_cfg.setdefault("settle_duration_s", 0.8)
     if "platform_z0" not in model_kwargs:
         model_kwargs["platform_z0"] = float(controller_cfg["z0"])
     model_kwargs.setdefault("root_mass_xy", float(normalized.get("backend_cfg", {}).get("platform_mass", 7.0)))
     model_kwargs.setdefault("root_inertia_z", float(normalized.get("backend_cfg", {}).get("platform_inertia_zz", 0.105)))
     model_kwargs.setdefault("microgravity", True)
+    model_tip_left, model_tip_right, _model_tip_source = _normalize_tip_local_pair(
+        model_kwargs.get("tip_left_local", _TIP_LOCAL_ZERO),
+        model_kwargs.get("tip_right_local", _TIP_LOCAL_ZERO),
+    )
+    model_kwargs["tip_left_local"] = model_tip_left
+    model_kwargs["tip_right_local"] = model_tip_right
     normalized["model_kwargs"] = model_kwargs
     normalized["controller_cfg"] = controller_cfg
 
@@ -131,12 +180,14 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
             "gripper_joint_names": ["LEFT_BOTTOM", "LEFT_TIP", "RIGHT_BOTTOM", "RIGHT_TIP"],
             "tip_left_body": str(model_kwargs.get("tip_left_body", "LEFT_FINGER_DIST")),
             "tip_right_body": str(model_kwargs.get("tip_right_body", "RIGHT_FINGER_DIST")),
-            "tip_left_local": np.asarray(model_kwargs.get("tip_left_local", [-0.04, 0.0, 0.0]), dtype=float).reshape(3).tolist(),
-            "tip_right_local": np.asarray(model_kwargs.get("tip_right_local", [0.04, 0.0, 0.0]), dtype=float).reshape(3).tolist(),
+            "tip_left_local": np.asarray(model_kwargs.get("tip_left_local", _TIP_LOCAL_ZERO), dtype=float).reshape(3).tolist(),
+            "tip_right_local": np.asarray(model_kwargs.get("tip_right_local", _TIP_LOCAL_ZERO), dtype=float).reshape(3).tolist(),
             "tip_body": str(model_kwargs.get("tip_body", "DUMMY")),
             "tip_local": np.asarray(model_kwargs.get("tip_local", [0.0, 0.0, 0.0]), dtype=float).reshape(3).tolist(),
             "platform_mass": 7.0,
             "platform_inertia_zz": 0.105,
+            "platform_xy_limit": float(controller_cfg["platform_xy_limit"]),
+            "platform_psi_limit": float(controller_cfg["platform_psi_limit"]),
             "platform_linear_damping_xy": 2.0,
             "platform_yaw_damping": 0.5,
             "physics_mode": "native_mujoco_planar_hcdr",
@@ -150,8 +201,23 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
         backend_cfg.setdefault("gripper_joint_names", ["LEFT_BOTTOM", "LEFT_TIP", "RIGHT_BOTTOM", "RIGHT_TIP"])
         backend_cfg.setdefault("platform_mass", 7.0)
         backend_cfg.setdefault("platform_inertia_zz", 0.105)
+        backend_platform_xy_limit = float(backend_cfg.get("platform_xy_limit", controller_cfg["platform_xy_limit"]))
+        if backend_platform_xy_limit <= 0.251 and float(controller_cfg["platform_xy_limit"]) > backend_platform_xy_limit:
+            backend_cfg["platform_xy_limit_legacy_value"] = backend_platform_xy_limit
+            backend_cfg["platform_xy_limit"] = float(controller_cfg["platform_xy_limit"])
+        else:
+            backend_cfg.setdefault("platform_xy_limit", float(controller_cfg["platform_xy_limit"]))
+        backend_cfg.setdefault("platform_psi_limit", float(controller_cfg["platform_psi_limit"]))
         backend_cfg.setdefault("platform_linear_damping_xy", 2.0)
         backend_cfg.setdefault("platform_yaw_damping", 0.5)
+        backend_tip_left, backend_tip_right, backend_tip_source = _normalize_tip_local_pair(
+            backend_cfg.get("tip_left_local", model_kwargs.get("tip_left_local", _TIP_LOCAL_ZERO)),
+            backend_cfg.get("tip_right_local", model_kwargs.get("tip_right_local", _TIP_LOCAL_ZERO)),
+        )
+        backend_cfg["tip_left_local"] = backend_tip_left
+        backend_cfg["tip_right_local"] = backend_tip_right
+        if backend_tip_source != "unchanged":
+            backend_cfg["tip_local_source"] = backend_tip_source
         if str(backend_cfg.get("model_kind", "")) == "native_planar_hcdr":
             backend_cfg["default_substeps"] = max(10, int(backend_cfg.get("default_substeps", 10)))
         if str(backend_cfg.get("model_kind", "")) == "native_planar_hcdr":
@@ -175,3 +241,18 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
         }
 
     return normalized
+
+
+def _normalize_tip_local_pair(left_value: Any, right_value: Any) -> tuple[list[float], list[float], str]:
+    """Return canonical fingertip locals and upgrade the legacy biased pair."""
+
+    left = np.asarray(left_value, dtype=float).reshape(3)
+    right = np.asarray(right_value, dtype=float).reshape(3)
+    if np.allclose(left, _LEGACY_TIP_LEFT_LOCAL, atol=1e-12, rtol=0.0) and np.allclose(
+        right,
+        _LEGACY_TIP_RIGHT_LOCAL,
+        atol=1e-12,
+        rtol=0.0,
+    ):
+        return list(_TIP_LOCAL_ZERO), list(_TIP_LOCAL_ZERO), "upgraded_from_legacy_opposite_finger_offsets"
+    return left.astype(float).tolist(), right.astype(float).tolist(), "unchanged"

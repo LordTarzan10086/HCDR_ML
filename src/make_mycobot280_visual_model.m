@@ -24,8 +24,8 @@ function visualModel = make_mycobot280_visual_model(opts)
         opts.right_tip_body (1, 1) string = "RIGHT_FINGER_DIST"
         opts.tip_body (1, 1) string = "DUMMY"
         opts.flange_body (1, 1) string = "END_EFFECTOR"
-        opts.left_tip_local (3, 1) double = [-0.040; 0.0; 0.0]
-        opts.right_tip_local (3, 1) double = [0.040; 0.0; 0.0]
+    opts.left_tip_local (3, 1) double = [0.0; 0.0; 0.0]
+    opts.right_tip_local (3, 1) double = [0.0; 0.0; 0.0]
         opts.tip_local (3, 1) double = [0.0; 0.0; 0.0]
         opts.draw_tip_marker (1, 1) logical = true
     end

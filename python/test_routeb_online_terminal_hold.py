@@ -72,7 +72,9 @@ def main() -> None:
     print(
         f"steps={effective_steps}, move_duration={move_duration:.3f}, "
         f"hold_drift_max={hold_drift_max:.6f}, hold_drift_mean={metrics['terminal_static_drift_mean']:.6f}, "
-        f"hold_sample_count={metrics['terminal_static_sample_count']}"
+        f"hold_sample_count={metrics['terminal_static_sample_count']}, "
+        f"pre_hold_last10_max_error={metrics['pre_hold_last10_max_error']:.6f}, "
+        f"pre_hold_last10_count={metrics['pre_hold_last10_count']}"
     )
     if hold_drift_max > float(args.max_hold_drift):
         raise RuntimeError(

@@ -149,42 +149,38 @@ def _add_platform_body(spec: mujoco.MjSpec, backend_cfg: Mapping[str, Any]) -> m
 
 
 def _add_platform_sites(platform_body: mujoco._specs.MjsBody, controller_cfg: Mapping[str, Any]) -> None:
-    """Add platform cable-attach sites for visual and planar-physics routing."""
+    """Add platform cable-attach sites.
+
+    Keep the full 3D attach points in the native MuJoCo model. The online
+    controller may still solve a planar task, but the backend/viewer must
+    preserve the true upper/lower cable separation instead of collapsing each
+    corner pair into one planar site.
+    """
 
     attach_local = np.asarray(controller_cfg["platform_attach_local"], dtype=float).reshape(3, -1)
     for cable_index in range(attach_local.shape[1]):
-        attach_xy_local = attach_local[:2, cable_index]
         platform_body.add_site(
             name=f"distal_attach_{cable_index + 1}",
             pos=attach_local[:, cable_index].tolist(),
             size=[0.006, 0.006, 0.006],
             rgba=[0.10, 0.65, 1.00, 1.0],
         )
-        platform_body.add_site(
-            name=f"distal_attach_planar_{cable_index + 1}",
-            pos=[float(attach_xy_local[0]), float(attach_xy_local[1]), 0.0],
-            size=[0.004, 0.004, 0.004],
-            rgba=[0.10, 0.65, 1.00, 0.0],
-        )
 
 
 def _add_proximal_anchor_sites(spec: mujoco.MjSpec, controller_cfg: Mapping[str, Any]) -> None:
-    """Add frame anchor sites for visual and planar-physics routing."""
+    """Add frame anchor sites.
+
+    Use the true 3D anchor coordinates so each upper/lower cable remains a
+    distinct spatial tendon inside MuJoCo.
+    """
 
     anchors_world = np.asarray(controller_cfg["cable_anchors_world"], dtype=float).reshape(3, -1)
-    z0 = float(controller_cfg["z0"])
     for cable_index in range(anchors_world.shape[1]):
         spec.worldbody.add_site(
             name=f"proximal_anchor_{cable_index + 1}",
             pos=anchors_world[:, cable_index].tolist(),
             size=[0.008, 0.008, 0.008],
             rgba=[1.0, 0.55, 0.10, 1.0],
-        )
-        spec.worldbody.add_site(
-            name=f"proximal_anchor_planar_{cable_index + 1}",
-            pos=[float(anchors_world[0, cable_index]), float(anchors_world[1, cable_index]), z0],
-            size=[0.004, 0.004, 0.004],
-            rgba=[1.0, 0.55, 0.10, 0.0],
         )
 
 
@@ -219,7 +215,7 @@ def _add_cable_tendons_and_actuators(
     backend_cfg: Mapping[str, Any],
     controller_cfg: Mapping[str, Any],
 ) -> None:
-    """Add 8 spatial tendons from frame anchors to platform attach sites."""
+    """Add 8 true 3D spatial tendons from frame anchors to platform sites."""
 
     cable_count = int(controller_cfg["n_c"])
     cable_upper = np.asarray(controller_cfg["T_max"], dtype=float).reshape(-1)
@@ -238,12 +234,13 @@ def _add_cable_tendons_and_actuators(
             damping=0.0,
             frictionloss=0.0,
         )
-        tendon.wrap_site(f"proximal_anchor_planar_{cable_index + 1}")
-        tendon.wrap_site(f"distal_attach_planar_{cable_index + 1}")
+        tendon.wrap_site(f"proximal_anchor_{cable_index + 1}")
+        tendon.wrap_site(f"distal_attach_{cable_index + 1}")
         actuator = spec.add_actuator(
             name=f"cable_motor_{cable_index + 1}",
             target=tendon_name,
             trntype=mujoco.mjtTrn.mjTRN_TENDON,
+            gear=[-1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             ctrllimited=True,
             ctrlrange=[0.0, float(cable_upper[cable_index])],
             forcelimited=True,

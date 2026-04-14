@@ -17,3 +17,5 @@ cpp_workspace_static_mode1/output_tests/
 
 docs/
 .waylog/
+python/__pycache__/
+.codex-project/

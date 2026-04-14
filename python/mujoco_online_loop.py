@@ -204,41 +204,66 @@ def launch_routeb_services(
     enable_viewer: bool = False,
     python_executable: str | None = None,
     reuse_viewer: bool = False,
+    persistent_session: bool = False,
 ) -> dict[str, Any]:
-    """Launch headless backend and optional viewer as separate processes."""
+    """Launch headless backend and optional viewer as separate processes.
+
+    When ``persistent_session`` is true, use the configured fixed ports and
+    reuse any already-running backend/viewer pair instead of spawning a fresh
+    pair every command. This matches the desired "roslaunch-like" workflow:
+    start once, then keep sending new commands to the same services.
+    """
 
     config_path = Path(config_path).resolve()
     config_payload = _load_json(config_path)
     transport_cfg = config_payload["runtime_cfg"]["transport"]
     host = str(transport_cfg["host"])
-    backend_port = int(transport_cfg["backend_port"])
-    viewer_port = int(transport_cfg["viewer_port"])
+    backend_port_cfg = int(transport_cfg["backend_port"])
+    viewer_port_cfg = int(transport_cfg["viewer_port"])
     timeout_s = float(transport_cfg.get("timeout_s", 5.0))
     poll_interval_s = float(transport_cfg.get("poll_interval_s", 0.05))
-    backend_port = _reserve_service_port(host, backend_port)
+    use_persistent_ports = bool(persistent_session or reuse_viewer)
+    backend_port = int(backend_port_cfg) if use_persistent_ports else _reserve_service_port(host, backend_port_cfg)
     viewer_port = (
-        int(viewer_port)
-        if enable_viewer and reuse_viewer
-        else (_reserve_service_port(host, viewer_port, exclude_ports=[backend_port]) if enable_viewer else viewer_port)
+        int(viewer_port_cfg)
+        if enable_viewer and use_persistent_ports
+        else (_reserve_service_port(host, viewer_port_cfg, exclude_ports=[backend_port]) if enable_viewer else int(viewer_port_cfg))
     )
 
-    backend_process = _launch_service_process(
-        python_executable,
-        _REPO_ROOT / "python" / "mujoco_backend_service.py",
-        config_path,
-        host,
-        backend_port,
-        timeout_s,
-        poll_interval_s,
-    )
     backend_client = BackendClient(host, backend_port, timeout_s=timeout_s)
+    backend_process = None
+    backend_reused = False
+    if use_persistent_ports:
+        try:
+            backend_client.ping()
+            backend_reused = True
+        except Exception:
+            backend_process = _launch_service_process(
+                python_executable,
+                _REPO_ROOT / "python" / "mujoco_backend_service.py",
+                config_path,
+                host,
+                backend_port,
+                timeout_s,
+                poll_interval_s,
+            )
+    else:
+        backend_process = _launch_service_process(
+            python_executable,
+            _REPO_ROOT / "python" / "mujoco_backend_service.py",
+            config_path,
+            host,
+            backend_port,
+            timeout_s,
+            poll_interval_s,
+        )
 
     viewer_process = None
     viewer_client = None
     viewer_reused = False
     if enable_viewer:
         viewer_client = ViewerClient(host, viewer_port, timeout_s=timeout_s)
-        if reuse_viewer:
+        if use_persistent_ports:
             try:
                 viewer_client.ping()
                 viewer_reused = True
@@ -271,9 +296,11 @@ def launch_routeb_services(
         "runtime_cfg": config_payload["runtime_cfg"],
         "backend_host": host,
         "backend_port": backend_port,
+        "backend_reused": bool(backend_reused),
         "viewer_host": host,
         "viewer_port": viewer_port,
         "viewer_reused": bool(viewer_reused),
+        "persistent_session": bool(use_persistent_ports),
     }
 
 
@@ -320,13 +347,24 @@ def run_routeb_online_loop_ipc(
     viewer_client: ViewerClient | None = None,
     platform_pose_des: Iterable[float] | None = None,
     microgravity: bool = True,
+    reset_backend: bool = True,
 ) -> List[Dict[str, Any]]:
     """Run split-process Route-B online loop against headless backend."""
 
-    backend_client.reset(q0, qd0, microgravity=microgravity)
+    if reset_backend:
+        initial_snapshot = backend_client.reset(q0, qd0, microgravity=microgravity)
+        snapshot_for_viewer = initial_snapshot.get("snapshot", None)
+        loop_time_origin_s = 0.0
+    else:
+        initial_state_reply = backend_client.get_state()
+        snapshot_for_viewer = initial_state_reply.get("snapshot", None)
+        loop_time_origin_s = float(initial_state_reply.get("state", {}).get("time_s", 0.0))
     if viewer_client is not None:
         try:
-            viewer_client.reset()
+            if snapshot_for_viewer is None:
+                viewer_client.reset()
+            else:
+                viewer_client.reset(snapshot_for_viewer)
         except Exception:
             pass
 
@@ -338,7 +376,8 @@ def run_routeb_online_loop_ipc(
         q = np.asarray(state_payload["q"], dtype=float).reshape(-1)
         qd = np.asarray(state_payload["qd"], dtype=float).reshape(-1)
         time_s = float(state_payload["time_s"])
-        reference = trajectory_fn(time_s)
+        reference_time_s = max(0.0, time_s - loop_time_origin_s)
+        reference = trajectory_fn(reference_time_s)
         step_result = controller.solve_step(
             q,
             qd,
@@ -350,6 +389,7 @@ def run_routeb_online_loop_ipc(
             current_tip_world=current_snapshot.get("tip_world", None),
             dt=float(dt),
             reference_complete=reference.get("reference_complete", None),
+            backend_platform_wrench_map=current_snapshot.get("platform_wrench_map_A2D", None),
         )
         if step_result.command is None:
             raise RuntimeError("RouteBOnlineController returned no command.")
@@ -362,6 +402,10 @@ def run_routeb_online_loop_ipc(
         }
         if "target_world" in step_result.command.metadata:
             backend_payload["target_world"] = np.asarray(step_result.command.metadata["target_world"], dtype=float).reshape(-1)
+        if bool(step_result.command.metadata.get("lock_arm_state", False)):
+            backend_payload["lock_arm_state"] = True
+            backend_payload["arm_q_hold"] = np.asarray(step_result.command.metadata.get("arm_q_hold", []), dtype=float).reshape(-1)
+            backend_payload["arm_qd_hold"] = np.asarray(step_result.command.metadata.get("arm_qd_hold", []), dtype=float).reshape(-1)
 
         step_reply = backend_client.step(backend_payload)
         snapshot = step_reply.get("snapshot", {})
@@ -375,6 +419,7 @@ def run_routeb_online_loop_ipc(
             {
                 "step": step_idx,
                 "time_s": time_s,
+                "reference_time_s": float(reference_time_s),
                 "reference": {
                     "x_des": np.asarray(reference["x_des"], dtype=float).reshape(-1),
                     "xd_des": np.asarray(reference.get("xd_des", np.zeros(3, dtype=float)), dtype=float).reshape(-1),
@@ -442,6 +487,10 @@ def _build_bridge_payload(
     }
     if "target_world" in metadata:
         payload["target_world"] = np.asarray(metadata["target_world"], dtype=float).reshape(-1)
+    if bool(metadata.get("lock_arm_state", False)):
+        payload["lock_arm_state"] = True
+        payload["arm_q_hold"] = np.asarray(metadata.get("arm_q_hold", []), dtype=float).reshape(-1)
+        payload["arm_qd_hold"] = np.asarray(metadata.get("arm_qd_hold", []), dtype=float).reshape(-1)
     return payload
 
 
