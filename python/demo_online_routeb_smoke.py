@@ -17,7 +17,7 @@ from mujoco_online_loop import (
     run_routeb_online_loop_ipc,
     shutdown_routeb_services,
 )
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 from pinocchio_terms_online import compute_pinocchio_terms
 
 
@@ -54,8 +54,7 @@ def main() -> None:
         payload["controller_cfg"]["control_mode"] = str(args.control_mode).strip()
     controller = RouteBOnlineController.from_config_dict(payload["model_kwargs"], payload["controller_cfg"])
 
-    n_m = int(payload["controller_cfg"]["n_m"])
-    q0 = np.zeros(3 + n_m, dtype=float)
+    q0 = initial_q_from_payload(payload)
     qd0 = np.zeros_like(q0)
     control_mode = str(payload["controller_cfg"].get("control_mode", "cooperative"))
     target_delta_requested = np.array([args.target_dx, args.target_dy, args.target_dz], dtype=float)

@@ -97,6 +97,7 @@ class ViewerApp:
         target_world = snapshot.get("target_world", None)
         desired_traj_world = snapshot.get("desired_traj_world", None)
         actual_traj_world = snapshot.get("actual_traj_world", None)
+        trajectory_sets_world = snapshot.get("trajectory_sets_world", None)
         self._sync_model_from_snapshot(q)
 
         try:
@@ -114,6 +115,7 @@ class ViewerApp:
                         show_target=bool(self.viewer_cfg.get("show_target", True)),
                         desired_traj_world=desired_traj_world,
                         actual_traj_world=actual_traj_world,
+                        trajectory_sets_world=trajectory_sets_world,
                     )
                 else:
                     draw_overlay(
@@ -128,6 +130,7 @@ class ViewerApp:
                         show_target=bool(self.viewer_cfg.get("show_target", True)),
                         desired_traj_world=desired_traj_world,
                         actual_traj_world=actual_traj_world,
+                        trajectory_sets_world=trajectory_sets_world,
                     )
             self.viewer.sync()
             self.status_code = "ok_viewer"
@@ -190,7 +193,11 @@ class ViewerApp:
                 self.viewer.cam.distance = float(self.viewer_cfg.get("camera_distance", 4.2))
                 self.viewer.cam.lookat[:] = np.asarray(self.viewer_cfg.get("camera_lookat", [0.0, 0.0, 1.2]), dtype=float)
                 try:
+                    self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_SKYBOX] = 0
                     self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = 0
+                    self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 0
+                    self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_HAZE] = 1
+                    self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_FOG] = 0
                 except Exception:
                     pass
             print("[mujoco_viewer_service] viewer launched.")

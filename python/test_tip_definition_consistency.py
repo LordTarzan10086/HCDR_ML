@@ -10,7 +10,7 @@ import numpy as np
 
 from mujoco_backend_core import HeadlessMujocoBackend
 from mujoco_scene_utils import compute_tip_world
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 def test_legacy_opposite_finger_offsets_are_upgraded() -> None:
@@ -29,7 +29,7 @@ def test_mujoco_tip_is_distal_finger_origin_midpoint() -> None:
     payload = _load_smoke_payload()
     controller_cfg = payload["controller_cfg"]
     backend = HeadlessMujocoBackend(payload["backend_cfg"], controller_cfg)
-    q0 = np.zeros(3 + int(controller_cfg["n_m"]), dtype=float)
+    q0 = initial_q_from_payload(payload)
     backend.reset(q0, np.zeros_like(q0))
     left_origin = _body_origin(backend.model, backend.data, "LEFT_FINGER_DIST")
     right_origin = _body_origin(backend.model, backend.data, "RIGHT_FINGER_DIST")

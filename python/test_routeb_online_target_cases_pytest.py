@@ -24,7 +24,7 @@ from demo_online_routeb_smoke import (
     summarize_logs,
 )
 from mujoco_online_loop import launch_routeb_services, run_routeb_online_loop_ipc, shutdown_routeb_services
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 @dataclass(frozen=True)
@@ -100,7 +100,7 @@ def test_routeb_online_target_case_matrix(online_context, case: TargetCase) -> N
     controller_cfg = dict(payload["controller_cfg"])
     controller_cfg["control_mode"] = case.control_mode
     controller = RouteBOnlineController.from_config_dict(payload["model_kwargs"], controller_cfg)
-    q0 = np.zeros(3 + int(controller_cfg["n_m"]), dtype=float)
+    q0 = initial_q_from_payload(payload)
     qd0 = np.zeros_like(q0)
     initial_snapshot = services["backend_client"].reset(q0, qd0)["snapshot"]
     target_start = np.asarray(initial_snapshot["tip_world"], dtype=float).reshape(3)

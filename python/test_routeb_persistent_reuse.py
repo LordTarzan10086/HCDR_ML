@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from mujoco_online_loop import launch_routeb_services, shutdown_routeb_services
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 def main() -> None:
@@ -31,7 +31,7 @@ def main() -> None:
         temp_config_path = Path(temp_dir) / "routeb_online_persistent_test.json"
         temp_config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-        q0 = np.zeros(3 + int(payload["controller_cfg"]["n_m"]), dtype=float)
+        q0 = initial_q_from_payload(payload)
         q0[:3] = np.array([0.03, -0.02, 0.01], dtype=float)
         qd0 = np.zeros_like(q0)
 

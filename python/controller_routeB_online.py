@@ -111,6 +111,7 @@ def solve_routeb_online_step(
     n_m = int(controller_cfg["n_m"])
     if dof_count != 3 + n_m:
         raise ValueError(f"Expected q/qd length {3 + n_m}, got {dof_count}.")
+    requested_control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
 
     terms = compute_pinocchio_terms(q_vec, qd_vec, dict(model_kwargs))
     if current_tip_world is not None:
@@ -145,6 +146,13 @@ def solve_routeb_online_step(
     )
     position_error_norm = float(np.linalg.norm(pd_diag["error"]))
     velocity_error_norm = float(np.linalg.norm(pd_diag["error_dot"]))
+    arm_only_task_scaling_diag = _compute_arm_only_task_scaling(
+        requested_control_mode,
+        np.asarray(terms.J_task, dtype=float),
+        controller_cfg,
+    )
+    if bool(arm_only_task_scaling_diag.get("enabled", False)):
+        a_des = float(arm_only_task_scaling_diag.get("scale", 1.0)) * a_des
 
     z0 = float(controller_cfg["z0"])
     anchors_world = _as_matrix(controller_cfg["cable_anchors_world"], shape=(3, n_c))
@@ -187,6 +195,15 @@ def solve_routeb_online_step(
     arm_posture_kp = float(controller_cfg.get("arm_posture_kp", 4.0))
     arm_posture_kd = float(controller_cfg.get("arm_posture_kd", 2.0))
     qdd_ref[3:] = arm_posture_kp * (arm_posture_target - q_vec[3:]) - arm_posture_kd * qd_vec[3:]
+    arm_only_dls_diag = {"enabled": False, "reason": "not_arm_only"}
+    if requested_control_mode == "arm_only":
+        qdd_ref[3:], arm_only_dls_diag = _compute_arm_only_dls_qdd_ref(
+            J_wb=np.asarray(terms.J_task, dtype=float),
+            Jdot_qd=np.asarray(terms.Jdot_qd, dtype=float),
+            xdd_ref=a_des,
+            posture_qdd_ref=qdd_ref[3:].copy(),
+            controller_cfg=controller_cfg,
+        )
     sweet_zone_diag = _compute_arm_sweet_zone_diagnostics(
         q_vec,
         qd_vec,
@@ -277,7 +294,6 @@ def solve_routeb_online_step(
     else:
         task_phase = "tracking"
         effective_controller_cfg["platform_posture_weight"] = base_platform_posture_weight
-    requested_control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
     effective_controller_cfg["control_mode"] = requested_control_mode
     _apply_phase_controller_overrides(effective_controller_cfg, task_phase)
     if requested_control_mode == "arm_only":
@@ -383,6 +399,8 @@ def solve_routeb_online_step(
             "platform_qdd_ref": platform_qdd_ref,
             "arm_posture_target": arm_posture_target,
             "sweet_zone_diagnostics": sweet_zone_diag,
+            "arm_only_dls_diagnostics": arm_only_dls_diag,
+            "arm_only_task_scaling_diagnostics": arm_only_task_scaling_diag,
             "hold_active": hold_active,
             "arrival_hold_latched": bool(arrival_hold_latched),
             "platform_limit_diag": platform_limit_diag,
@@ -653,6 +671,8 @@ class RouteBOnlineController:
                 "platform_qdd_ref": result["platform_qdd_ref"],
                 "arm_posture_target": result["arm_posture_target"],
                 "sweet_zone": result["sweet_zone_diagnostics"],
+                "arm_only_dls": result["arm_only_dls_diagnostics"],
+                "arm_only_task_scaling": result["arm_only_task_scaling_diagnostics"],
                 "arm_hold": arm_hold_diagnostics,
                 "arm_kinematic_hold_enabled": bool(arm_kinematic_hold_enabled),
                 "hold_active": bool(result["hold_active"]),
@@ -993,6 +1013,12 @@ def _solve_routeb_hqp(
                 "mode_task_priority_audit": priority_audit,
                 "platform_qdd_box_diag": platform_qdd_box_diag,
                 "task_stack": level_results.get("level_summaries", []),
+                "task_failure_detail": {
+                    "stage": "task_stack_level",
+                    "failed_task_name": str(level_results.get("failed_task_name", "")),
+                    "completed_task_names": list(level_results.get("completed_task_names", [])),
+                    "solver_status": str(level_results.get("last_solver", {}).get("status", "")),
+                },
             }
         )
         return failure
@@ -1025,16 +1051,28 @@ def _solve_routeb_hqp(
     final_x0 = z_stack.copy()
     final_solver = solve_qp(min_h, min_g, final_eq, final_rhs, z_lower, z_upper, final_x0, backend=qp_backend)
 
+    tracking_slack_norm = float(level_results["tracking_slack_norm"])
+    min_task_fallback_applied = False
     if not final_solver["success"] or final_solver["x"] is None:
         z_final = z_stack
         solver_status = "task_stack_only"
-        fail_reason = "min_task_infeasible"
         final_backend = str(final_solver.get("backend", ""))
+        min_task_failure_detail = _describe_min_task_failure(final_solver, task_levels, level_results)
+        min_task_tracking_slack_tol = float(controller_cfg.get("min_task_fallback_tracking_slack_tol", 0.02))
+        min_task_fallback_applied = bool(
+            controller_cfg.get("allow_min_task_task_stack_fallback", True)
+            and tracking_slack_norm <= min_task_tracking_slack_tol
+        )
+        fail_reason = "none" if min_task_fallback_applied else "min_task_infeasible"
+        min_task_failure_detail["fallback_accepted"] = bool(min_task_fallback_applied)
+        min_task_failure_detail["tracking_slack_norm"] = tracking_slack_norm
+        min_task_failure_detail["tracking_slack_tol"] = min_task_tracking_slack_tol
     else:
         z_final = np.asarray(final_solver["x"], dtype=float).reshape(-1)
         solver_status = "min_task"
         fail_reason = "none"
         final_backend = str(final_solver.get("backend", ""))
+        min_task_failure_detail = {"stage": "min_task", "failed": False, "fallback_accepted": False}
 
     qdd_final = z_final[:dof_count]
     uwo_final = z_final[dof_count:]
@@ -1042,7 +1080,7 @@ def _solve_routeb_hqp(
     dyn_residual = np.linalg.norm(M @ qdd_final - ST @ uwo_final)
     task_residual_vec = J_wb @ qdd_final + Jdot_qd - xdd_ref
     within_box = bool(np.all(u_final >= final_lower - 1e-6) and np.all(u_final <= final_upper + 1e-6))
-    success = bool(level_results["success"] and dyn_residual <= 1e-5 and within_box and final_solver["success"])
+    success = bool(level_results["success"] and dyn_residual <= 1e-5 and within_box and (final_solver["success"] or min_task_fallback_applied))
     tension_margin = float(np.min(np.concatenate([u_final[:n_c] - final_lower[:n_c], final_upper[:n_c] - u_final[:n_c]])))
     torque_margin = float(np.min(np.concatenate([u_final[n_c:] - final_lower[n_c:], final_upper[n_c:] - u_final[n_c:]])))
 
@@ -1072,6 +1110,8 @@ def _solve_routeb_hqp(
         "tension_safe_lower": tension_policy["safe_lower"].copy(),
         "T_safe_margin": tension_policy["safe_margin"].copy(),
         "task_stack": level_results["level_summaries"],
+        "min_task_failure_detail": min_task_failure_detail,
+        "min_task_fallback_applied": bool(min_task_fallback_applied),
         "solver_runtime_s": float(level_results["runtime_s"] + float(final_solver.get("runtime_s", 0.0))),
     }
 
@@ -1576,12 +1616,15 @@ def _build_mode_task_plan(
     elif control_mode == "arm_only":
         task_levels = [arm_tracking_task, arm_only_platform_task]
         qdd_min_ref[:3] = platform_qdd_ref
+        if n_m > 0 and bool(controller_cfg.get("arm_only_nullspace_enabled", True)):
+            qdd_min_ref[3:] = arm_qdd_ref
         platform_posture_weight = float(
             controller_cfg.get(
                 "arm_only_platform_posture_weight",
                 controller_cfg.get("platform_posture_weight", 0.0),
             )
         )
+        arm_posture_weight = float(controller_cfg.get("arm_only_arm_posture_weight", 0.2))
     else:
         cooperative_use_platform_posture_min_ref = bool(controller_cfg.get("cooperative_use_platform_posture_min_ref", False))
         if bool(controller_cfg.get("cooperative_orientation_first", True)) or bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
@@ -1715,6 +1758,8 @@ def _solve_task_stack_levels(
             return {
                 "success": False,
                 "fail_reason": f"{task.name}_infeasible",
+                "failed_task_name": task.name,
+                "completed_task_names": [summary["name"] for summary in level_summaries],
                 "last_solver": solver,
                 "level_summaries": level_summaries,
                 "runtime_s": total_runtime_s,
@@ -1739,6 +1784,8 @@ def _solve_task_stack_levels(
     return {
         "success": True,
         "fail_reason": "none",
+        "failed_task_name": "",
+        "completed_task_names": [summary["name"] for summary in level_summaries],
         "z": z_current.copy(),
         "slacks": slack_map,
         "tracking_slack_norm": float(np.linalg.norm(tracking_slack)),
@@ -1770,6 +1817,39 @@ def _assemble_fixed_task_constraints(
     if not eq_blocks:
         return np.zeros((0, 0), dtype=float), np.zeros(0, dtype=float)
     return np.vstack(eq_blocks), np.concatenate(rhs_blocks)
+
+
+def _describe_min_task_failure(
+    final_solver: Mapping[str, Any],
+    task_levels: list[EqualityTaskLevel],
+    level_results: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Describe which fixed task stack constrained the failed min-task."""
+
+    level_summaries = list(level_results.get("level_summaries", []))
+    slack_by_task = {
+        str(summary.get("name", "")): float(summary.get("slack_norm", float("nan")))
+        for summary in level_summaries
+    }
+    finite_slacks = {name: value for name, value in slack_by_task.items() if np.isfinite(value)}
+    largest_slack_task = ""
+    largest_slack_norm = float("nan")
+    if finite_slacks:
+        largest_slack_task = max(finite_slacks, key=finite_slacks.get)
+        largest_slack_norm = float(finite_slacks[largest_slack_task])
+    return {
+        "stage": "final_min_task",
+        "failed": True,
+        "failed_task_name": "min_task",
+        "fixed_task_names": [task.name for task in task_levels],
+        "completed_task_names": [str(summary.get("name", "")) for summary in level_summaries],
+        "largest_fixed_task_slack_name": largest_slack_task,
+        "largest_fixed_task_slack_norm": largest_slack_norm,
+        "solver_backend": str(final_solver.get("backend", "")),
+        "solver_status": str(final_solver.get("status", "")),
+        "solver_message": str(final_solver.get("message", "")),
+        "interpretation": "tracking/platform tasks were fixed; the final smoothing/minimum-norm QP failed numerically or due to active bounds.",
+    }
 
 
 def _build_min_cost_objective(
@@ -1816,6 +1896,92 @@ def _build_min_cost_objective(
         + np.concatenate([tension_ref_weight * desired_cable_uwo, np.zeros(n_m, dtype=float)])
     )
     return H, g
+
+
+def _compute_arm_only_task_scaling(
+    control_mode: str,
+    j_wb: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Scale arm-only task acceleration near singular arm Jacobian regions."""
+
+    if _normalize_control_mode(control_mode) != "arm_only":
+        return {"enabled": False, "reason": "not_arm_only", "scale": 1.0}
+    if not bool(controller_cfg.get("arm_only_singularity_task_scaling_enabled", True)):
+        return {"enabled": False, "reason": "disabled", "scale": 1.0}
+    n_m = int(controller_cfg.get("n_m", max(0, np.asarray(j_wb).shape[1] - 3)))
+    task_jacobian = np.asarray(j_wb, dtype=float)
+    if task_jacobian.ndim != 2 or task_jacobian.shape[1] < 3 + n_m or n_m <= 0:
+        return {"enabled": False, "reason": "bad_jacobian", "scale": 1.0}
+    arm_jacobian = task_jacobian[:, 3 : 3 + n_m]
+    singular_values = np.linalg.svd(arm_jacobian, compute_uv=False)
+    sigma_min = float(np.min(singular_values)) if singular_values.size > 0 else 0.0
+    sigma_threshold = float(controller_cfg.get("arm_only_sigma_scale_threshold", 0.04))
+    min_scale = float(controller_cfg.get("arm_only_sigma_min_scale", 0.25))
+    if sigma_threshold <= 1e-12 or sigma_min >= sigma_threshold:
+        scale = 1.0
+    else:
+        scale = max(min_scale, sigma_min / sigma_threshold)
+    return {
+        "enabled": bool(scale < 1.0),
+        "reason": "near_singular" if scale < 1.0 else "above_threshold",
+        "scale": float(scale),
+        "sigma_min": sigma_min,
+        "sigma_threshold": sigma_threshold,
+        "singular_values": singular_values.copy(),
+    }
+
+
+def _compute_arm_only_dls_qdd_ref(
+    *,
+    J_wb: np.ndarray,
+    Jdot_qd: np.ndarray,
+    xdd_ref: np.ndarray,
+    posture_qdd_ref: np.ndarray,
+    controller_cfg: Mapping[str, Any],
+) -> tuple[np.ndarray, Dict[str, Any]]:
+    """Return DLS arm qdd reference plus a posture nullspace component."""
+
+    if not bool(controller_cfg.get("arm_only_dls_enabled", True)):
+        return np.asarray(posture_qdd_ref, dtype=float).reshape(-1), {"enabled": False, "reason": "disabled"}
+    n_m = int(controller_cfg.get("n_m", 0))
+    task_jacobian = np.asarray(J_wb, dtype=float)
+    if n_m <= 0 or task_jacobian.ndim != 2 or task_jacobian.shape[1] < 3 + n_m:
+        return np.asarray(posture_qdd_ref, dtype=float).reshape(-1), {"enabled": False, "reason": "bad_jacobian"}
+
+    arm_jacobian = task_jacobian[:, 3 : 3 + n_m]
+    task_rhs = np.asarray(xdd_ref, dtype=float).reshape(-1) - np.asarray(Jdot_qd, dtype=float).reshape(-1)
+    posture_ref = np.asarray(posture_qdd_ref, dtype=float).reshape(n_m)
+    singular_values = np.linalg.svd(arm_jacobian, compute_uv=False)
+    sigma_min = float(np.min(singular_values)) if singular_values.size > 0 else 0.0
+    base_lambda = float(controller_cfg.get("arm_only_dls_lambda", 0.08))
+    sigma_threshold = float(controller_cfg.get("arm_only_dls_sigma_threshold", 0.08))
+    lambda_max = float(controller_cfg.get("arm_only_dls_lambda_max", 0.35))
+    if sigma_threshold > 1e-12 and sigma_min < sigma_threshold:
+        blend = (sigma_threshold - sigma_min) / sigma_threshold
+        lambda_eff = min(lambda_max, base_lambda + blend * (lambda_max - base_lambda))
+    else:
+        lambda_eff = base_lambda
+
+    damped_matrix = arm_jacobian @ arm_jacobian.T + (lambda_eff * lambda_eff) * np.eye(arm_jacobian.shape[0], dtype=float)
+    try:
+        dls_inverse = arm_jacobian.T @ np.linalg.solve(damped_matrix, np.eye(damped_matrix.shape[0], dtype=float))
+    except np.linalg.LinAlgError:
+        dls_inverse = arm_jacobian.T @ np.linalg.pinv(damped_matrix)
+    task_qdd = dls_inverse @ task_rhs
+    nullspace_projector = np.eye(n_m, dtype=float) - dls_inverse @ arm_jacobian
+    null_gain = float(controller_cfg.get("arm_only_nullspace_gain", 1.0))
+    qdd_ref = task_qdd + null_gain * (nullspace_projector @ posture_ref)
+    qdd_limit = _expand_optional(controller_cfg.get("arm_qdd_limit"), n_m, np.inf)
+    qdd_ref = np.clip(qdd_ref, -qdd_limit, qdd_limit)
+    return qdd_ref, {
+        "enabled": True,
+        "sigma_min": sigma_min,
+        "lambda": float(lambda_eff),
+        "task_qdd_norm": float(np.linalg.norm(task_qdd)),
+        "nullspace_qdd_norm": float(np.linalg.norm(nullspace_projector @ posture_ref)),
+        "qdd_ref_norm": float(np.linalg.norm(qdd_ref)),
+    }
 
 
 def _compute_arm_sweet_zone_diagnostics(

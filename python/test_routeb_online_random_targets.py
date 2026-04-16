@@ -20,7 +20,7 @@ from demo_online_routeb_smoke import (
     summarize_logs,
 )
 from mujoco_online_loop import launch_routeb_services, run_routeb_online_loop_ipc, shutdown_routeb_services
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 @dataclass(frozen=True)
@@ -65,7 +65,7 @@ def main() -> None:
     if str(args.control_mode).strip():
         payload["controller_cfg"]["control_mode"] = str(args.control_mode).strip()
     controller_cfg = payload["controller_cfg"]
-    q0 = np.zeros(3 + int(controller_cfg["n_m"]), dtype=float)
+    q0 = initial_q_from_payload(payload)
     qd0 = np.zeros_like(q0)
     rng = np.random.default_rng(int(args.seed))
     bands = [

@@ -11,6 +11,7 @@ import numpy as np
 _TIP_LOCAL_ZERO = [0.0, 0.0, 0.0]
 _LEGACY_TIP_LEFT_LOCAL = [-0.04, 0.0, 0.0]
 _LEGACY_TIP_RIGHT_LOCAL = [0.04, 0.0, 0.0]
+_DEFAULT_INITIAL_ARM_Q_6R = [0.0, 0.58, 0.92, 0.0, 0.0, 0.0]
 
 
 def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: str | Path) -> dict[str, Any]:
@@ -56,6 +57,7 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
     controller_cfg.setdefault("platform_tracking_state_guard_psi", 0.05)
     controller_cfg.setdefault("qp_solver_backend", "osqp")
     controller_cfg.setdefault("arm_only_qp_solver_backend", "auto")
+    controller_cfg.setdefault("initial_arm_q", _default_initial_arm_q(int(controller_cfg["n_m"])))
     controller_cfg.setdefault("fallback_prev_blend", 0.0)
     controller_cfg.setdefault("fallback_platform_kp", [15.0, 15.0, 8.0])
     controller_cfg.setdefault("fallback_platform_kd", [6.0, 6.0, 3.0])
@@ -114,6 +116,18 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
     controller_cfg.setdefault("platform_only_arm_hold_kd", 8.0)
     controller_cfg.setdefault("platform_only_arm_hold_feedforward", False)
     controller_cfg.setdefault("arm_only_platform_task_slack_weight", 1.0e4)
+    controller_cfg.setdefault("arm_only_nullspace_enabled", True)
+    controller_cfg.setdefault("arm_only_arm_posture_weight", 0.2)
+    controller_cfg.setdefault("arm_only_nullspace_gain", 1.0)
+    controller_cfg.setdefault("arm_only_dls_enabled", True)
+    controller_cfg.setdefault("arm_only_dls_lambda", 0.08)
+    controller_cfg.setdefault("arm_only_dls_sigma_threshold", 0.08)
+    controller_cfg.setdefault("arm_only_dls_lambda_max", 0.35)
+    controller_cfg.setdefault("arm_only_singularity_task_scaling_enabled", True)
+    controller_cfg.setdefault("arm_only_sigma_scale_threshold", 0.04)
+    controller_cfg.setdefault("arm_only_sigma_min_scale", 0.25)
+    controller_cfg.setdefault("allow_min_task_task_stack_fallback", True)
+    controller_cfg.setdefault("min_task_fallback_tracking_slack_tol", 0.02)
     controller_cfg.setdefault("arm_only_osc_lambda", 0.5)
     controller_cfg.setdefault("arm_only_osc_joint_damping", 0.5)
     controller_cfg.setdefault("arm_only_osc_posture_qdd_weight", 0.0)
@@ -241,6 +255,30 @@ def normalize_online_config_payload(payload: Mapping[str, Any], *, repo_root: st
         }
 
     return normalized
+
+
+def initial_q_from_payload(payload: Mapping[str, Any]) -> np.ndarray:
+    """Return the standardized online initial generalized state q0."""
+
+    controller_cfg = dict(payload["controller_cfg"])
+    n_m = int(controller_cfg["n_m"])
+    q0 = np.zeros(3 + n_m, dtype=float)
+    initial_arm_q = np.asarray(
+        controller_cfg.get("initial_arm_q", _default_initial_arm_q(n_m)),
+        dtype=float,
+    ).reshape(-1)
+    if initial_arm_q.size != n_m:
+        raise ValueError(f"controller_cfg.initial_arm_q must have length n_m={n_m}.")
+    q0[3:] = initial_arm_q
+    return q0
+
+
+def _default_initial_arm_q(n_m: int) -> list[float]:
+    """Return the project default initial arm posture."""
+
+    if int(n_m) == 6:
+        return list(_DEFAULT_INITIAL_ARM_Q_6R)
+    return [0.0] * int(n_m)
 
 
 def _normalize_tip_local_pair(left_value: Any, right_value: Any) -> tuple[list[float], list[float], str]:

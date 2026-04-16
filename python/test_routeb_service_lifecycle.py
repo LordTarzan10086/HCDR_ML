@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from mujoco_online_loop import launch_routeb_services, shutdown_routeb_services
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 def main() -> None:
@@ -23,7 +23,7 @@ def main() -> None:
         json.loads(config_path.read_text(encoding="utf-8")),
         repo_root=config_path.parent.parent.parent,
     )
-    q0 = np.zeros(3 + int(payload["controller_cfg"]["n_m"]), dtype=float)
+    q0 = initial_q_from_payload(payload)
     qd0 = np.zeros_like(q0)
 
     for pass_index in range(2):

@@ -177,11 +177,15 @@ function cfg = HCDR_config_planar(varargin)
     end
 
     % Nominal arm posture:
-    % keep both 2R and 6R defaults at zero so demos/tests start from the
-    % true URDF zero-reference arm state. The "downward hanging" appearance
-    % is controlled by base_rotation_in_platform and offset_in_platform,
-    % not by forcing a pre-bent q_home posture.
-    cfg.q_home = zeros(armJointCount, 1);
+    % keep non-6R test branches at zero; use a lightly bent 6R posture so
+    % online trajectory tests do not start exactly at the stretched q=0
+    % singular neighborhood.  The tip remains below the platform and close to
+    % the platform centerline.
+    if armJointCount == 6
+        cfg.q_home = [0.0; 0.58; 0.92; 0.0; 0.0; 0.0];
+    else
+        cfg.q_home = zeros(armJointCount, 1);
+    end
     cfg.arm.q_fixed = cfg.q_home;
     cfg.arm_base_in_platform = cfg.arm.offset_in_platform;  % backward-compatible alias
 

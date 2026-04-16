@@ -57,8 +57,46 @@ def _add_world_visuals(spec: mujoco.MjSpec, backend_cfg: Mapping[str, Any]) -> N
 
     frame_l = float(backend_cfg["frame_L"])
     frame_h = float(backend_cfg["frame_height"])
-    radius = 0.008
-    rgba = [0.12, 0.12, 0.12, 1.0]
+    floor_half_width = 1.28 * frame_l
+    floor_z = -0.018
+    spec.worldbody.add_geom(
+        name="paper_floor",
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        pos=[0.0, 0.0, floor_z],
+        size=[floor_half_width, floor_half_width, 0.006],
+        rgba=[0.965, 0.965, 0.945, 1.0],
+        contype=0,
+        conaffinity=0,
+        mass=0.0,
+    )
+    grid_count = 8
+    grid_radius = 0.0018
+    grid_rgba = [0.76, 0.78, 0.80, 1.0]
+    for grid_index in range(-grid_count, grid_count + 1):
+        coord = floor_half_width * float(grid_index) / float(grid_count)
+        line_rgba = [0.58, 0.60, 0.62, 1.0] if grid_index == 0 else grid_rgba
+        spec.worldbody.add_geom(
+            name=f"paper_grid_x_{grid_index + grid_count}",
+            type=mujoco.mjtGeom.mjGEOM_CAPSULE,
+            fromto=[-floor_half_width, coord, 0.004, floor_half_width, coord, 0.004],
+            size=[grid_radius],
+            rgba=line_rgba,
+            contype=0,
+            conaffinity=0,
+            mass=0.0,
+        )
+        spec.worldbody.add_geom(
+            name=f"paper_grid_y_{grid_index + grid_count}",
+            type=mujoco.mjtGeom.mjGEOM_CAPSULE,
+            fromto=[coord, -floor_half_width, 0.004, coord, floor_half_width, 0.004],
+            size=[grid_radius],
+            rgba=line_rgba,
+            contype=0,
+            conaffinity=0,
+            mass=0.0,
+        )
+    radius = 0.011
+    rgba = [0.02, 0.16, 0.30, 1.0]
     bottom = (
         (+frame_l, +frame_l, 0.0),
         (-frame_l, +frame_l, 0.0),

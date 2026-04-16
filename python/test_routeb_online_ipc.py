@@ -10,7 +10,7 @@ import numpy as np
 
 from controller_routeB_online import RouteBOnlineController
 from mujoco_online_loop import launch_routeb_services, run_routeb_online_loop_ipc, shutdown_routeb_services
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 def main() -> None:
@@ -27,7 +27,7 @@ def main() -> None:
     )
     controller = RouteBOnlineController.from_config_dict(payload["model_kwargs"], payload["controller_cfg"])
 
-    q0 = np.zeros(3 + int(payload["controller_cfg"]["n_m"]), dtype=float)
+    q0 = initial_q_from_payload(payload)
     qd0 = np.zeros_like(q0)
 
     services = launch_routeb_services(config_path, enable_viewer=False)

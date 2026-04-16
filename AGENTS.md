@@ -39,6 +39,9 @@
 - Pytest-collected online cases live under `python/test_*_pytest.py`; legacy `python/test_*.py` files may still be script-style and should be run directly when they collect zero pytest tests.
 - At the current q=0 hanging-arm initial posture, negative `delta_z` targets are diagnostic stress cases, not default required successes. Do not count them against the default online random-target smoke unless the user explicitly asks for full negative-z robustness.
 - The Gen3 Lite 2F tool tip is the midpoint of `LEFT_FINGER_DIST` and `RIGHT_FINGER_DIST` body origins. Do not restore the old opposite local offsets `[-0.04,0,0]` / `[0.04,0,0]`.
+- Online 6R demos/tests should build `q0` through `online_config_utils.initial_q_from_payload()`. The default arm posture is `[0, 0.58, 0.92, 0, 0, 0]`, not all-zero q_m; keep `q4=0` so the gripper is not initially skewed.
+- Use `python/run_routeb_trajectory_stability_suite.py` for full headless 3-mode trajectory validation. The current phase-end baseline covers line, triangle, square, circle, and helix; helix intentionally skips `platform_only`.
+- MuJoCo viewer paper-style lighting/floor/grid are visualization-only changes. Do not tune controller behavior by changing these visual parameters.
 
 ## Prompt Template (recommended for Codex/Claude)
 Goal: Implement/modify `src/<file>.m` without breaking existing interfaces.

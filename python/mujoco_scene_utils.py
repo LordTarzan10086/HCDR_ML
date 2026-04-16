@@ -108,13 +108,26 @@ def resolve_gripper_qpos(
 
 
 def configure_visual_lighting(model: mujoco.MjModel) -> None:
-    """Brighten headlight defaults so the URDF model is legible."""
+    """Apply paper-friendly lighting and visual defaults.
+
+    The passive MuJoCo viewer defaults to a dark scene that is useful for
+    debugging but unsuitable for screenshots in reports. Keep this function
+    conservative: it only changes viewer-side visual parameters and never
+    touches physics, joints, actuators, or controller state.
+    """
 
     try:
         model.vis.headlight.active = 1
-        model.vis.headlight.ambient[:] = np.array([0.70, 0.70, 0.70], dtype=float)
-        model.vis.headlight.diffuse[:] = np.array([0.90, 0.90, 0.90], dtype=float)
-        model.vis.headlight.specular[:] = np.array([0.20, 0.20, 0.20], dtype=float)
+        model.vis.headlight.ambient[:] = np.array([0.78, 0.78, 0.78], dtype=float)
+        model.vis.headlight.diffuse[:] = np.array([0.92, 0.92, 0.92], dtype=float)
+        model.vis.headlight.specular[:] = np.array([0.12, 0.12, 0.12], dtype=float)
+        model.vis.rgba.haze[:] = np.array([0.98, 0.985, 0.99, 1.0], dtype=float)
+        model.vis.rgba.fog[:] = np.array([0.98, 0.985, 0.99, 1.0], dtype=float)
+        model.vis.map.haze = 0.05
+        model.vis.map.fogstart = 8.0
+        model.vis.map.fogend = 18.0
+        model.vis.global_.fovy = 38.0
+        model.vis.global_.linewidth = 1.6
     except Exception:
         pass
 
@@ -258,6 +271,7 @@ def draw_overlay(
     show_target: bool = True,
     desired_traj_world: Sequence[Sequence[float]] | None = None,
     actual_traj_world: Sequence[Sequence[float]] | None = None,
+    trajectory_sets_world: Sequence[Mapping[str, Any]] | None = None,
 ) -> None:
     """Draw frame/platform/cables/target into a passive viewer user scene."""
 
@@ -332,6 +346,14 @@ def draw_overlay(
     if actual_points.size > 0:
         _add_polyline(scene, actual_points, np.array([0.10, 0.85, 0.35, 1.0], dtype=np.float32), 3.2)
         _add_sphere(scene, actual_points[-1, :], 0.014, np.array([0.10, 0.85, 0.35, 1.0], dtype=np.float32))
+    for trajectory_set in trajectory_sets_world or []:
+        set_points = _coerce_traj_points(trajectory_set.get("points", None))
+        if set_points.size == 0:
+            continue
+        set_rgba = _coerce_rgba(trajectory_set.get("rgba", [0.8, 0.8, 0.8, 1.0]))
+        set_width = float(trajectory_set.get("width", 2.8))
+        _add_polyline(scene, set_points, set_rgba, set_width)
+        _add_sphere(scene, set_points[-1, :], 0.012, set_rgba)
 
 
 def _add_line(scene: Any, p0: Sequence[float], p1: Sequence[float], rgba: np.ndarray, width: float) -> None:
@@ -424,6 +446,17 @@ def _coerce_traj_points(points: Sequence[Sequence[float]] | None) -> np.ndarray:
     if array.size == 0:
         return np.zeros((0, 3), dtype=float)
     return array.reshape(-1, 3)
+
+
+def _coerce_rgba(value: Sequence[float]) -> np.ndarray:
+    """Return a 4-element float32 RGBA vector."""
+
+    rgba = np.asarray(value, dtype=np.float32).reshape(-1)
+    if rgba.size < 4:
+        padded = np.ones(4, dtype=np.float32)
+        padded[: rgba.size] = rgba
+        return padded
+    return rgba[:4].astype(np.float32)
 
 
 def _body_exists(model: mujoco.MjModel, body_name: str) -> bool:

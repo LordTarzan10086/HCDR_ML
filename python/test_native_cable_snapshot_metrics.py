@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from mujoco_backend_core import HeadlessMujocoBackend
-from online_config_utils import normalize_online_config_payload
+from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 
 
 def main() -> None:
@@ -21,7 +21,7 @@ def main() -> None:
     controller_cfg = payload["controller_cfg"]
     backend = HeadlessMujocoBackend(payload["backend_cfg"], controller_cfg)
 
-    q0 = np.zeros(3 + int(controller_cfg["n_m"]), dtype=float)
+    q0 = initial_q_from_payload(payload)
     qd0 = np.zeros_like(q0)
     backend.reset(q0, qd0)
 
