@@ -193,7 +193,7 @@ class ViewerApp:
                 self.viewer.cam.distance = float(self.viewer_cfg.get("camera_distance", 4.2))
                 self.viewer.cam.lookat[:] = np.asarray(self.viewer_cfg.get("camera_lookat", [0.0, 0.0, 1.2]), dtype=float)
                 try:
-                    self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_SKYBOX] = 0
+                    self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_SKYBOX] = 1
                     self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = 0
                     self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 0
                     self.viewer.scn.flags[mujoco.mjtRndFlag.mjRND_HAZE] = 1

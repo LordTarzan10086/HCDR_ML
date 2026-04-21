@@ -42,6 +42,7 @@
 - Online 6R demos/tests should build `q0` through `online_config_utils.initial_q_from_payload()`. The default arm posture is `[0, 0.58, 0.92, 0, 0, 0]`, not all-zero q_m; keep `q4=0` so the gripper is not initially skewed.
 - Use `python/run_routeb_trajectory_stability_suite.py` for full headless 3-mode trajectory validation. The current phase-end baseline covers line, triangle, square, circle, and helix; helix intentionally skips `platform_only`.
 - MuJoCo viewer paper-style lighting/floor/grid are visualization-only changes. Do not tune controller behavior by changing these visual parameters.
+- Data-analysis figures and report/paper plots should use Chinese chart titles, legends, and captions by default. Keep units, variable symbols, and code identifiers in their original notation when that improves technical accuracy.
 
 ## Prompt Template (recommended for Codex/Claude)
 Goal: Implement/modify `src/<file>.m` without breaking existing interfaces.

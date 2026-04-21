@@ -55,6 +55,15 @@ def build_native_hcdr_model(
 def _add_world_visuals(spec: mujoco.MjSpec, backend_cfg: Mapping[str, Any]) -> None:
     """Add frame-edge visuals and anchor markers to worldbody."""
 
+    spec.add_texture(
+        name="paper_skybox",
+        type=mujoco.mjtTexture.mjTEXTURE_SKYBOX,
+        builtin=mujoco.mjtBuiltin.mjBUILTIN_GRADIENT,
+        rgb1=[0.98, 0.99, 1.00],
+        rgb2=[0.90, 0.93, 0.97],
+        width=512,
+        height=512,
+    )
     frame_l = float(backend_cfg["frame_L"])
     frame_h = float(backend_cfg["frame_height"])
     floor_half_width = 1.28 * frame_l
@@ -96,7 +105,7 @@ def _add_world_visuals(spec: mujoco.MjSpec, backend_cfg: Mapping[str, Any]) -> N
             mass=0.0,
         )
     radius = 0.011
-    rgba = [0.02, 0.16, 0.30, 1.0]
+    rgba = [0.0, 0.0, 0.0, 1.0]
     bottom = (
         (+frame_l, +frame_l, 0.0),
         (-frame_l, +frame_l, 0.0),
