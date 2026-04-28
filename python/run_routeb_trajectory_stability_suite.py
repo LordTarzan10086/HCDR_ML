@@ -333,6 +333,13 @@ def _export_detailed_record_csv(csv_path: Path, record: dict[str, Any]) -> None:
         "fail_reason",
         "fallback_applied",
         "hold_active",
+        "singularity_avoidance_active",
+        "singularity_avoidance_sigma_min",
+        "singularity_avoidance_singular_count",
+        "joint_limit_avoidance_enabled",
+        "joint_limit_avoidance_active_lower_count",
+        "joint_limit_avoidance_active_upper_count",
+        "joint_limit_avoidance_min_margin_rad",
     ]
     fieldnames.extend([f"u_a_{idx + 1}" for idx in range(sample_u.size)])
     fieldnames.extend([f"qdd_{idx + 1}" for idx in range(sample_qdd.size)])
@@ -352,6 +359,8 @@ def _export_detailed_record_csv(csv_path: Path, record: dict[str, Any]) -> None:
             err = desired - tip
             q_next = np.asarray(entry.get("q_next", entry.get("q", np.zeros(3))), dtype=float).reshape(-1)
             solver = entry.get("diagnostics", {}).get("solver", {})
+            singularity_avoidance = solver.get("singularity_avoidance", {})
+            joint_limit_avoidance = solver.get("joint_limit_avoidance", {})
             u_a = np.asarray(entry.get("u_a", []), dtype=float).reshape(-1)
             qdd = np.asarray(entry.get("qdd", []), dtype=float).reshape(-1)
             cable_force = np.asarray(snapshot.get("cable_forces", []), dtype=float).reshape(-1)
@@ -376,6 +385,13 @@ def _export_detailed_record_csv(csv_path: Path, record: dict[str, Any]) -> None:
                 "fail_reason": str(solver.get("fail_reason", "")),
                 "fallback_applied": bool(entry.get("diagnostics", {}).get("fallback_applied", False)),
                 "hold_active": bool(entry.get("diagnostics", {}).get("hold_active", False)),
+                "singularity_avoidance_active": bool(singularity_avoidance.get("active", False)),
+                "singularity_avoidance_sigma_min": float(singularity_avoidance.get("sigma_min", np.nan)),
+                "singularity_avoidance_singular_count": int(singularity_avoidance.get("singular_count", 0)),
+                "joint_limit_avoidance_enabled": bool(joint_limit_avoidance.get("enabled", False)),
+                "joint_limit_avoidance_active_lower_count": int(joint_limit_avoidance.get("active_lower_count", 0)),
+                "joint_limit_avoidance_active_upper_count": int(joint_limit_avoidance.get("active_upper_count", 0)),
+                "joint_limit_avoidance_min_margin_rad": float(joint_limit_avoidance.get("min_margin_rad", np.nan)),
             }
             for idx, value in enumerate(u_a):
                 row[f"u_a_{idx + 1}"] = float(value)

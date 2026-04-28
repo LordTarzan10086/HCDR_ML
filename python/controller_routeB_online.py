@@ -78,6 +78,7 @@ class ModeAwareTaskPlan:
     platform_posture_weight: float
     arm_posture_weight: float
     priority_audit: Dict[str, Any]
+    singularity_avoidance_diag: Dict[str, Any] = field(default_factory=dict)
 
 
 def solve_routeb_online_step(
@@ -986,6 +987,8 @@ def _solve_routeb_hqp(
     platform_posture_weight = float(mode_plan.platform_posture_weight)
     arm_posture_weight = float(mode_plan.arm_posture_weight)
     priority_audit = dict(mode_plan.priority_audit)
+    singularity_avoidance_diag = dict(mode_plan.singularity_avoidance_diag)
+    joint_limit_avoidance_diag = dict(platform_qdd_box_diag.get("arm_joint_limit_avoidance", {}))
 
     level_results = _solve_task_stack_levels(
         task_levels,
@@ -1012,6 +1015,8 @@ def _solve_routeb_hqp(
                 "mode_task_names": [task.name for task in task_levels],
                 "mode_task_priority_audit": priority_audit,
                 "platform_qdd_box_diag": platform_qdd_box_diag,
+                "singularity_avoidance": singularity_avoidance_diag,
+                "joint_limit_avoidance": joint_limit_avoidance_diag,
                 "task_stack": level_results.get("level_summaries", []),
                 "task_failure_detail": {
                     "stage": "task_stack_level",
@@ -1106,6 +1111,8 @@ def _solve_routeb_hqp(
         "mode_task_names": [task.name for task in task_levels],
         "mode_task_priority_audit": priority_audit,
         "platform_qdd_box_diag": platform_qdd_box_diag,
+        "singularity_avoidance": singularity_avoidance_diag,
+        "joint_limit_avoidance": joint_limit_avoidance_diag,
         "f_ref": tension_policy["reference"].copy(),
         "tension_safe_lower": tension_policy["safe_lower"].copy(),
         "T_safe_margin": tension_policy["safe_margin"].copy(),
@@ -1309,6 +1316,16 @@ def _build_qdd_box_bounds(
         arm_qdd_limit = _expand_optional(controller_cfg.get("arm_qdd_limit"), n_m, np.inf)
         lower[3:] = np.maximum(lower[3:], -arm_qdd_limit)
         upper[3:] = np.minimum(upper[3:], arm_qdd_limit)
+        arm_joint_limit_diag = _apply_arm_joint_limit_avoidance_bounds(
+            lower,
+            upper,
+            q_vec,
+            qd_vec,
+            float(dt),
+            controller_cfg,
+        )
+    else:
+        arm_joint_limit_diag = {"enabled": False, "reason": "no_arm_dofs"}
 
     xy_limit = float(controller_cfg.get("platform_tracking_xy_limit", controller_cfg.get("platform_xy_limit", np.inf)))
     psi_limit = float(controller_cfg.get("platform_tracking_psi_limit", controller_cfg.get("platform_psi_limit", np.inf)))
@@ -1349,6 +1366,90 @@ def _build_qdd_box_bounds(
         "upper": upper[:3].copy(),
         "safe_state_limits": safe_state_limits,
         "velocity_limits": velocity_limits.copy(),
+        "arm_joint_limit_avoidance": arm_joint_limit_diag,
+    }
+
+
+def _apply_arm_joint_limit_avoidance_bounds(
+    lower: np.ndarray,
+    upper: np.ndarray,
+    q_vec: np.ndarray,
+    qd_vec: np.ndarray,
+    dt: float,
+    controller_cfg: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Tighten arm qdd bounds near joint limits using the paper-style buffer law."""
+
+    n_m = int(controller_cfg.get("n_m", max(0, q_vec.size - 3)))
+    if n_m <= 0:
+        return {"enabled": False, "reason": "no_arm_dofs"}
+    if not bool(controller_cfg.get("joint_limit_avoidance_enabled", False)):
+        return {"enabled": False, "reason": "disabled"}
+
+    q_arm = np.asarray(q_vec[3 : 3 + n_m], dtype=float).reshape(n_m)
+    qd_arm = np.asarray(qd_vec[3 : 3 + n_m], dtype=float).reshape(n_m)
+    arm_min = _expand_optional(controller_cfg.get("arm_position_min"), n_m, -np.pi)
+    arm_max = _expand_optional(controller_cfg.get("arm_position_max"), n_m, np.pi)
+    buffer = _expand_optional(
+        controller_cfg.get("joint_limit_avoidance_buffer", controller_cfg.get("arm_joint_limit_margin")),
+        n_m,
+        0.20,
+    )
+    kp = _expand_optional(controller_cfg.get("joint_limit_avoidance_kp"), n_m, 12.0)
+    kd = _expand_optional(controller_cfg.get("joint_limit_avoidance_kd"), n_m, 4.0)
+    predictive_guard = bool(controller_cfg.get("joint_limit_predictive_guard_enabled", True))
+    guard_margin = _expand_optional(controller_cfg.get("joint_limit_predictive_guard_margin"), n_m, 0.02)
+
+    active_lower = np.zeros(n_m, dtype=bool)
+    active_upper = np.zeros(n_m, dtype=bool)
+    paper_lower = lower[3 : 3 + n_m].copy()
+    paper_upper = upper[3 : 3 + n_m].copy()
+
+    for joint_index in range(n_m):
+        lower_band = float(arm_min[joint_index] + buffer[joint_index])
+        upper_band = float(arm_max[joint_index] - buffer[joint_index])
+        q_i = float(q_arm[joint_index])
+        qd_i = float(qd_arm[joint_index])
+        idx = 3 + joint_index
+        if q_i < lower_band:
+            # Push acceleration toward the safe interior when close to the lower limit.
+            qdd_min = float(kp[joint_index] * (lower_band - q_i) - kd[joint_index] * qd_i)
+            lower[idx] = max(float(lower[idx]), qdd_min)
+            paper_lower[joint_index] = lower[idx]
+            active_lower[joint_index] = True
+        if q_i > upper_band:
+            # Push acceleration toward the safe interior when close to the upper limit.
+            qdd_max = float(kp[joint_index] * (upper_band - q_i) - kd[joint_index] * qd_i)
+            upper[idx] = min(float(upper[idx]), qdd_max)
+            paper_upper[joint_index] = upper[idx]
+            active_upper[joint_index] = True
+
+    predictive_lower = np.full(n_m, -np.inf, dtype=float)
+    predictive_upper = np.full(n_m, np.inf, dtype=float)
+    if predictive_guard and dt > 1e-9:
+        safe_min = arm_min + guard_margin
+        safe_max = arm_max - guard_margin
+        predictive_lower = 2.0 * (safe_min - q_arm - qd_arm * dt) / (dt * dt)
+        predictive_upper = 2.0 * (safe_max - q_arm - qd_arm * dt) / (dt * dt)
+        lower[3 : 3 + n_m] = np.maximum(lower[3 : 3 + n_m], predictive_lower)
+        upper[3 : 3 + n_m] = np.minimum(upper[3 : 3 + n_m], predictive_upper)
+
+    lower_margin = q_arm - arm_min
+    upper_margin = arm_max - q_arm
+    return {
+        "enabled": True,
+        "active_lower_count": int(np.count_nonzero(active_lower)),
+        "active_upper_count": int(np.count_nonzero(active_upper)),
+        "active_any": bool(np.any(active_lower) or np.any(active_upper)),
+        "min_margin_rad": float(np.min(np.concatenate([lower_margin, upper_margin]))),
+        "buffer_rad": buffer.copy(),
+        "paper_lower_qdd": paper_lower.copy(),
+        "paper_upper_qdd": paper_upper.copy(),
+        "predictive_guard_enabled": bool(predictive_guard),
+        "predictive_lower_qdd": predictive_lower.copy(),
+        "predictive_upper_qdd": predictive_upper.copy(),
+        "final_lower_qdd": lower[3 : 3 + n_m].copy(),
+        "final_upper_qdd": upper[3 : 3 + n_m].copy(),
     }
 
 
@@ -1533,6 +1634,16 @@ def _build_mode_task_plan(
         b=tracking_rhs,
         slack_weight=tracking_slack_weight,
     )
+    svd_preference_task, singularity_avoidance_diag = _build_svd_singularity_tracking_task(
+        full_tracking_jacobian,
+        tracking_rhs,
+        dof_count,
+        actuation_count,
+        n_m,
+        tracking_slack_weight,
+        controller_cfg,
+        control_mode,
+    )
 
     platform_tracking_jacobian = full_tracking_jacobian.copy()
     if dof_count > 3:
@@ -1631,6 +1742,8 @@ def _build_mode_task_plan(
             task_levels = [platform_orientation_task, tracking_task]
         else:
             task_levels = [tracking_task]
+        if singularity_avoidance_diag.get("active", False):
+            task_levels.append(svd_preference_task)
         if task_phase_normalized == "hold" and n_m > 0 and bool(controller_cfg.get("hold_add_arm_posture_task", True)):
             task_levels.append(arm_sweet_zone_task)
         elif n_m > 0 and bool(controller_cfg.get("cooperative_add_arm_sweet_zone_task", True)):
@@ -1646,6 +1759,8 @@ def _build_mode_task_plan(
             qdd_min_ref[3:] = arm_qdd_ref
         else:
             qdd_min_ref[3:] = 0.0
+        if singularity_avoidance_diag.get("active", False):
+            qdd_min_ref[3:] = arm_qdd_ref
         if cooperative_use_platform_posture_min_ref and task_phase_normalized in ("near_goal", "terminal_approach", "hold"):
             qdd_min_ref[:3] = platform_qdd_ref
         platform_posture_weight = (
@@ -1661,6 +1776,11 @@ def _build_mode_task_plan(
         )
         if n_m > 0:
             arm_posture_weight = max(arm_posture_weight, sweet_zone_min_weight)
+            if singularity_avoidance_diag.get("active", False):
+                arm_posture_weight = max(
+                    arm_posture_weight,
+                    float(controller_cfg.get("singularity_arm_posture_weight", 0.60)),
+                )
 
     task_names = [task.name for task in task_levels]
     priority_audit = _build_mode_task_priority_audit(control_mode, task_phase_normalized, task_names)
@@ -1672,7 +1792,93 @@ def _build_mode_task_plan(
         platform_posture_weight=platform_posture_weight,
         arm_posture_weight=arm_posture_weight,
         priority_audit=priority_audit,
+        singularity_avoidance_diag=singularity_avoidance_diag,
     )
+
+
+def _build_svd_singularity_tracking_task(
+    full_tracking_jacobian: np.ndarray,
+    tracking_rhs: np.ndarray,
+    dof_count: int,
+    actuation_count: int,
+    n_m: int,
+    tracking_slack_weight: float,
+    controller_cfg: Mapping[str, Any],
+    control_mode: str,
+) -> tuple[EqualityTaskLevel, Dict[str, Any]]:
+    """Split cooperative tracking so singular arm directions are assigned to platform motion."""
+
+    enabled = bool(controller_cfg.get("cooperative_svd_singularity_avoidance_enabled", False))
+    diag: Dict[str, Any] = {
+        "enabled": enabled,
+        "active": False,
+        "reason": "disabled" if not enabled else "",
+        "sigma_threshold": float(controller_cfg.get("singularity_sigma_threshold", 0.08)),
+        "singular_count": 0,
+        "singular_values": np.zeros(0, dtype=float),
+    }
+    fallback_task = EqualityTaskLevel(
+        name="tracking",
+        A=np.hstack([full_tracking_jacobian, np.zeros((full_tracking_jacobian.shape[0], actuation_count), dtype=float)]),
+        b=np.asarray(tracking_rhs, dtype=float).reshape(-1),
+        slack_weight=tracking_slack_weight,
+    )
+    if not enabled:
+        return fallback_task, diag
+    if control_mode != "cooperative":
+        diag["reason"] = "not_cooperative"
+        return fallback_task, diag
+    if n_m <= 0 or dof_count < 3 + n_m:
+        diag["reason"] = "no_arm_dofs"
+        return fallback_task, diag
+
+    arm_jacobian = np.asarray(full_tracking_jacobian[:, 3 : 3 + n_m], dtype=float)
+    if arm_jacobian.size == 0:
+        diag["reason"] = "empty_arm_jacobian"
+        return fallback_task, diag
+
+    try:
+        u_matrix, singular_values, _ = np.linalg.svd(arm_jacobian, full_matrices=True)
+    except np.linalg.LinAlgError:
+        diag["reason"] = "svd_failed"
+        return fallback_task, diag
+
+    threshold = float(diag["sigma_threshold"])
+    singular_mask = singular_values < threshold
+    singular_count = int(np.count_nonzero(singular_mask))
+    diag.update(
+        {
+            "singular_values": singular_values.copy(),
+            "sigma_min": float(np.min(singular_values)) if singular_values.size else float("nan"),
+            "singular_count": singular_count,
+        }
+    )
+    if singular_count <= 0:
+        diag["reason"] = "above_threshold"
+        return fallback_task, diag
+
+    singular_indices = np.where(singular_mask)[0]
+    u_s = u_matrix[:, singular_indices]
+    singular_platform_jacobian = u_s.T @ full_tracking_jacobian
+    singular_platform_jacobian[:, 3 : 3 + n_m] = 0.0
+    split_jacobian = singular_platform_jacobian
+    split_rhs = u_s.T @ tracking_rhs
+    row_labels = ["singular_platform"] * int(singular_indices.size)
+    task = EqualityTaskLevel(
+        name="singularity_platform_preference",
+        A=np.hstack([split_jacobian, np.zeros((split_jacobian.shape[0], actuation_count), dtype=float)]),
+        b=split_rhs,
+        slack_weight=float(controller_cfg.get("singularity_tracking_task_slack_weight", tracking_slack_weight)),
+    )
+    diag.update(
+        {
+            "active": True,
+            "reason": "active",
+            "row_labels": row_labels,
+            "task_name": task.name,
+        }
+    )
+    return task, diag
 
 
 def _build_mode_task_priority_audit(control_mode: str, task_phase: str, task_names: list[str]) -> Dict[str, Any]:

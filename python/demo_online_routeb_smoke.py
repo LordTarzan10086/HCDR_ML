@@ -42,6 +42,8 @@ def main() -> None:
     parser.add_argument("--control-mode", type=str, default="", help="cooperative | platform_only | arm_only | arm_only_osc_baseline")
     parser.add_argument("--save-results", action="store_true", help="Export CSV/JSON diagnostics under results/online_smoke")
     parser.add_argument("--hard-lock-platform", action="store_true", help="Force platform qdd to platform_pose_des inside the online HQP")
+    parser.add_argument("--enable-joint-limit-avoidance", action="store_true", help="Enable paper-style arm joint-limit qdd bounds")
+    parser.add_argument("--enable-singularity-avoidance", action="store_true", help="Enable cooperative SVD singularity-avoidance tracking split")
     args = parser.parse_args()
 
     config_path = resolve_config_path(args.config)
@@ -50,6 +52,10 @@ def main() -> None:
         repo_root=config_path.resolve().parent.parent.parent,
     )
     payload["controller_cfg"]["hard_lock_platform"] = bool(args.hard_lock_platform)
+    if args.enable_joint_limit_avoidance:
+        payload["controller_cfg"]["joint_limit_avoidance_enabled"] = True
+    if args.enable_singularity_avoidance:
+        payload["controller_cfg"]["cooperative_svd_singularity_avoidance_enabled"] = True
     if str(args.control_mode).strip():
         payload["controller_cfg"]["control_mode"] = str(args.control_mode).strip()
     controller = RouteBOnlineController.from_config_dict(payload["model_kwargs"], payload["controller_cfg"])
@@ -622,6 +628,14 @@ def export_online_smoke_results(
         "arm_sigma_min",
         "arm_condition_number",
         "arm_near_singular",
+        "singularity_avoidance_enabled",
+        "singularity_avoidance_active",
+        "singularity_avoidance_sigma_min",
+        "singularity_avoidance_singular_count",
+        "joint_limit_avoidance_enabled",
+        "joint_limit_avoidance_active_lower_count",
+        "joint_limit_avoidance_active_upper_count",
+        "joint_limit_avoidance_min_margin_rad",
         "joint_limit_min_margin",
         "sweetspot_cost",
         "arm_delta_norm",
@@ -664,6 +678,8 @@ def export_online_smoke_results(
             qd_next = np.asarray(entry.get("qd_next", entry.get("qd", np.zeros_like(q_next))), dtype=float).reshape(-1)
             solver_diag = entry.get("diagnostics", {}).get("solver", {})
             priority_audit = solver_diag.get("mode_task_priority_audit", {})
+            singularity_avoidance = solver_diag.get("singularity_avoidance", {})
+            joint_limit_avoidance = solver_diag.get("joint_limit_avoidance", {})
             sweet_zone = entry.get("diagnostics", {}).get("sweet_zone", {})
             arm_hold = entry.get("diagnostics", {}).get("arm_hold", {})
             osc_diag = solver_diag.get("osc_baseline", {})
@@ -705,6 +721,14 @@ def export_online_smoke_results(
                 "arm_sigma_min": float(sweet_zone.get("arm_sigma_min", np.nan)),
                 "arm_condition_number": float(sweet_zone.get("arm_condition_number", np.nan)),
                 "arm_near_singular": bool(sweet_zone.get("arm_near_singular", False)),
+                "singularity_avoidance_enabled": bool(singularity_avoidance.get("enabled", False)),
+                "singularity_avoidance_active": bool(singularity_avoidance.get("active", False)),
+                "singularity_avoidance_sigma_min": float(singularity_avoidance.get("sigma_min", np.nan)),
+                "singularity_avoidance_singular_count": int(singularity_avoidance.get("singular_count", 0)),
+                "joint_limit_avoidance_enabled": bool(joint_limit_avoidance.get("enabled", False)),
+                "joint_limit_avoidance_active_lower_count": int(joint_limit_avoidance.get("active_lower_count", 0)),
+                "joint_limit_avoidance_active_upper_count": int(joint_limit_avoidance.get("active_upper_count", 0)),
+                "joint_limit_avoidance_min_margin_rad": float(joint_limit_avoidance.get("min_margin_rad", np.nan)),
                 "joint_limit_min_margin": float(sweet_zone.get("joint_limit_min_margin", np.nan)),
                 "sweetspot_cost": float(sweet_zone.get("sweetspot_cost", np.nan)),
                 "arm_delta_norm": arm_delta_norm,
