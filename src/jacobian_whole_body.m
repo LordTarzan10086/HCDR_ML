@@ -143,7 +143,11 @@ function [J_wb, Jdot_qd] = compute_position_terms_pinocchio(q, qd, cfg, opts)
     qPython = py.numpy.array(q(:).');
     qdPython = py.numpy.array(qd(:).');
     modelArgs = pinocchio_model_args_from_cfg(cfg, numel(q) - 3);
-    pythonResult = pythonFunction(qPython, qdPython, modelArgs{:});
+    if isempty(modelArgs)
+        pythonResult = pythonFunction(qPython, qdPython);
+    else
+        pythonResult = pythonFunction(qPython, qdPython, pyargs(modelArgs{:}));
+    end
 
     J_wb = to_double_array(pythonResult{1});
     Jdot_qd = to_double_array(pythonResult{2});

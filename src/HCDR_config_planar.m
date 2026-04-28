@@ -182,7 +182,7 @@ function cfg = HCDR_config_planar(varargin)
     % singular neighborhood.  The tip remains below the platform and close to
     % the platform centerline.
     if armJointCount == 6
-        cfg.q_home = [0.0; 0.58; 0.92; 0.0; 0.0; 0.0];
+        cfg.q_home = [0.0; 0.0; 0.0; 0.0; 0.0; 0.0];
     else
         cfg.q_home = zeros(armJointCount, 1);
     end

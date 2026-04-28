@@ -17,9 +17,11 @@ classdef test_gen3_lite_urdf_summary < matlab.unittest.TestCase
 
             testCase.verifyEqual(summary.joint_table.name(1), "J0");
             testCase.verifyEqual(summary.joint_table.name(end), "J5");
-            testCase.verifyEqual(summary.joint_table.lower_rad(1), -2.76, "AbsTol", 1e-12);
-            testCase.verifyEqual(summary.joint_table.upper_rad(end), 2.67, "AbsTol", 1e-12);
-            testCase.verifyEqual(summary.joint_table.upper_deg(4), rad2deg(2.67), "AbsTol", 1e-10);
+            testCase.verifyEqual(summary.joint_table.lower_deg(1), -154.1, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.joint_table.upper_deg(5), 145.0, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.joint_table.upper_deg(4), 148.98, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.joint_table.lower_rad(1), deg2rad(-154.1), "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.joint_table.upper_rad(end), deg2rad(148.98), "AbsTol", 1e-12);
 
             firstJointPositionM = [summary.frame_table.x_m(2); summary.frame_table.y_m(2); summary.frame_table.z_m(2)];
             testCase.verifyEqual(firstJointPositionM, [0.0; 0.0; 0.12825], "AbsTol", 1e-12);
@@ -28,13 +30,13 @@ classdef test_gen3_lite_urdf_summary < matlab.unittest.TestCase
             testCase.verifyEqual(summary.frame_table.name(end), "TOOL");
 
             testCase.verifySize(summary.dh_table, [6, width(summary.dh_table)]);
-            testCase.verifyTrue(all(isfinite(summary.dh_table.a_m)));
-            testCase.verifyTrue(all(isfinite(summary.dh_table.alpha_rad)));
-            testCase.verifyTrue(all(isfinite(summary.dh_table.d_m)));
-            testCase.verifyTrue(all(isfinite(summary.dh_table.theta_offset_rad)));
-            testCase.verifyTrue(all(isfinite(summary.dh_table.fit_error)));
-            testCase.verifyLessThan(max(summary.dh_table.position_residual_m), 0.15);
-            testCase.verifyLessThanOrEqual(max(summary.dh_table.rotation_residual_deg), 90.1);
+            testCase.verifyEqual(summary.dh_table.alpha_deg(1), 90.0, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.dh_table.a_m(2), 0.2800, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.dh_table.d_m(1), 0.2433, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.dh_table.d_m(5), 0.0570, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.dh_table.theta_offset_deg(6), 90.0, "AbsTol", 1e-12);
+            testCase.verifyEqual(summary.dh_table.d_text_mm(4), "(140.0+105.0)");
+            testCase.verifyEqual(summary.dh_table.theta_text(5), "q_5 + \pi");
         end
     end
 end
