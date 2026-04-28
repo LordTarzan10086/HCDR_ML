@@ -74,11 +74,15 @@ function [M, h] = pin_get_M_h(q, qd, opts)
     end
     pythonFunction = pythonModule.(char(opts.python_function));
 
-    % Convert MATLAB vectors to Python arrays.
+    % Convert MATLAB vectors to Python arrays and forward cfg as keywords.
     qPython = py.numpy.array(q(:).');
     qdPython = py.numpy.array(qd(:).');
     modelArgs = pinocchio_model_args_from_cfg(opts.cfg, numel(q) - 3);
-    pythonResult = pythonFunction(qPython, qdPython, modelArgs{:});
+    if isempty(modelArgs)
+        pythonResult = pythonFunction(qPython, qdPython);
+    else
+        pythonResult = pythonFunction(qPython, qdPython, pyargs(modelArgs{:}));
+    end
 
     % Convert returned Python arrays/iterables back to MATLAB doubles.
     M = to_double_array(pythonResult{1});

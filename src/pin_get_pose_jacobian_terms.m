@@ -68,7 +68,11 @@ function out = pin_get_pose_jacobian_terms(q, qd, cfg, opts)
     qPython = py.numpy.array(q(:).');
     qdPython = py.numpy.array(qd(:).');
     modelArgs = pinocchio_model_args_from_cfg(cfg, numel(q) - 3);
-    pythonResult = pythonFunction(qPython, qdPython, modelArgs{:});
+    if isempty(modelArgs)
+        pythonResult = pythonFunction(qPython, qdPython);
+    else
+        pythonResult = pythonFunction(qPython, qdPython, pyargs(modelArgs{:}));
+    end
 
     xCur = to_double_array(pythonResult{1});
     xdotCur = to_double_array(pythonResult{2});

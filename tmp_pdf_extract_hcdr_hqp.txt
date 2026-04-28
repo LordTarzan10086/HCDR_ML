@@ -1,0 +1,1361 @@
+
+--- PAGE 1 ---
+Nonlinear Dyn (2024) 112:20047–20062
+https://doi.org/10.1007/s11071-024-10082-3
+RESEARCH
+Whole-body control of redundant hybrid cable-driven robot
+with manipulator: hierarchical quadratic programming
+approach
+Suhwan Park · Leesai Park · Seulchan Lee ·
+Sanghyun Kim
+Received: 7 June 2024 / Accepted: 24 July 2024 / Published online: 31 July 2024
+© The Author(s), under exclusive licence to Springer Nature B.V . 2024
+Abstract A redundant Hybrid Cable-Driven Robot
+(HCDR), which is an integration platform of a robotic
+manipulator and a Cable-Driven Parallel Robot (CDPR)
+has numerous advantages including an extensive oper-
+ational range and high performance in task execu-
+tion. However, it is difﬁcult to control the redun-
+dant HCDR due to the dynamic coupling between a
+manipulator and the CDPR and the redundancy res-
+olution. To solve these issues, this paper introduces
+a novel whole-body controller strategy for the redun-
+dant HCDR by using Hierarchical Quadratic Program-
+ming (HQP). First, the whole-body nonlinear dynamics
+with cable tensions and manipulator torques is pro-
+posed. Then, with the HQP-based scheme, the pro-
+posed controller can generate the optimal tensions and
+torques for the redundant HCDR to generate whole-
+body motions without dynamic interference between
+the CDPR and the manipulator. In addition, singular-
+ity and joint limit avoidance algorithms are proposed
+in this paper, because the proposed controller can han-
+dle prioritized tasks with inequality constraints as well
+as equality constraints. The proposed control scheme
+has been implemented on the redundant HCDR with 8-
+Suhwan Park, Leesai Park and Seulchan Lee have contributed
+equally to this work.
+S. Park · L. Park · S. Lee · S. Kim ( B)
+Department of Mechanical Engineering, Kyung Hee Univer-
+sity, 1732, Deogyeong-daero, Giheung-gu, Yongin-si 17104,
+Gyeonggi-do, Republic of Korea
+e-mail: kim87@khu.ac.kr
+cables and 7-DoFs manipulator, and its performance
+is demonstrated through various scenarios in high-
+precision simulator.
+Keywords Cable-driven parallel robot · Hybrid
+cable-driven robot · Whole-body control · Redundant
+system · Hierarchical quadratic programming
+1 Introduction
+A Cable-Driven Parallel Robot (CDPR) is one of the
+unique parallel robot mechanisms that utilize cables
+to manipulate and control the motion of the platform
+[20,33]. The CDPR not only enables precise control of
+motion but also handles heavy objects by adjusting the
+length and tension of the cables [ 35]. With these advan-
+tages, the CDPR is highly adaptable to various environ-
+ments such as construction [ 12], aerospace [ 38], med-
+ical [ 11], and entertainment ﬁelds [ 23].
+Recently, many studies have been conducted to max-
+imize the advantages of the CDPR by combining it with
+other mechanical devices such as a mobile robot [ 15],
+gripper [36], a pendulum [ 31], and a robotic manipula-
+tor [ 19,32]. Among them, a combination of the CDPR
+with the manipulator, known as the redundant Hybrid
+Cable-Driven Robot (HCDR), can not only extend the
+workspace of the robotic arm but also enhance the dex-
+terity and ﬂexibility of the CDPR.
+However, there are main challenging issues in con-
+trolling the redundant HCDR, as follows:
+123
+
+--- PAGE 2 ---
+20048 S. Park et al.
+Fig. 1 Redundant hybrid cable-driven robot with the cable-
+driven parallel robot and the robotic manipulator
+• Nonlinear dynamics: The redundant HCDR has
+complex nonlinear dynamics. Without considering
+the dynamic coupling between the CDPR and the
+manipulator, the motion of the manipulator can
+adversely affect on the stability of the CDPR.
+• Redundancy resolution: With the additional
+Degrees of Freedom (DoFs) provided by the robotic
+manipulator, this system is a fully redundant sys-
+tem. Resolving this redundancy to optimize perfor-
+mance, such as maximizing manipulability or mini-
+mizing energy consumption, requires sophisticated
+control strategies.
+• Real-time control: Given the increased DoFs, it is
+difﬁcult to calculate the optimal solution at real-
+time.
+In this paper, we propose a novel whole-body controller
+for the redundant HCDR, shown in Fig. 1,b yu s i n g
+Hierarchical Quadratic Programming (HQP) to solve
+these challenging points.
+1.1 Related works
+1.1.1 Cable-driven parallel robot
+There are several researches for controlling the CDPR
+from a traditional kinematic controller to a Nonlinear
+Model Predictive Control (NMPC). Unlike controllers
+for fully actuated robotic manipulators, controllers for
+CDPRs should focus on generating proper tensions of
+cables to prevent cable wear and provide precise posi-
+tioning tasks [ 1].
+Mersi et al. proposed a kinematics-based PID con-
+troller for the CDPR with four cables to generate cable
+tension [ 21]. Pott and Schmidt suggested the inverse
+kinematics controller to minimize the potential ener-
+gies in the cables [ 29]. However, these controllers lack
+consideration for the characteristics of cables which
+have elastic deformation, geometric nonlinearity, and
+friction [27]. Especially, in case of the CDPR, the con-
+troller should include constraints on the cable tension
+because the cables of the CDPR can only be pulled, not
+pushed.
+To address this issue, many control methods have
+been proposed including a sliding mode control [ 40],
+a fuzzy plus PI control [ 39], a Laypunov-based con-
+trol [ 24], and a robust PID controller [ 14] with the
+optimal distribution of cable tensions [ 10]. As a very
+recent work, Piao et al. proposed an adaptive hybrid
+control approach with Cartesian space position control
+and a joint space cable force control [ 28]. The pro-
+posed controller has the advantage of improving the
+position control accuracy by minimizing the cable ten-
+sion to prevent sagging or overloading of the CDPR.
+Also, Santos et al. proposed an NMPC strategy incorpo-
+rating wrench equivalent optimality for position track-
+ing of the CDPR [ 34]. However, the proposed NMPC
+approach, despite its potential, faces signiﬁcant chal-
+lenges in real-time implementation due to the high com-
+putational cost associate with solving nonlinear opti-
+mization problems for the nonlinear dynamics of the
+CDPR.
+1.1.2 Redundant hybrid cable-driven robot
+While the aforementioned controllers are capable of
+effectively controlling the CDPR system, applying
+them directly to the redundant HCDR is highly chal-
+lenging due to the dynamic coupling between a manip-
+ulator and the CDPR and a redundancy of a whole sys-
+tem [ 3,30].
+In [ 2], the controller for a 2-DoFs planar manipu-
+lator with the CDPR is proposed to enhance its capa-
+bility to achieve a wider range of orientations along a
+given trajectory. Gouttefarde studied the static behav-
+ior of the entire system consisting of the CDPR with
+2-cables and the on-board 3-DoFs planar manipulator
+[9]. Similarly, Lessanibahri et al. analyzed the redun-
+dant HCDR [ 19] with the CDPR platform and tilt-roll
+wrist for large translational and rotational workspace.
+Although these researches demonstrated the high per-
+123
+
+--- PAGE 3 ---
+Whole-body control of redundant hybrid cable-driven... 20049
+formance, versatility, and applicability of the redundant
+HCDR system, they did not consider the dynamic cou-
+pling between the CDPR and the manipulator, which
+could lead to degraded control performance. Also, it is
+worthwhile noting that these previous researches used
+manipulators with fewer DoFs that were speciﬁcally
+designed for CDPRs, instead of a typical robot arm
+with six or more DoFs.
+To tackle these issues, [ 4] and [ 22] proposed the
+standard kinematic redundancy resolution methods and
+path planning techniques with Jacobian-based inverse
+kinematics for whole-body motions of the redundant
+HCDR. As for more recent research, Qi et al. [ 32]p r o -
+posed a redundancy resolution and disturbance rejec-
+tion via torque optimization in the HCDR with the 3-
+DoFs robotic manipulator. By modeling a nonlinear
+whole-body dynamics of the whole system, the pro-
+posed controller showed precise motions during var-
+ious simulation scenarios. However, these researches
+are difﬁcult to extend the versatility of the controller
+for tasks such as joint limits or singularity avoid-
+ance, because the proposed controllers can only handle
+equality constraints not inequality constraints.
+Consequently, to the best of our knowledge, there is
+no proper controller for redundant HCDRs that consid-
+ers whole-body motion, nonlinear dynamic coupling,
+and robotic constraints during operation. This is the
+biggest motivation for this paper.
+1.2 Overview of this paper
+In this paper, we propose a novel controller for generat-
+ing whole-body motions of the redundant HCDR with
+nonlinear whole-body dynamics and the HQP in order
+to maximize the stability and accuracy of the redun-
+dant HCDR. The HQP is an optimization technique to
+handle multi-level hierarchical equality and inequality
+tasks. Recent studies have shown that HQP-based con-
+trol can achieve computational speeds comparable to
+traditional Jacobian-based control, making it suitable
+for real-time applications in complex robotic systems.
+Moreover, the HQP-based controller is stable in the
+sense of Lyapunov [ 6]. Therefore, various studies have
+utilized HQP not only to control robotic arms [ 16]b u t
+also a quadruped robot [ 37] and a mobile manipulator
+[17].
+The main contributions in this paper are listed as
+follows:
+• A modeling of the nonlinear whole-body dynam-
+ics of the redundant HCDR is proposed. This pro-
+posed modeling describes the dynamic coupling
+between the CDPR and the robotic arm, effec-
+tively preventing instabilities that arise from their
+interaction. Through experimental validation, we
+demonstrated that by compensating for the nonlin-
+ear forces induced by dynamic coupling, our mod-
+eling signiﬁcantly enhances both the stability and
+tracking performance of the redundant HCDR con-
+trol system.
+• With various advantages of the HQP , the proposed
+controller can handle the complex redundancy res-
+olution of the HCDR. Unlike the Jacobian-based
+controller [ 4,22], our approach can handle both
+equality and inequality constraints simultaneously,
+enabling precise control of cable tensions within
+safe operational limits, and generating optimal, fea-
+sible whole-body motions that fully exploit the
+redundancy of the redundant HCDR.
+• For real-world applications, various practical con-
+trol techniques are developed and implemented.
+Our approach ensures smooth operation through
+singularity avoidance even near kinematic singu-
+larities, maintains safe joint conﬁgurations through
+joint limit avoidance, and achieves real-time per-
+formance with control loop times.
+The proposed algorithm is validated in the a high-
+precision robot simulator, Gazebo [18], by tracking
+capability and stability during various scenarios.
+This paper is organized as follows. The mathemat-
+ical backgrounds of CDPR and HQP are explained in
+Sect. 2. Section 3 presents the HQP-based whole-body
+controller with the nonlinear dynamics of the redun-
+dant HCDR and Sect. 4 describes practical applications
+including singularity and joint limit avoidance. Sec-
+tion 5 describes the experimental results and discussion
+of the proposed controller and the paper is concluded
+in Sect. 6.
+To improve readability, a,
+a, and A are denoted as a
+scalar, a vector, and a matrix, respectively. Also, other
+important symbols in this paper are described in Table
+1.
+2 Background
+In the following subsections, we brieﬂy review the
+kinematics of the CDPR and a HQP-based inverse kine-
+123
+
+--- PAGE 4 ---
+20050 S. Park et al.
+Table 1 Notation and symbols
+Symbol Description
+Ti ∈ Rmi mi -dimensional equality or inequality task
+Ti ≺ T j Ti has higher priority than T j
+si i -th slack variable
+s∗
+i Optimal value of the i -th slack variable
+x Lower bound of the i -th inequality task
+¯x Upper bound of the i -th inequality task
+b p V ector p with respect to reference frame {b}
+matics, respectively. For details on CDPR and HQP ,
+please read [ 13] and [ 6].
+2.1 Kinematics of cable driven parallel robot: a review
+Let us consider the CDPR platform with n p -cables.
+The geometric relation between a platform and cables,
+b li ∈ R3, is deﬁned as
+b li = b p − b ai + b R p p bi , (1)
+where b ai ∈ R3 are the coordinates of point Ai and
+p bi ∈ R3 are the coordinates of point Bi as shown in
+Fig. 2.A n d b R p ∈ R3×3 is the rotation matrix from the
+global frame to the platform frame.
+Also, the platform Jacobian of the relationship
+between cables and a platform can be derived as
+Jp =
+⎡
+⎢⎣
+bvT
+1 (bv1 × b R p p b1)T
+..
+.
+..
+.
+bvT
+n p (bvn p × b R p p bn p )T
+⎤
+⎥⎦ ∈ Rn p ×6, (2)
+where bvi =
+b li
+∥b li ∥2
+∈ R3 is the i -th unit direction
+vector of b li . Thus, using the platform Jacobian, the
+forward kinematics for the CDPR can be expressed as
+˙l = b J p b ˙q f (3)
+and
+¨l = b ˙J p b ˙q f + b J p b ¨q f , (4)
+where l =
+[∥b l1∥2,··· , ∥b ln p ∥2
+]T is the cable length
+vector. In addition, the virtual joint vector, b q f =[b qT
+t
+b qT
+o
+]T , represents the position from the base
+to the center of the platform, where b qt consists of
+three prismatic joints and b qo consists of three revo-
+lute joints, respectively.
+For clarity and conciseness, all vectors and matri-
+ces introduced in the subsequent sections are expressed
+with respect to the global frame {b}, unless otherwise
+stated. Consequently, the left superscript denoting the
+reference frame is omitted hereafter to enhance read-
+ability.
+2.2 Hierarchical quadratic programming: a review
+In this subsection, the HQP formulation for the velocity-
+based inverse kinematics of a n
+m -DoFs manipulator is
+explained, as shown in Fig. 2. The velocity-based for-
+ward kinematics of the manipulator with a single task,
+T1, can be represented as
+J m,1 ˙qm = ˙xd,1, (5)
+Fig. 2 Kinematic structure
+of redundant hybrid
+cable-driven robot
+123
+
+--- PAGE 5 ---
+Whole-body control of redundant hybrid cable-driven... 20051
+where ˙qm ∈ Rnm , J m,1 ∈ Rm1×nm , and ˙xd,1 ∈ Rm1 are
+the joint velocity vector for the manipulator, the Jaco-
+bian matrix, and the desired velocity of T1, respectively.
+With (5), the Jacobian-based inverse kinematics can
+be deﬁned as
+˙qm = J +
+m,1 ˙xd,1, (6)
+where (·)+ is a pseudo-inverse operator.
+Note that the solution of ( 6) is the same as that of
+following equation with QP .
+min
+˙qm
+∥ J m,1 ˙qm − ˙xd,1∥2
+2, (7)
+or
+min
+˙qm ,s1
+∥ s1∥2
+2,
+s. t. J m,1 ˙qm + s1 = ˙xd,1,
+(8)
+If there is no feasible solution to satisfy ( 5), the non-
+zero slack variables will be present. Next, when treating
+two prioritized tasks, T1 ≺ T2, with the Jacobian-based
+inverse kinematics, the well-known null space projec-
+tion method can be considered as
+˙q
+∗
+m = J +
+m,1 ˙xd,1 +(J m,2 N1)+(˙xd,2 − J m,2 J +
+m,1 ˙xd,1), (9)
+where N1 = I − J +
+1 J 1 ∈ Rnm ×nm is the null space
+projection of the Jacobian of the ﬁrst task, J 1. Thus,
+with the N1, the optimal solution, ˙q∗
+m , can be generated
+by prioritizing the fulﬁllment of the ﬁrst task, T1, before
+addressing the second task, T2.
+Similar to ( 8), ( 9) can be replaced by the HQP for-
+mulation as
+min
+˙qm ,s2
+∥ s2∥2
+2,
+s. t. J m,2 ˙qm + s2 = ˙xd,2
+J m,1 ˙qm + s∗
+1 = ˙xd,1,
+(10)
+where J m,2 ∈ Rm2×nm is the Jacobian matrix for T2.
+Note that s∗
+1 is the predeﬁned optimal slack variable by
+(8).
+One of the important things in the HQP formula-
+tion is that the controller with the HQP can be handle
+not only the equality constraints but also the inequality
+constraints. Consequently, the generalized HQP for-
+mulation of T
+1 ≺ T2 ≺ T3 ≺···≺ Tk for the inverse
+kinematics problem can be derived as follows:
+min
+˙qm ,sk
+∥ sk ∥2
+2,
+s. t. ˙xd,k ≤ J m,k ˙qm +sk ≤ ¯˙xd,k
+˙xd,i ≤ J m,i ˙qm +s∗
+i ≤ ¯˙xd,i ,∀i ∈ 1, ...,k − 1,
+(11)
+where J m,i and ˙xi are the Jacobian matrix and the
+desired velocity of the i -th task, Ti .
+3 Proposed methodology
+This section describes the proposed nonlinear dynam-
+ics of the redundant HCDR and HQP-based whole-
+body controller with the CDPR kinematics and the HQP
+formulation presented in Sect. 2.
+3.1 Whole-body dynamics of the redundant hybrid
+cable-driven robot
+The redundant HCDR can be described as a ﬂoating
+system with a manipulator to prevent dynamic coupling
+between the CDPR platform and the manipulator.
+In order to describe the whole-body motion of the
+redundant HCDR, the whole-body forward kinemat-
+ics equation based on velocity and acceleration can be
+described as follows:
+J ˙q = ˙x
+d , (12)
+J ¨q + ˙J ˙q = ¨xd , (13)
+where J =
+[
+J f J m
+]
+∈ R6×(6+nm ). J f ∈ R6×6 is the
+Jacobian matrix of the ﬂoating body representing the
+velocity in the Cartesian space of the end-effector as a
+virtual joint vector q
+f . ˙xd ∈ R6 is the desired velocity
+and ¨xd ∈ R6 is the desired acceleration of the end-
+effector for the redundant HCDR. In addition, the state
+variables, q =
+[
+qT
+f qT
+m
+]T
+, represent ﬂoating body and
+manipulator, respectively.
+On the other hand, equation of the dynamics can be
+represented as
+M(q)¨q + C(q, ˙q)˙q + g(q) = u + uext , (14)
+123
+
+--- PAGE 6 ---
+20052 S. Park et al.
+where
+M(q) =
+[ M f (q) M fm (q)
+M T
+fm (q) Mm (q)
+]
+,
+C(q, ˙q) =
+[ C f (q, ˙q) C fm (q, ˙q)
+C fm (q, ˙q)T Cm (q, ˙q)
+]
+,
+u =
+[
+wT
+f τm T
+]T
+∈ R6+nm .
+In ( 14), M(q) ∈ R(6+nm )×(6+nm ) is the mass matrix
+including the sub-matrix M f (q) ∈ R6×6 for the ﬂoat-
+ing body, Mm (q) ∈ Rnm ×nm for the manipulator,
+and M fm (q) ∈ R6×nm for the coupling of the ﬂoat-
+ing body and manipulator. In addition, C(q, ˙q) ∈
+R(6+nm )×(6+nm ) is the Coriolis and centrifugal matrix
+including the sub-matrix C f (q, ˙q) ∈ R6×6 for the
+ﬂoating body, Cm (q, ˙q) ∈ Rnm ×nm for the manipu-
+lator, and C fm (q, ˙q) ∈ R6×nm for the coupling of
+the ﬂoating body and manipulator. g(q) ∈ R(6+nm )
+is the gravity vector. 1 w f ∈ R6, τm ∈ Rnm , and
+uext ∈ R6+nm are the wrench of the CDPR platform,
+the actual torque of the manipulator and the disturbance
+vector, respectively. Note that the relation between w f
+can be replaced by the cable tensions, f p ∈ Rn p ,
+through the following relation.
+w f = J T
+p f p . (15)
+Thus, to compose real actuated control inputs, ua =[
+f T
+p τT
+m
+]T
+∈ Rn p +nm , including cable tensions for the
+CDPR, f p , and torques for the manipulator, τm ,t h e
+following equation with the conversion matrix, S, can
+be deﬁned as
+u = ST ua , (16)
+where
+S =
+[ J p 0
+0 I nm ×nm
+]
+∈ R(n p +nm )×(6+nm ).
+Assuming that the uext is the zero vector, the motion of
+the HCDR can be formulated in matrix form as follow:
+M ¨q + h = ST ua (17)
+1 Hereinafter, for the purpose of simplifying the representation,
+M, C,a n d g are denoted as M(q), C(q, ˙q),a n d g(q), respec-
+tively.
+where h =
+[
+hT
+f hT
+m
+]T
+= C ˙q + g.
+Practically, to minimize computational cost for real-
+time control, ( 17) excluded the nonlinear terms includ-
+ing Coriolis and centrifugal matrices and gravity vector
+[26], as follow:
+M ¨q = S
+T ua,wo, (18)
+where
+ua,wo = ua − ha .
+ua,wo =
+[
+f T
+p,wo τT
+m,wo
+]T
+and ha are the control input
+of whole-body dynamics excluding nonlinear terms
+applied to actuator. Speciﬁcally, ha can be calculated
+as
+ha =
+[
+hT
+p hT
+m
+]T
+(19)
+where
+h p = (J T
+p )+h f .
+Consequently, with ( 18), the whole-body dynamics of
+the redundant HCDR can be expressed.
+3.2 Proposed controller
+With ( 13) and ( 18), the HQP-based inverse dynamics
+controller for whole-body motion generation is pro-
+posed in this section. Let us consider the single task,
+T1, with the task Jacobian, J 1 and the lower and upper
+bound of the desired value, [¨x1, ¯¨x1]. Then, the proposed
+HQP formulation with T1 and lower and upper bound
+for the tension of the CDPR, [ f , ¯f ], can be described
+as
+min
+¨q,ua,wo ,s1
+∥ s1∥2
+2,
+s. t. ¨xd,1 − ˙J 1 ˙q ≤ J 1 ¨q + s1 ≤ ¯¨xd,1 − ˙J 1 ˙q
+M ¨q = ST ua,wo
+f ≤ f p,wo + h p ≤ ¯f
+(20)
+One of the main characteristics of ( 20)i st h a tt h ep r o -
+posed controller has the constraint for the tension limit
+of the CDPR as the top priority. In fact, the controller
+123
+
+--- PAGE 7 ---
+Whole-body control of redundant hybrid cable-driven... 20053
+for the redundant HCDR should include constraints on
+the cable tension because the cables of the CDPR can
+only pull, not push. Thus, the proposed tension limit
+constrained controller can ensure that the tension in
+each cable remains within safe limits to prevent cable
+slack or cable failure.
+More generally, the proposed controller with T
+1 ≺
+T2 ≺···≺ Tk can be deﬁned as
+min
+¨q,ua,wo ,sk
+∥ sk ∥2
+2,
+s. t. ¨xd,k − ˙J k ˙q ≤ J k ¨q + sk ≤ ¯¨xd,k − ˙J k ˙q
+¨xd,i − ˙J i ˙q ≤ J i ¨q + s∗
+i ≤ ¯¨xd,i − ˙J i ˙q
+M ¨q = ST ua,wo
+f ≤ f p,wo + h p ≤ ¯f
+(21)
+for all i ∈ 1, ...,k − 1. After ( 21), an inﬁnite number
+of solutions still remain, potentially yielding a different
+solution each time the HQP is solved. Thus, the optimal
+control input excluding nonlinear terms, u
+a,wo, can be
+regularized by using the formulation as follow:
+min
+¨q,ua,wo
+∥ f p,wo∥2
+2 +∥ τm,wo∥2
+2,
+s. t. ¨xd,i − ˙J i ˙q ≤ J i ¨q + s∗
+i ≤ ¯¨xd,i − ˙J i ˙q
+M ¨q = ST ua,wo
+f ≤ f p,wo + h p ≤ ¯f
+(22)
+for all i ∈ 1, ...,k.
+Finally, the optimal control input including tension
+and joint torque of the HCDR can be obtained as
+u∗
+a = u∗
+a,wo + ha . (23)
+Consequently, with ( 21)–(23), the whole-body
+motion can be generated without dynamic coupling
+between the CDPR and the manipulator. Furthermore,
+we introduce various examples for generating indi-
+vidual motions of each subsystem with the proposed
+framework, as follows:
+• Control of whole-body with constraints : To gen-
+erate the stable whole-body motion of the HCDR
+without cable twisting, maintaining the orientation
+of the CDPR should be considered as
+min
+¨q,ua,wo ,s1
+∥ s1∥2
+2,
+s. t. ¨xd,1 − ˙J 1 ˙q ≤ J 1 ¨q + s1 ≤ ¯¨xd,1 − ˙J 1 ˙q
+M ¨q = ST ua,wo
+¨qo = k p (qo,d − qo) − kd ˙qo
+f ≤ f p,wo + h p ≤ ¯f (24)
+where qo,d is the initial orientation vector of the
+CDPR platform.
+• Control of manipulator only: Similar to ( 24), con-
+trolling only the manipulator is possible by insert-
+ing a simple PD task to maintain the position of the
+CDPR as in ( 21) and it is expressed as
+min
+¨q,ua,wo ,s1
+∥ s1∥2
+2,
+s. t. ¨xd,1 − ˙J 1 ˙q ≤ J 1 ¨q + s1 ≤ ¯¨xd,1 − ˙J 1 ˙q
+M ¨q = ST ua,wo
+¨q f = k p (q f,d − q f ) − kd ˙q f
+f ≤ f p,wo + h p ≤ ¯f (25)
+where q f,d is the initial position vector of the ﬂoat-
+ing body.
+• Control of CDPR only : The HQP formulation for
+the motion of the CDPR alone with maintaining
+initial posture of the manipulator can be expressed
+as
+min
+¨q,ua,wo ,s1
+∥ s1∥2
+2,
+s. t. ¨xd,1 − ˙J 1 ˙q ≤ J 1 ¨q + s1 ≤ ¯¨xd,1 − ˙J 1 ˙q
+M ¨q = ST ua,wo
+¨qm = k p (qm,d − qm ) − kd ˙qm
+f ≤ f p,wo + h p ≤ ¯f (26)
+where qm,d is the vector of initial joint angles of
+the manipulator to maintain the initial posture.
+4 Further applications
+Although the control strategy proposed in Sect. 3 can
+handle various tasks considering the dynamic coupling
+between the CDPR and the manipulator, there are other
+practical problems such as kinematic singularity and
+joint limit that cause the instability of the controller.
+This section discusses techniques to avoid these prob-
+123
+
+--- PAGE 8 ---
+20054 S. Park et al.
+lems by using the redundancy resolution of the redun-
+dant HCDR.
+4.1 Singularity avoidance
+Kinematic singularity refers to a situation where the
+manipulator loses one or more DoFs, resulting in unsta-
+ble behavior. Although the damped pseudo inverse
+is the well-known method to avoid the singularity,
+it is not directly applicable to the HQP formulation.
+Thus, in this subsection, similar to our previous work
+with QR decomposition [ 16], the singularity avoid-
+ance method using the Singular V alue Decomposition
+(SVD) is applied to the proposed control strategy.
+This method is based on the idea that when a sin-
+gularity occurs, the robot cannot move in a particu-
+lar direction. Generally speaking, although singularity
+issues do not arise because of its redundancy of the
+HCDR, it may sometimes produce excessive stretch-
+ing motion. Therefore, considering SVD of the Jaco-
+bian for the manipulator can be an effective approach
+in these situations.
+The main idea is that motion in the directions where
+the manipulator cannot move is achieved through the
+platform. Mathematically, the directions where the
+manipulator lacks mobility are represented by the SVD
+of the Jacobian. For the full-rank Jacobian, J
+m ,t h e
+SVD is deﬁned as,
+J m = U /Sigma1V T , (27)
+where U ∈ R6×6 and V ∈ Rnm ×nm are the orthogo-
+nal matrix. Also /Sigma1∈ R6×nm is the full-rank diagonal
+matrix of singular values, σ1 >σ 2 > ··· >σ 6.H o w -
+ever, when the kinematic singularity occurs, the Jaco-
+bian changes to a rank deﬁcient matrix and its SVD
+is
+J
+m =
+[
+U ns U s
+] [ /Sigma1ns 0
+00
+]
+V T , (28)
+where U ns ∈ R6×nns is the direction matrix related on
+/Sigma1ns . Thus, ( 28) implies that the robot cannot move in
+the U s ∈ R6×ns direction when singularity occurs.
+Let us consider the HQP formulation of ( 20) with
+tracking task T1 with whole-body motion with J .F o r
+the task, T1, including manipulator motion, the kine-
+matics relationship to avoid singularity of the manipu-
+lator can be rewritten as follow:
+U T
+ns J ¨q = U T
+ns (¨xd − ˙J ˙q), (29)
+However, with (29), which restricts motion in the direc-
+tion of the manipulator’s singularity, the entire system
+cannot move in that direction. Therefore, an additional
+kinematics relationship must be considered to gener-
+ate motion in the direction that is a singularity for the
+manipulator but not for the CDPR as follow:
+U
+T
+s J s ¨q = U T
+s (¨xd − ˙J s ˙q), (30)
+where J s =
+[
+J f 0
+]
+.
+Consequently, by using ( 29) and ( 30), T1 can be
+divided into T1,ns and T1,s based on the SVD of J m
+as follow:
+U T
+ns J ¨q = U T
+ns (¨xd − ˙J ˙q) ∈ T1,ns ,
+U T
+s J s ¨q = U T
+s (¨xd − ˙J s ˙q) ∈ T1,s ,
+(31)
+with,
+M ¨q = ST ua,wo.
+Finally, (20) can be changed as,
+min
+¨q,ua,wo ,s1
+∥ s1∥2
+2,
+s. t. U T
+ns J ¨q + s1,ns = U T
+ns (¨xd − ˙J ˙q)
+U T
+s J s ¨q + s1,s = U T
+s (¨xd − ˙Js ˙q)
+M ¨q = ST ua,wo
+f ≤ f p,wo + h p ≤ ¯f ,
+(32)
+where the slack variable, s1 =
+[sT
+1,ns sT
+1,s
+]T
+.
+With ( 32), the redundant HCDR can perform the
+task stably without encountering singularity.
+4.2 Joint limit avoidance
+For the stability of the redundant HCDR, the consider-
+ation of constraints to avoid exceeding the joint limits
+is crucial. In this paper, by applying acceleration in
+the opposite direction when the joint angle of the i -th
+manipulator approaches the joint limit, the proposed
+controller can be prevent joint limits. Thus, the task for
+123
+
+--- PAGE 9 ---
+Whole-body control of redundant hybrid cable-driven... 20055
+Fig. 3 Overview of the systematic structure of the redundant
+hybrid cable-driven robot with the proposed controller. The opti-
+mal torque is calculated by 1 kHz which was directly applied to
+the manipulator. The optimal tension which was calculated by 1
+kHz, is averaged and applied to CDPR at 100 Hz
+joint limit avoidance with the lower and upper acceler-
+ation bounds
+[
+¨q jl ,i , ¯¨q jl ,i
+]
+can be deﬁned as,
+¨q jl ,i =
+⎧
+⎪⎪
+⎨
+⎪⎪⎩
+k
+p((qm,i +αjl ,i)− qm,i )−kv ˙qm,i ,
+if qm,i <qm,i +αjl ,i
+¨qdl ,i , otherwise,
+¯¨q jl ,i =
+⎧
+⎪⎨
+⎪⎩
+k p((¯qm,i −αjl ,i) − qm,i )−kv ˙qm,i ,
+if qm,i > ¯qm,i −αjl ,i
+¯¨qdl ,i , otherwise,
+(33)
+where αjl ,i , ˙qi ,
+[
+¨qdl ,i , ¯¨qdl ,i
+]
+, and
+[
+qm,i , ¯qm,i
+]
+are buffer,
+joint velocity of the i -th manipulator joint, the default
+lower and upper acceleration limits, and the lower and
+upper joint limits for all i ∈ 1, ...,nm , respectively.
+The HQP formulation with ( 33) can be expressed as,
+min
+¨q,ua,wo ,s1
+∥ s1∥2
+2,
+s. t. ¨xd,1 − ˙J 1 ˙q ≤ J 1 ¨q + s1 ≤ ¯¨xd,1 − ˙J 1 ˙q
+M ¨q = ST ua,wo
+¨q jl ≤ ¨qm ≤ ¯¨q jl
+f ≤ f p,wo + h p ≤ ¯f
+(34)
+where ¨q jl ∈ Rnm and ¯¨q jl ∈ Rnm are the lower and
+upper limit vector of the results obtained by applying
+(33) to all joints of the manipulator.
+With (33) and ( 34), the redundant HCDR effectively
+guarantee the robot can operate within safe mechanical
+constraints.
+5 Experiments
+The proposed controller has been veriﬁed through
+experiments with the redundant HCDR in a simula-
+tor. The following subsections describe the details of
+our experimental system, the experimental results, and
+an in-depth discussion of the proposed framework.
+5.1 System overview
+As shown in Fig. 3, the redundant HCDR consists of
+two parts: the tension controlled CDPR platform with
+8-cables ( n
+p = 8) and the 7-DoFs torque controlled
+robotic manipulator ( nm = 7). The CDPR platform
+has dimensions of for 1.2 m in width, 0.6 m in depth,
+and 0.4 m in height, with a mass of 57.84 kg. Also, the
+mass of the manipulator, Panda (Franka Emika Co. ),
+is 18.5 kg. The control frequencies of the CDPR and
+the manipulator are 100 Hz and 1 kHz, respectively.
+The speciﬁcation of the computer for computing is an
+Intel Core i7-13700F processor @ 2.1 GHz with 32 GB
+RAM.
+To calculate the proposed HQP formulation, Pinoc-
+chio [5] was used to compute the system dynamics and
+qpOASES [8] for the QP solving. Additionally, Gazebo,
+a precise simulator, with the CDPR component [ 25],
+was used to validate the proposed controller. The source
+code is available at https://github.com/cold-deuu/HCD
+R_HQP.
+5.2 Experimental results
+In this subsection, the experimental results of various
+scenarios with proposed framework are presented to
+123
+
+--- PAGE 10 ---
+20056 S. Park et al.
+validate the whole-body dynamics modeling, tracking
+performance, singularity and joint limit avoidance. The
+tension limit for all scenarios is deﬁned as
+[
+f i , ¯fi
+]
+=
+[
+50, 1000
+]
+for all i ∈ 1, ...,n p .
+5.2.1 Effect on whole-body dynamics modeling
+To validate the nonlinear compensation performance
+of the proposed controller based on ( 14), experiment
+was conducted to compare controller without whole-
+body modeling in Sect. 2.1. In contrast to the proposed
+controller, this controller was modeled without the off-
+diagonal terms, meaning that M
+fm and C fm related
+to the nonlinear dynamic coupling were set to zero, as
+deﬁned in Sect. 3.1.
+The experiment was designed to ensure that the end-
+effector of the HCDR follows the desired trajectory,
+moving 0.5 m in the x -direction for 4 s while main-
+taining the orientation of the platform, as illustrated in
+Fig. 4a.
+Figure 4b shows that both the controller, with and
+without the whole-body modeling, accurately followed
+the desired trajectory of x -direction. However, as
+shown in Fig. 4c, the controller without the modeling
+cannot maintain the orientation of the platform. Specif-
+ically, the platform tilted up to 0.129 rad due to the non-
+linearity which induced slightly jerky movements. This
+instability occurred because the HCDR could not con-
+sider the dynamic coupling without whole-body mod-
+eling. Consequently, the results demonstrate the per-
+formance of nonlinearity compensation with ( 14).
+5.2.2 Tracking performance
+To demonstrate the effectiveness of the proposed con-
+troller as described in Sect. 3.2, the experiment was
+conducted under all control schemes of ( 24)–(26). The
+experiment was designed to ensure that the end-effector
+traces a triangular trajectory as shown in Fig. 5a, con-
+sisting of three distinct phases over a duration of 4 s.
+• Phase 1: Motion of 0.2 m in the x -direction, −0.16
+mi nt h e z-direction, and −0.52 rad in the pitch -
+direction.
+• Phase 2 : Motion of −0.2 m in the x -direction,
+−0.16 m in the z-direction, and +1.04 rad in the
+pitch -direction.
+• Phase 3: +0.32 m in the z-direction, and −0.52 rad
+in the pitch -direction.
+Fig. 4 Experiment for nonlinearity compensation with and with-
+out whole-body modeling at Sect. 3.1: a snapshots for compar-
+ing each controller at 2 s; b results of tracking performance of
+translation of end-effector; c results of tracking performance of
+orientation of platform
+Note that the motion of all phases is relative to the
+position at the end of each phase.
+As shown in Fig. 5b, c, all control schemes demon-
+strated high trajectory tracking accuracy. The mean
+translation and orientation errors were: whole-body
+control of ( 24) (0.107 mm, 0.708 mrad), manipulator
+control of ( 25) (0.074 mm, 0.378 mrad), and CDPR
+control of ( 26) (0.18 mm, 0.096 mrad).
+123
+
+--- PAGE 11 ---
+Whole-body control of redundant hybrid cable-driven... 20057
+Fig. 5 Experiment for tracking performance: a the illustration
+for the desired trajectory; b the measured trajectories in x − y
+plane and y − z plane; c the measured trajectories in pitch -
+direction with generating the motions of the whole-body control
+with (24), the manipulator control with ( 25), and the CDPR con-
+trol with ( 26)
+Figure 6a illustrates the ratio of the motion distri-
+bution for the platform and the manipulator in whole-
+body control, which is calculated as ∥v f ∥2
+2
+∥v f ∥2
+2+∥vm ∥2
+2
+and
+∥vm ∥2
+2
+∥v f ∥2
+2+∥vm ∥2
+2
+where v f ∈ R6 and vm ∈ R6 are the veloc-
+ity of the platform and manipulator, respectively. The
+ﬁgure showed that the motion of whole-body control
+of (24) was optimally distributed with ﬁxed orientation
+of platform. Furthermore, Fig. 6b demonstrated that the
+m o t i o ni n(25) was generated solely by the manipula-
+tor. In addition, as shown is Fig. 6c, the motion in ( 26)
+was produced exclusively by the platform. The results
+demonstrated that the constraints of the HQP formula-
+tions were effectively considered.
+Table 2 shows that the distribution of tensions for
+each cable is calculated within the tension limit range
+during the whole-body control in the triangle drawing
+task. The narrow range of standard deviations demon-
+strates that the tension is uniformly distributed across
+the cables, further ensuring the robustness of the con-
+trol mechanism.
+The time to solve HQP for the whole-body control
+with ( 24), the manipulator control with ( 25), and the
+CDPR control with ( 26) was 0.301 ± 0.095 ms, 0.281
+± 0.081 ms, and 0.294 ± 0.082 ms, respectively.
+5.2.3 Singularity avoidance
+To validate the performance and stability of the pro-
+posed controller based on ( 31), the experiment was con-
+ducted to compare the controller intentionally designed
+to induce singularity. To cause the singularity of the
+manipulator, the constraints to ﬁx the position of the
+platform were applied to the HQP formulation of the
+latter priority with slack variable. Therefore, when
+given the task to trace the desired trajectory that could
+not be reached without moving the platform, the inten-
+tionally designed controller only moves the manipula-
+tor until it is fully extended, and then the platform fol-
+lows the remaining trajectory. Since the singularity of
+the manipulator is closely related to its manipulability,
+a comparison was conducted between the controllers
+with and without the application of ( 31). Note that the
+manipulability can be calculated as follow:
+δ =
+√
+det (J m J T
+m ), (35)
+where δ is the manipulability of the manipulator.
+The experiment was designed to instruct the HCDR
+to move +0.5 m in the x -direction, a movement that
+could not be achieved by the manipulator alone. As
+shown in Fig. 7b, both controllers followed the tra-
+jectory. However, the controller without ( 31) caused
+slightly jerky movements at 3.75 s when the manipu-
+lator encountered the singularity.
+In addition, as shown in Fig. 7c, the controller with
+the application of ( 31) maintained stable movement
+123
+
+--- PAGE 12 ---
+20058 S. Park et al.
+Fig. 6 Snapshots with
+experiments for validating
+tracking performance: a
+whole-body control of ( 24)
+and the ratio of motion
+distribution; b manipulator
+control of ( 25); c CDPR
+control of ( 26)
+Table 2 Measured tensions of ( 24)
+Tension (N) f1 f2 f3 f4 f5 f6 f7 f8
+Min 81.5 137.6 50.0 214.2 138.5 276.1 307.1 317.7
+Max 93.6 156.5 50.0 255.8 190.9 289.2 325.5 334.9
+Average 86.2 147.2 50.0 235.2 165.4 280.7 314.9 326.4
+Std 1.74 2.54 0.00 8.69 12.3 1.25 3.54 2.51
+even after 3.75 s. In contrast, the controller without the
+application of ( 31) caused the manipulability δ to drop
+sharply and resulted in unstable movements thereafter.
+Since higher manipulability reduces the joint velocity,
+considering the constraint of ( 31) is advantageous for
+performing the subsequent task.
+On the other hand, the average computation time
+with ( 31)i s0 .347 ± 0.095 ms, which is slightly
+higher than the computational time of the experiment
+in Sect. 5.2.2 due to the additional SVD process.
+5.2.4 Joint limit avoidance
+To validate the performance of the joint limit avoid-
+ance task for improving system stability, the experi-
+ment was performed with the proposed controller based
+on the whole-body control of ( 24) with applying the
+constraint for joint limit avoidance of ( 33). For a clear
+comparison, the controller without this constraint was
+intentionally designed as same as the aforementioned
+controller in Sect. 5.2.3, with the constraint to ﬁx the
+123
+
+--- PAGE 13 ---
+Whole-body control of redundant hybrid cable-driven... 20059
+Fig. 7 Experiment for singularity avoidance: a snapshots of
+initial pose, with singularity avoidance and without singularity
+avoidance, respectively; b the measured trajectories in direction
+of x -axis; c the measured manipulability
+position of platform, causing the dominant motion of
+the manipulator.
+As shown in Fig. 8a, the experiment was designed
+the end-effector to move −0.5 m in the z-direction
+using the controllers with and without ( 33). In this
+experiment, joint limit avoidance was demonstrated
+by adjusting the limits of the fourth joint during the
+whole-body tracking performance. The values of α
+jl ,i
+and
+[
+qm,i , ¯qm,i
+]
+for the joint limits of the fourth joint,
+corresponding to i = 4 ,w e r es e tt o0 . 2 5r a d ,−3.0 rad,
+and −1.5 rad, respectively.
+As shown in Fig. 8b, c, both controllers accurately
+followed the trajectory in z-direction. On the other
+hand, the proposed controller with ( 33) did not exceed
+the preset joint limits by allowing more platform move-
+ment, whereas the controller without the constraint
+exceeded these limits, causing the manipulator to fully
+extend instead of the platform moving. The results
+demonstrate that the proposed controller effectively
+avoids joint limits and ensures stability.
+5.3 Further discussion
+5.3.1 Transferring simulation to real
+In this paper, while the controller is validated only in
+a simulation environment, there may be some practi-
+cal issues in real-world experiments that could degrade
+the control performance of the proposed framework.
+Speciﬁcally, modeling errors, nonlinear friction of the
+cables, and low control frequency can signiﬁcantly
+increase control errors of the actual HCDR.
+To avoid this issue, the passivity-based control is
+one of the appropriate methods. In passivity control,
+damping or energy dissipation elements are added to
+the control input to prevent the system from accumu-
+lating excessive energy or becoming unstable. To avoid
+the divergence of motion due to modeling error, the
+passivity control can be implemented as follow:
+u
+∗
+a,pc = u∗
+a − kd (ST )+ ˙q, (36)
+where u∗
+a,pc denotes the optimal control input with pas-
+sivity control.
+Furthermore, the local PD control is also an effective
+solution to address this issue [ 7]. Since the vector of
+desired joint values qd can be obtained from the HQP
+formulation, joint PD control can be added to the feed-
+forward process as follow:
+u
+∗
+a,pd = u∗
+a + k p (qd − q) + kd (˙qd − ˙q), (37)
+where qd and ˙qd are the vector of desired joint and
+joint velocity values, respectively. In addition, u∗
+a,pd is
+the optimal control input with local PD control.
+123
+
+--- PAGE 14 ---
+20060 S. Park et al.
+Fig. 8 Experiment for joint limit avoidance: a snapshots of the
+initial pose, with joint limit avoidance, and without joint limit
+avoidance; b measured trajectory in the direction of z-axis; c the
+measured joint angle for the fourth joint
+5.3.2 W eighting of cost function
+Unexpected whole-body motions may occur due to the
+dynamic properties of the CDPR and the manipulator,
+resulting in either the manipulator moving excessively
+or the CDPR moving excessively. Note that although
+these motions can still accomplish the given tasks, it
+is possible to adjust the weighting of the cost function
+to balance the movements between the CDPR and the
+manipulator.
+Fig. 9 Experiment for weighting cost: a initial pose; b α = 0.5
+and β = 1; c α = 0.05 and β = 1; d α = 0.005 and β = 1
+The minimizing cost function in ( 22) has been mod-
+iﬁed as follow:
+min
+¨q,ua,wo
+α∥ f p,wo∥2
+2 + β∥τm,wo∥2
+2, (38)
+where α and β are the factors representing the weights
+for tension and torque, respectively. Figure 9 shows the
+HCDR motion for different weighting factor. As shown
+in Fig. 9b–d, a higher α causes the motion of the manip-
+ulator becoming more dominant compared to the plat-
+form. In contrast, a lower α results in the dominant
+motion of the platform. In this model, the weight α was
+s e tt o0 . 0 5a n d β was set to 1 for natural whole-body
+motion, as in Fig. 9c.
+123
+
+--- PAGE 15 ---
+Whole-body control of redundant hybrid cable-driven... 20061
+6 Conclusion
+The redundant HCDR with a robot manipulator has
+great advantages in various ﬁelds, including con-
+struction, aerospace, and entertainment. However, the
+dynamic coupling between the CDPR platform and
+a robot arm causes the instability of the redundant
+HCDR. In this paper, a novel whole-body controller
+for the redundant HCDR with HQP-based controller is
+proposed. The whole-body nonlinear dynamics mod-
+eling is discussed to avoid not only the inaccuracy,
+but also the instability of the motions of the redun-
+dant HCDR while minimizing the tension of the cable.
+Especially, through the advantages of the HQP-based
+controller, the proposed algorithm can handle inequal-
+ity constraints as well as equality constraints. Based
+on the proposed controller, various techniques to avoid
+singularity and joint limit are introduced in this paper.
+We have demonstrated the performance of the pro-
+posed controller through several experiments using a
+highly accurate physics-based simulator. Our future
+work will involve developing a position and orienta-
+tion estimation algorithm and implementing the actual
+HCDR platform with the proposed controller.
+Supplementary information
+The source code is available at https://github.com/cold-
+deuu/HCDR_HQP.
+Acknowledgements This work was partially supported by a
+grant from Ofﬁce of Education Innovation and Planning at Kyung
+Hee University. The authors would like to thank Beomyeong Park
+at the Institute for Human and Machine Cognition (IHMC) for
+discussion and feedback on the draft.
+Funding This work was supported by the National Research
+Foundation of Korea (NRF) grant funded by the Korea govern-
+ment (MSIT) (No. RS-2023-00302589) and the industrial strate-
+gic technology development Program (No. RS-2024-00416441)
+funded by the Ministry of Trade, Industry and Energy (MOTIE,
+Korea).
+Data Availability Statement All data generated or analysed
+during this study are included in this published article and are
+also available on our GitHub repository.
+Declarations
+Conﬂict of interest The authors declare that they have no known
+competing ﬁnancial interests or personal relationships that could
+have appeared to inﬂuence the work reported in this paper.
+References
+1. Babaghasabha, R., Khosravi, M.A., Taghirad, H.D.: Adap-
+tive robust control of fully constrained cable robots: singular
+perturbation approach. Nonlinear Dyn. 85, 607–620 (2016)
+2. Bamdad, M., Taheri, F., Abtahi, N.: Dynamic analysis
+of a hybrid cable-suspended planar manipulator. In 2015
+IEEE International Conference on Robotics and Automa-
+tion (ICRA), pp 1621–1626. IEEE, (2015)
+3. Bastos, G., Brüls, O.: Analysis of open-loop control design
+and parallel computation for underactuated manipulators.
+Acta Mech. 231, 2439–2456 (2020)
+4. Bury, D., Izard, J.-B., Gouttefarde, M., Lamiraux, F.: Con-
+tinuous collision detection for a robotic arm mounted on a
+cable-driven parallel robot. In 2019 IEEE/RSJ International
+Conference on Intelligent Robots and Systems (IROS), pp.
+8097–8102. IEEE, (2019)
+5. Carpentier, J., Budhiraja, R., Mansard, N.: Proximal and
+sparse resolution of constrained dynamic equations. In
+Robotics: Science and Systems 2021, Austin / Virtual,
+United States, July (2021)
+6. Escande, A., Mansard, N., Wieber, P.-B.: Hierarchical
+quadratic programming: Fast online humanoid-robot motion
+generation. Int. J. Robot. Res. 33(7), 1006–1028 (2014)
+7. Feng, S., Whitman, E., Xinjilefu, X., Atkeson, C.G.:
+Optimization-based full body control for the Darpa robotics
+challenge. J. Field Robot. 32(2), 293–312 (2015)
+8. Ferreau, H.J., Kirches, C., Potschka, A., Bock, H.G.,
+Diehl, M.: qpOASES: a parametric active-set algorithm for
+quadratic programming. Math. Program. Comput. 6, 327–
+363 (2014)
+9. Gouttefarde, M.: Static analysis of planar 3-dof cable-
+suspended parallel robots carrying a serial manipulator. In
+New Trends in Mechanism and Machine Science: Theory
+and Industrial Applications, pp. 363–371. Springer (2017)
+10. Gouttefarde, M., Lamaury, J., Reichert, C., Bruckmann, T.:
+A versatile tension distribution algorithm for n-dof parallel
+robots driven by n +2 cables. IEEE Trans. Rob. 31(6), 1444–
+1457 (2015)
+11. Hamida, I.B., Laribi, M.A., Mlika, A., Romdhane, L.,
+Zeghloul, S., Carbone, G.: Multi-objective optimal design of
+a cable driven parallel robot for rehabilitation tasks. Mech.
+Mach. Theory 156, 104141 (2021)
+12. Izard, J.-B., Dubor, A., Hervé, P.-E., Cabay, E., Culla, D.,
+Rodriguez, M., Barrado, M.: On the improvements of a
+cable-driven parallel robot for achieving additive manufac-
+turing for construction. In Cable-Driven Parallel Robots:
+Proceedings of the Third International Conference on Cable-
+Driven Parallel Robots, pp. 353–363. Springer (2018)
+13. Jabbari Asl, H., Yoon, J.: Robust trajectory tracking control
+of cable-driven parallel robots. Nonlinear Dyn. 89, 2769–
+2784 (2017)
+14. Khosravi, M.A., Taghirad, H.D.: Robust pid control of
+fully-constrained cable driven parallel robots. Mechatron-
+ics 24(2), 87–97 (2014)
+15. Kim, B.-G., Shin, D.-Y ., Lim, J.-H., Hong, S.-K., Park,
+K.-S.: Advanced control algorithm considering cable inter-
+ference of mobile cable-driven parallel robots (mcdprs).
+Microsyst. Technol. pp. 1–11 (2024)
+123
+
+--- PAGE 16 ---
+20062 S. Park et al.
+16. Kim, S., Jang, K., Park, S., Lee, Y ., Lee, S.Y ., Park, J.: Con-
+tinuous task transition approach for robot controller based on
+hierarchical quadratic programming. IEEE Robot. Autom.
+Lett. 4(2), 1603–1610 (2019)
+17. Kim, S., Jang, K., Park, S., Lee, Y ., Lee, S.Y ., Park, J.:
+Whole-body control of non-holonomic mobile manipulator
+based on hierarchical quadratic programming and continu-
+ous task transition. In 2019 IEEE 4th International Confer-
+ence on Advanced Robotics and Mechatronics (ICARM),
+pp. 414–419. IEEE, (2019)
+18. Koenig, N., Howard, A.: Design and use paradigms for
+gazebo, an open-source multi-robot simulator. In 2004
+IEEE/RSJ international conference on intelligent robots and
+systems (IROS)(IEEE Cat. No. 04CH37566), volume 3,
+pp.2149–2154. IEEE (2004)
+19. Lessanibahri, S., Cardou, P., Caro, S.: A cable-driven paral-
+lel robot with an embedded tilt-roll wrist. J. Mech. Robot.
+12(2), 021107 (2020)
+20. Marufkhani, H., Khosravi, M.A.: Robust optimal con-
+strained control of fully-constrained cable-driven parallel
+robots based on gsdre. Nonlinear Dyn. 111(17), 16159–
+16174 (2023)
+21. Mersi, R., Vali, S., Abbasnejad, G., Masouleh, M.T., et al.:
+Design and control of a suspended cable-driven parallel
+robot with four cables. In 2018 6th RSI International Confer-
+ence on Robotics and Mechatronics (IcRoM), pp. 470–475.
+IEEE (2018)
+22. Michelin, M., Hervé, P.E., Tempier, O., Izard, J.B., Goutte-
+farde, M.: Path following demonstration of a hybrid cable-
+driven parallel robot. In International Conference on Cable-
+Driven Parallel Robots, pp. 323–335. Springer (2021)
+23. Miermeister, P., Lächele, M., Boss, R., Masone, C., Schenk,
+C., Tesch, J., Kerger, M., Teufel, H., Pott, A., Bülthoff, H.H.:
+The cablerobot simulator large scale motion platform based
+on cable robot technology. In 2016 IEEE/RSJ International
+Conference on Intelligent Robots and Systems (IROS), pp.
+3024–3029. IEEE (2016)
+24. Oh, S.-R., Agrawal, S.K.: Generation of feasible set points
+and control of a cable robot. IEEE Trans. Rob. 22(3), 551–
+558 (2006)
+25. Okoli, F., Lang, Y ., Kermorgant, O., Caro, S.: Cable-
+driven parallel robot simulation using gazebo and ROS. In
+ROMANSY 22–Robot Design, Dynamics and Control: Pro-
+ceedings of the 22nd CISM IFToMM Symposium, June 25-
+28, 2018, Rennes, France, pp. 288–295. Springer (2019)
+26. Park, M., Kim, D., Oh, Y ., Lee, Y .: Computational cost
+reduction method for HQP-based hierarchical controller for
+articulated robot. J. Korea Robot. Soc. 17(1), 16–24 (2022)
+27. Peng, H., Yang, H., Li, F., Yang, C., Song, N.: A uniﬁed
+framework for mechanical modeling and control of tenseg-
+rity robots. Mech. Mach. Theory 191, 105498 (2024)
+28. Piao, J., Kim, M.-C., Kim, E.-S., Kim, C.-S.: A self-adaptive
+inertia hybrid control of a fully constrained cable-driven par-
+allel robot. IEEE Trans. Autom. Sci. Eng. (2023)
+29. Pott, A., Schmidt, V .: On the forward kinematics of cable-
+driven parallel robots. In 2015 IEEE/RSJ International Con-
+ference on Intelligent Robots and Systems (IROS), pp.
+3182–3187. IEEE, (2015)
+30. Qi, R.: Redundant hybrid cable-driven robots: Modeling,
+control, and analysis. (2019)
+31. Qi, R., Rushton, M., Khajepour, A., Melek, W.W.: Decou-
+pled modeling and model predictive control of a hybrid
+cable-driven robot (HCDR). Robot. Auton. Syst. 118, 1–12
+(2019)
+32. Qi, R., Khajepour, A., Melek, W.W.: Redundancy resolution
+and disturbance rejection via torque optimization in hybrid
+cable-driven robots. IEEE Trans. Syst. Man Cybern. Syst.
+52(7), 4069–4079 (2021)
+33. Qian, S., Zi, B., Shang, W.-W., Xu, Q.-S.: A review on
+cable-driven parallel robots. Chin. J. Mech. Eng. 31(1), 1–11
+(2018)
+34. Santos, J.C., Gouttefarde, M., Chemori, A.: A nonlinear
+model predictive control for the position tracking of cable-
+driven parallel robots. IEEE Trans. Rob. 38(4), 2597–2616
+(2022)
+35. Shao, Z.-F., Tang, X., Wang, L.-P., Chen, X.: Dynamic mod-
+eling and wind vibration control of the feed support system
+in fast. Nonlinear Dyn. 67, 965–985 (2012)
+36. Wang, R., Li, S., Li, Y .: A suspended cable-driven parallel
+robot with articulated reconﬁgurable moving platform for
+schönﬂies motions. IEEE/ASME Trans. Mechatron. 27(6),
+5173–5184 (2022)
+37. Xin, G., Mistry, M.: Optimization-based dynamic motion
+planning and control for quadruped robots. Nonlinear Dyn.
+112(9), 7043–7056 (2024)
+38. Yi˘git, A., Perozo, M.A., Ouafo, M., Cuvillon, L., Durand,
+S., Gangloff, J.: Aerial manipulator suspended from a cable-
+driven parallel robot: Preliminary experimental results. In
+2021 IEEE/RSJ International Conference on Intelligent
+Robots and Systems (IROS), pp. 9662–9668. IEEE (2021)
+39. Zi, B., Duan, B., Du, J., Bao, H.: Dynamic modeling and
+active control of a cable-suspended parallel robot. Mecha-
+tronics 18(1), 1–12 (2008)
+40. Zou, Y ., Hu, Y ., Cao, H., Xu, Y ., Yu, Y ., Lu, W., Xiong,
+H.: Data-driven kinematic control scheme for cable-driven
+parallel robots allowing collisions. In 2022 IEEE/RSJ Inter-
+national Conference on Intelligent Robots and Systems
+(IROS), pp. 5003–5008. IEEE (2022)
+Publisher’s Note Springer Nature remains neutral with regard
+to jurisdictional claims in published maps and institutional afﬁl-
+iations.
+Springer Nature or its licensor (e.g. a society or other partner)
+holds exclusive rights to this article under a publishing agreement
+with the author(s) or other rightsholder(s); author self-archiving
+of the accepted manuscript version of this article is solely gov-
+erned by the terms of such publishing agreement and applicable
+law.
+123

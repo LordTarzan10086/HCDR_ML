@@ -5,7 +5,7 @@ function summary = gen3_lite_urdf_summary(varargin)
 %   kortex_description and returns:
 %     - zero-pose frame locations/orientations for base, joints, and tool
 %     - revolute joint angle limits in rad/deg
-%     - a DH-style summary table fitted from each URDF joint origin
+%     - the official classical DH table published for GEN3 LITE
 %
 %   SUMMARY = GEN3_LITE_URDF_SUMMARY("UrdfPath", PATH) uses a custom URDF.
 %
@@ -13,10 +13,7 @@ function summary = gen3_lite_urdf_summary(varargin)
 %     - the URDF contains a single serial 6R GEN3 LITE chain
 %     - revolute joints appear in kinematic order in the URDF file
 %     - the fixed joint named END_EFFECTOR is the tool offset frame
-%
-%   Edge cases:
-%     - if a joint transform is not exactly representable by one standard DH
-%       row, the function still returns the best-fit row plus residual terms
+%     - DH and joint-limit outputs follow the official manual values
 
     parser = inputParser;
     parser.addParameter("UrdfPath", "", @(x) ischar(x) || isstring(x));
@@ -71,9 +68,9 @@ function summary = gen3_lite_urdf_summary(varargin)
     [frameTable, frameTransforms, jointAxesWorld, toolTransform] = ...
         build_zero_pose_frames(revoluteJoints, toolFixedJoint);
 
-    % Assemble the raw joint-origin table and a DH-style best-fit digest.
+    % Assemble the raw joint-origin table and the official classical DH rows.
     jointTable = build_joint_table(revoluteJoints, jointAxesWorld);
-    dhTable = build_dh_table(revoluteJoints);
+    dhTable = build_dh_table();
 
     summary = struct();
     summary.robot_name = robotName;
@@ -282,12 +279,18 @@ function jointTable = build_joint_table(revoluteJoints, jointAxesWorld)
         upperRad(jointIndex) = jointInfo.upper_rad;
     end
 
+    % Use the official actuator-limit sheet supplied by the user instead of
+    % the URDF limits so exported tables/figures match the official manual.
+    [officialLowerDeg, officialUpperDeg] = official_gen3_lite_joint_limits_deg();
+    lowerRad = deg2rad(officialLowerDeg);
+    upperRad = deg2rad(officialUpperDeg);
+
     jointTable = table( ...
         jointNames, parentLinks, childLinks, ...
         originX, originY, originZ, rollRad, pitchRad, yawRad, ...
         axisLocalX, axisLocalY, axisLocalZ, ...
         axisWorldX, axisWorldY, axisWorldZ, ...
-        lowerRad, upperRad, rad2deg(lowerRad), rad2deg(upperRad), ...
+        lowerRad, upperRad, officialLowerDeg, officialUpperDeg, ...
         'VariableNames', { ...
             'name', 'parent_link', 'child_link', ...
             'origin_x_m', 'origin_y_m', 'origin_z_m', ...
@@ -297,108 +300,37 @@ function jointTable = build_joint_table(revoluteJoints, jointAxesWorld)
             'lower_rad', 'upper_rad', 'lower_deg', 'upper_deg'});
 end
 
-function dhTable = build_dh_table(revoluteJoints)
-%BUILD_DH_TABLE Fit one standard-DH row to each URDF joint origin transform.
-    jointCount = numel(revoluteJoints);
-    jointNames = strings(jointCount, 1);
-    aM = zeros(jointCount, 1, "double");
-    alphaRad = zeros(jointCount, 1, "double");
-    dM = zeros(jointCount, 1, "double");
-    thetaOffsetRad = zeros(jointCount, 1, "double");
-    fitError = zeros(jointCount, 1, "double");
-    positionResidualM = zeros(jointCount, 1, "double");
-    rotationResidualDeg = zeros(jointCount, 1, "double");
+function [lowerDeg, upperDeg] = official_gen3_lite_joint_limits_deg()
+%OFFICIAL_GEN3_LITE_JOINT_LIMITS_DEG Return official actuator limits in deg.
+    lowerDeg = [-154.1; -150.1; -150.1; -148.98; -144.97; -148.98];
+    upperDeg = [ 154.1;  150.1;  150.1;  148.98;  145.00;  148.98];
+end
 
-    for jointIndex = 1:jointCount
-        jointNames(jointIndex) = revoluteJoints(jointIndex).name;
-        [params, metrics] = fit_standard_dh_row(revoluteJoints(jointIndex).origin_transform);
-        aM(jointIndex) = params(1);
-        alphaRad(jointIndex) = params(2);
-        dM(jointIndex) = params(3);
-        thetaOffsetRad(jointIndex) = params(4);
-        fitError(jointIndex) = metrics.total_error;
-        positionResidualM(jointIndex) = metrics.position_residual_m;
-        rotationResidualDeg(jointIndex) = rad2deg(metrics.rotation_residual_rad);
-    end
+function dhTable = build_dh_table()
+%BUILD_DH_TABLE Return the official GEN3 LITE classical DH parameter table.
+    jointNames = ["J0"; "J1"; "J2"; "J3"; "J4"; "J5"];
+    alphaRad = [pi/2; pi; pi/2; pi/2; pi/2; 0.0];
+    aM = [0.0; 0.2800; 0.0; 0.0; 0.0; 0.0];
+    dM = [0.2433; 0.0300; 0.0200; 0.2450; 0.0570; 0.2350];
+    thetaOffsetRad = [0.0; pi/2; pi/2; pi/2; pi; pi/2];
+
+    alphaText = ["\pi/2"; "\pi"; "\pi/2"; "\pi/2"; "\pi/2"; "0"];
+    aTextMm = ["0.0"; "280.0"; "0.0"; "0.0"; "0.0"; "0.0"];
+    dTextMm = ["(128.3+115.0)"; "30.0"; "20.0"; "(140.0+105.0)"; "(28.5+28.5)"; "(105.0+130.0)"];
+    thetaText = ["q_1"; "q_2 + \pi/2"; "q_3 + \pi/2"; "q_4 + \pi/2"; "q_5 + \pi"; "q_6 + \pi/2"];
 
     dhTable = table( ...
-        jointNames, aM, alphaRad, rad2deg(alphaRad), dM, ...
-        thetaOffsetRad, rad2deg(thetaOffsetRad), ...
-        fitError, positionResidualM, rotationResidualDeg, ...
+        (1:6).', jointNames, ...
+        alphaRad, rad2deg(alphaRad), alphaText(:), ...
+        aM, aTextMm(:), ...
+        dM, dTextMm(:), ...
+        thetaOffsetRad, rad2deg(thetaOffsetRad), thetaText(:), ...
         'VariableNames', { ...
-            'name', 'a_m', 'alpha_rad', 'alpha_deg', 'd_m', ...
-            'theta_offset_rad', 'theta_offset_deg', ...
-            'fit_error', 'position_residual_m', 'rotation_residual_deg'});
-end
-
-function [bestParams, metrics] = fit_standard_dh_row(targetTransform)
-%FIT_STANDARD_DH_ROW Fit [a alpha d theta0] to one URDF zero-pose transform.
-    translation = targetTransform(1:3, 4);
-    xyNorm = hypot(translation(1), translation(2));
-
-    % The initial guess comes from the raw translation and rotation terms.
-    initialTheta = atan2(translation(2), translation(1));
-    if xyNorm < 1e-12
-        initialTheta = atan2(targetTransform(2, 1), targetTransform(1, 1));
-    end
-    initialGuess = [ ...
-        xyNorm, ...
-        atan2(targetTransform(3, 2), targetTransform(3, 3)), ...
-        translation(3), ...
-        initialTheta];
-
-    options = optimset("Display", "off", "TolX", 1e-10, "TolFun", 1e-10, ...
-        "MaxFunEvals", 4000, "MaxIter", 4000);
-    objective = @(params) dh_fit_cost(params, targetTransform);
-    bestParams = fminsearch(objective, initialGuess, options);
-
-    bestParams(2) = wrap_to_pi(bestParams(2));
-    bestParams(4) = wrap_to_pi(bestParams(4));
-
-    fittedTransform = standard_dh_transform(bestParams(1), bestParams(2), bestParams(3), bestParams(4));
-    positionResidual = targetTransform(1:3, 4) - fittedTransform(1:3, 4);
-    relativeRotation = fittedTransform(1:3, 1:3).' * targetTransform(1:3, 1:3);
-
-    metrics = struct();
-    metrics.total_error = objective(bestParams);
-    metrics.position_residual_m = norm(positionResidual);
-    metrics.rotation_residual_rad = rotation_matrix_angle(relativeRotation);
-end
-
-function cost = dh_fit_cost(params, targetTransform)
-%DH_FIT_COST Weighted transform mismatch for one standard-DH row.
-    fittedTransform = standard_dh_transform(params(1), params(2), params(3), params(4));
-    deltaPosition = targetTransform(1:3, 4) - fittedTransform(1:3, 4);
-    deltaRotation = targetTransform(1:3, 1:3) - fittedTransform(1:3, 1:3);
-
-    % Translation is in meters while rotation is unitless; increase the
-    % position weight so centimeter-scale offsets remain visible.
-    cost = 50.0 * dot(deltaPosition, deltaPosition) + sum(deltaRotation(:) .^ 2);
-end
-
-function transform = standard_dh_transform(aM, alphaRad, dM, thetaOffsetRad)
-%STANDARD_DH_TRANSFORM Standard DH homogeneous transform at zero joint angle.
-    cosTheta = cos(thetaOffsetRad);
-    sinTheta = sin(thetaOffsetRad);
-    cosAlpha = cos(alphaRad);
-    sinAlpha = sin(alphaRad);
-
-    transform = [ ...
-        cosTheta, -sinTheta * cosAlpha,  sinTheta * sinAlpha, aM * cosTheta; ...
-        sinTheta,  cosTheta * cosAlpha, -cosTheta * sinAlpha, aM * sinTheta; ...
-        0.0,       sinAlpha,             cosAlpha,            dM; ...
-        0.0,       0.0,                  0.0,                 1.0];
-end
-
-function angleRad = rotation_matrix_angle(rotationMatrix)
-%ROTATION_MATRIX_ANGLE Return the principal angle of a 3x3 rotation matrix.
-    traceValue = max(min((trace(rotationMatrix) - 1.0) / 2.0, 1.0), -1.0);
-    angleRad = acos(traceValue);
-end
-
-function wrappedAngle = wrap_to_pi(angleRad)
-%WRAP_TO_PI Wrap angles into [-pi, pi].
-    wrappedAngle = mod(angleRad + pi, 2.0 * pi) - pi;
+            'index', 'name', ...
+            'alpha_rad', 'alpha_deg', 'alpha_text', ...
+            'a_m', 'a_text_mm', ...
+            'd_m', 'd_text_mm', ...
+            'theta_offset_rad', 'theta_offset_deg', 'theta_text'});
 end
 
 function rotation = rotx3(angleRad)
