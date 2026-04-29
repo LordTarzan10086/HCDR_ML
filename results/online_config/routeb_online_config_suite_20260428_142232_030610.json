@@ -1,0 +1,598 @@
+{
+  "model_kwargs": {
+    "link_lengths": [
+      0.05,
+      0.26569,
+      0.03,
+      0.258,
+      0.05,
+      0.05
+    ],
+    "urdf_path": "C:\\Users\\A\\Documents\\MATLAB\\HCDR_v6-codex\\kortex_description\\robots\\gen3_lite_gen3_lite_2f_local.urdf",
+    "platform_z0": 1.2,
+    "root_mass_xy": 7,
+    "root_inertia_z": 0.10499999999999998,
+    "microgravity": true,
+    "base_offset": [
+      0,
+      0,
+      -0.05
+    ],
+    "base_rotation": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        -1,
+        0
+      ],
+      [
+        0,
+        0,
+        -1
+      ]
+    ],
+    "gripper_joint_values": [
+      -0.35,
+      0,
+      0.35,
+      0
+    ],
+    "use_urdf": true,
+    "tip_frame_name": "HCDR_TIP",
+    "tip_left_body": "LEFT_FINGER_DIST",
+    "tip_right_body": "RIGHT_FINGER_DIST",
+    "tip_left_local": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "tip_right_local": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "tip_body": "DUMMY",
+    "tip_local": [
+      0,
+      0,
+      0
+    ]
+  },
+  "controller_cfg": {
+    "n_c": 8,
+    "n_m": 6,
+    "z0": 1.2,
+    "cable_anchors_world": [
+      [
+        1,
+        1,
+        -1,
+        -1,
+        -1,
+        -1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      [
+        1.25,
+        1.15,
+        1.25,
+        1.15,
+        1.25,
+        1.15,
+        1.25,
+        1.15
+      ]
+    ],
+    "platform_attach_local": [
+      [
+        0.15,
+        0.15,
+        -0.15,
+        -0.15,
+        -0.15,
+        -0.15,
+        0.15,
+        0.15
+      ],
+      [
+        0.15,
+        0.15,
+        0.15,
+        0.15,
+        -0.15,
+        -0.15,
+        -0.15,
+        -0.15
+      ],
+      [
+        0.05,
+        -0.05,
+        0.05,
+        -0.05,
+        0.05,
+        -0.05,
+        0.05,
+        -0.05
+      ]
+    ],
+    "T_min": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "T_max": [
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500
+    ],
+    "tau_min": [
+      -40,
+      -40,
+      -40,
+      -40,
+      -40,
+      -40
+    ],
+    "tau_max": [
+      40,
+      40,
+      40,
+      40,
+      40,
+      40
+    ],
+    "T_safe_margin": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "T_center_offset": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "f_ref": [],
+    "damped_pinv_lambda": 1e-08,
+    "weight_tension_ref": 0.5,
+    "fallback_prev_blend": 0,
+    "fallback_platform_kp": [
+      15,
+      15,
+      8
+    ],
+    "fallback_platform_kd": [
+      6,
+      6,
+      3
+    ],
+    "smooth_weight_u": 0.05,
+    "smooth_weight_qdd": 0.05,
+    "control_mode": "cooperative",
+    "qp_solver_backend": "osqp",
+    "task_level_regularization": 1e-06,
+    "platform_task_slack_weight": 10000,
+    "orientation_task_slack_weight": 10000,
+    "arm_task_slack_weight": 10000,
+    "tracking_task_slack_weight": 100000,
+    "alpha_T": 2,
+    "tracking_alpha_T": 2,
+    "near_goal_alpha_T": 8,
+    "terminal_alpha_T": 10,
+    "hold_alpha_T": 10,
+    "beta_tau": 0.001,
+    "gamma_qdd": 1,
+    "slack_weight": 10000,
+    "level1_lock_weight": 0.01,
+    "platform_xy_limit": 0.45,
+    "platform_psi_limit": 0.4363323129985824,
+    "platform_tracking_xy_limit": 0.18,
+    "platform_tracking_psi_limit": 0.3141592653589793,
+    "tracking_platform_tracking_xy_limit": 0.18,
+    "tracking_platform_tracking_psi_limit": 0.3141592653589793,
+    "near_goal_platform_tracking_xy_limit": 0.12,
+    "near_goal_platform_tracking_psi_limit": 0.20943951023931956,
+    "terminal_platform_tracking_xy_limit": 0.08,
+    "terminal_platform_tracking_psi_limit": 0.13962634015954636,
+    "hold_platform_tracking_xy_limit": 0.06,
+    "hold_platform_tracking_psi_limit": 0.10471975511965978,
+    "platform_limit_margin": 0.15,
+    "platform_tracking_limit_margin": 0.04,
+    "platform_limit_gain": 12,
+    "platform_limit_velocity_gain": 3,
+    "platform_state_guard_xy": 0.05,
+    "platform_state_guard_psi": 0.1,
+    "platform_tracking_state_guard_xy": 0.02,
+    "platform_tracking_state_guard_psi": 0.05,
+    "platform_velocity_limit": [
+      0.35,
+      0.35,
+      0.8
+    ],
+    "platform_recovery_qdd": [
+      3,
+      3,
+      2
+    ],
+    "platform_recovery_velocity_gain": 2,
+    "platform_qdd_limit": [
+      15,
+      15,
+      12
+    ],
+    "arm_qdd_limit": [
+      12,
+      12,
+      12,
+      12,
+      12,
+      12
+    ],
+    "arm_position_min": [
+      -3.141592653589793,
+      -3.141592653589793,
+      -3.141592653589793,
+      -3.141592653589793,
+      -3.141592653589793,
+      -3.141592653589793
+    ],
+    "arm_position_max": [
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793
+    ],
+    "arm_joint_limit_margin": [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ],
+    "arm_velocity_limit": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "task_accel_limit": [
+      2.5,
+      2.5,
+      2
+    ],
+    "near_goal_task_accel_limit": [
+      1.5,
+      1.5,
+      1
+    ],
+    "terminal_task_accel_limit": [
+      1.2,
+      1.2,
+      0.8
+    ],
+    "hold_task_accel_limit": [
+      0.4,
+      0.4,
+      0.3
+    ],
+    "platform_kp": [
+      [
+        12,
+        0,
+        0
+      ],
+      [
+        0,
+        12,
+        0
+      ],
+      [
+        0,
+        0,
+        16
+      ]
+    ],
+    "platform_kd": [
+      [
+        8,
+        0,
+        0
+      ],
+      [
+        0,
+        8,
+        0
+      ],
+      [
+        0,
+        0,
+        10
+      ]
+    ],
+    "platform_posture_weight": 1,
+    "ki": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "hold_ki": [
+      [
+        6,
+        0,
+        0
+      ],
+      [
+        0,
+        6,
+        0
+      ],
+      [
+        0,
+        0,
+        4
+      ]
+    ],
+    "hold_integral_limit": [
+      0.03,
+      0.03,
+      0.03
+    ],
+    "near_goal_position_tol": 0.05,
+    "near_goal_platform_posture_weight": 10,
+    "near_goal_arm_posture_weight": 0,
+    "enable_arrival_hold": false,
+    "terminal_reference_position_tol": 0.015,
+    "terminal_reference_release_tol": 0.05,
+    "terminal_reference_velocity_tol": 0.03,
+    "terminal_reference_capture_duration_s": 0.08,
+    "hold_position_tol": 0.02,
+    "hold_velocity_tol": 0.05,
+    "arrival_hold_position_tol": 0.015,
+    "arrival_hold_release_tol": 0.04,
+    "hold_stable_duration_s": 0.12,
+    "hold_reference_velocity_tol": 0.001,
+    "hold_reference_acceleration_tol": 0.01,
+    "terminal_platform_posture_weight": 2,
+    "terminal_arm_posture_weight": 0,
+    "terminal_platform_task_slack_weight": 10000,
+    "terminal_add_arm_posture_task": false,
+    "terminal_smooth_weight_u": 0.05,
+    "terminal_smooth_weight_qdd": 0.05,
+    "hold_platform_posture_weight": 30,
+    "hold_arm_posture_weight": 1.5,
+    "hold_smooth_weight_u": 1,
+    "hold_smooth_weight_qdd": 4,
+    "hold_weight_tension_ref": 0,
+    "arm_posture_kp": 4,
+    "arm_posture_kd": 2,
+    "arm_posture_weight": 0,
+    "cooperative_arm_posture_weight": 0,
+    "cooperative_add_arm_posture_task": false,
+    "platform_only_arm_posture_weight": 0.2,
+    "arm_only_platform_posture_weight": 2,
+    "cooperative_fix_orientation_only": false,
+    "reference_speed_mps": 0.07,
+    "min_move_duration_s": 0.8,
+    "max_move_duration_s": 1.8,
+    "settle_duration_s": 0.8,
+    "platform_xy_limit_legacy_value": 0.25,
+    "platform_xy_limit_source": "upgraded_from_legacy_online_smoke_limit",
+    "cooperative_platform_tracking_xy_limit": 0.35,
+    "cooperative_platform_tracking_psi_limit": 0.3141592653589793,
+    "cooperative_platform_tracking_limit_margin": 0.02,
+    "arm_only_qp_solver_backend": "auto",
+    "initial_arm_q": [
+      0.0,
+      0.58,
+      0.92,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "cooperative_orientation_task_slack_weight": 50.0,
+    "platform_only_arm_task_slack_weight": 1000000.0,
+    "platform_only_arm_hold_enabled": false,
+    "platform_only_arm_kinematic_hold_enabled": true,
+    "platform_only_arm_hold_kp": 30.0,
+    "platform_only_arm_hold_kd": 8.0,
+    "platform_only_arm_hold_feedforward": false,
+    "arm_only_platform_task_slack_weight": 10000.0,
+    "arm_only_nullspace_enabled": true,
+    "arm_only_arm_posture_weight": 0.2,
+    "arm_only_nullspace_gain": 1.0,
+    "arm_only_dls_enabled": true,
+    "arm_only_dls_lambda": 0.08,
+    "arm_only_dls_sigma_threshold": 0.08,
+    "arm_only_dls_lambda_max": 0.35,
+    "arm_only_singularity_task_scaling_enabled": true,
+    "joint_limit_avoidance_enabled": false,
+    "joint_limit_avoidance_buffer": [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ],
+    "joint_limit_avoidance_kp": 12.0,
+    "joint_limit_avoidance_kd": 4.0,
+    "joint_limit_predictive_guard_enabled": true,
+    "joint_limit_predictive_guard_margin": 0.02,
+    "cooperative_svd_singularity_avoidance_enabled": false,
+    "singularity_sigma_threshold": 0.1,
+    "singularity_tracking_task_slack_weight": 2000.0,
+    "singularity_arm_posture_weight": 1.5,
+    "singularity_add_arm_posture_task": true,
+    "singularity_arm_posture_task_slack_weight": 20000.0,
+    "singularity_add_platform_preference_task": true,
+    "arm_only_sigma_scale_threshold": 0.04,
+    "arm_only_sigma_min_scale": 0.25,
+    "allow_min_task_task_stack_fallback": true,
+    "min_task_fallback_tracking_slack_tol": 0.02,
+    "arm_only_osc_lambda": 0.5,
+    "arm_only_osc_joint_damping": 0.5,
+    "arm_only_osc_posture_qdd_weight": 0.0,
+    "cooperative_sweet_zone_task_slack_weight": 2000.0,
+    "cooperative_orientation_first": false,
+    "cooperative_add_arm_sweet_zone_task": false,
+    "cooperative_sweet_zone_min_weight": 0.25,
+    "cooperative_sweet_zone_min_ref_enabled": true,
+    "cooperative_use_platform_posture_min_ref": false
+  },
+  "runtime_cfg": {
+    "backend_mode": "ipc_headless",
+    "viewer_mode": "ipc_separate",
+    "launch_backend": true,
+    "launch_viewer": false,
+    "transport": {
+      "host": "127.0.0.1",
+      "backend_port": 49239,
+      "viewer_port": 49240,
+      "timeout_s": 5,
+      "poll_interval_s": 0.05
+    }
+  },
+  "backend_cfg": {
+    "model_kind": "native_planar_hcdr",
+    "repo_root": "C:\\Users\\A\\Documents\\MATLAB\\HCDR_v6-codex",
+    "kortex_root": "C:\\Users\\A\\Documents\\MATLAB\\HCDR_v6-codex\\kortex_description",
+    "urdf_path": "C:\\Users\\A\\Documents\\MATLAB\\HCDR_v6-codex\\kortex_description\\robots\\gen3_lite_gen3_lite_2f_local.urdf",
+    "frame_L": 1,
+    "frame_height": 2,
+    "platform_z0": 1.2,
+    "platform_a": 0.15,
+    "platform_b": 0.05,
+    "cable_d_pulley": 0.1,
+    "base_offset_in_platform": [
+      0,
+      0,
+      -0.05
+    ],
+    "base_rotation_in_platform": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        -1,
+        0
+      ],
+      [
+        0,
+        0,
+        -1
+      ]
+    ],
+    "gripper_joint_values": [
+      -0.35,
+      0,
+      0.35,
+      0
+    ],
+    "tip_left_body": "LEFT_FINGER_DIST",
+    "tip_right_body": "RIGHT_FINGER_DIST",
+    "tip_left_local": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "tip_right_local": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "tip_body": "DUMMY",
+    "tip_local": [
+      0,
+      0,
+      0
+    ],
+    "platform_mass": 7,
+    "platform_inertia_zz": 0.10499999999999998,
+    "platform_linear_damping_xy": 2,
+    "platform_yaw_damping": 0.5,
+    "platform_xy_limit": 0.45,
+    "platform_psi_limit": 0.4363323129985824,
+    "physics_mode": "native_mujoco_planar_hcdr",
+    "microgravity": true,
+    "default_dt": 0.02,
+    "default_substeps": 10,
+    "gripper_joint_names": [
+      "LEFT_BOTTOM",
+      "LEFT_TIP",
+      "RIGHT_BOTTOM",
+      "RIGHT_TIP"
+    ],
+    "platform_xy_limit_legacy_value": 0.25,
+    "tip_local_source": "upgraded_from_legacy_opposite_finger_offsets"
+  },
+  "viewer_cfg": {
+    "enabled": false,
+    "show_frame": true,
+    "show_platform": true,
+    "show_cables": true,
+    "show_target": true,
+    "bright_lighting": true,
+    "camera_azimuth": 45,
+    "camera_elevation": -22,
+    "camera_distance": 4.2,
+    "camera_lookat": [
+      0,
+      0,
+      1.2
+    ]
+  }
+}

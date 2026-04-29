@@ -1634,7 +1634,7 @@ def _build_mode_task_plan(
         b=tracking_rhs,
         slack_weight=tracking_slack_weight,
     )
-    svd_preference_task, singularity_avoidance_diag = _build_svd_singularity_tracking_task(
+    svd_preference_task, svd_nonsingular_task, singularity_avoidance_diag = _build_svd_singularity_tracking_task(
         full_tracking_jacobian,
         tracking_rhs,
         dof_count,
@@ -1738,12 +1738,38 @@ def _build_mode_task_plan(
         arm_posture_weight = float(controller_cfg.get("arm_only_arm_posture_weight", 0.2))
     else:
         cooperative_use_platform_posture_min_ref = bool(controller_cfg.get("cooperative_use_platform_posture_min_ref", False))
-        if bool(controller_cfg.get("cooperative_orientation_first", True)) or bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
+        strict_svd_active = bool(
+            singularity_avoidance_diag.get("active", False)
+            and singularity_avoidance_diag.get("strict_svd_hqp_enabled", False)
+        )
+        if strict_svd_active:
+            task_levels = []
+            if bool(controller_cfg.get("cooperative_orientation_first", True)) or bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
+                task_levels.append(platform_orientation_task)
+            task_levels.append(svd_preference_task)
+            if svd_nonsingular_task is not None:
+                task_levels.append(svd_nonsingular_task)
+        elif bool(controller_cfg.get("cooperative_orientation_first", True)) or bool(controller_cfg.get("cooperative_fix_orientation_only", False)):
             task_levels = [platform_orientation_task, tracking_task]
         else:
             task_levels = [tracking_task]
-        if singularity_avoidance_diag.get("active", False):
-            task_levels.append(svd_preference_task)
+        if singularity_avoidance_diag.get("active", False) and not strict_svd_active:
+            if n_m > 0 and bool(controller_cfg.get("singularity_add_arm_posture_task", True)):
+                task_levels.append(
+                    EqualityTaskLevel(
+                        name="singularity_arm_posture",
+                        A=arm_posture_matrix,
+                        b=np.asarray(arm_qdd_ref, dtype=float).reshape(n_m),
+                        slack_weight=float(
+                            controller_cfg.get(
+                                "singularity_arm_posture_task_slack_weight",
+                                controller_cfg.get("arm_task_slack_weight", arm_slack_weight),
+                            )
+                        ),
+                    )
+                )
+            if bool(controller_cfg.get("singularity_add_platform_preference_task", True)):
+                task_levels.append(svd_preference_task)
         if task_phase_normalized == "hold" and n_m > 0 and bool(controller_cfg.get("hold_add_arm_posture_task", True)):
             task_levels.append(arm_sweet_zone_task)
         elif n_m > 0 and bool(controller_cfg.get("cooperative_add_arm_sweet_zone_task", True)):
@@ -1805,7 +1831,7 @@ def _build_svd_singularity_tracking_task(
     tracking_slack_weight: float,
     controller_cfg: Mapping[str, Any],
     control_mode: str,
-) -> tuple[EqualityTaskLevel, Dict[str, Any]]:
+) -> tuple[EqualityTaskLevel, EqualityTaskLevel | None, Dict[str, Any]]:
     """Split cooperative tracking so singular arm directions are assigned to platform motion."""
 
     enabled = bool(controller_cfg.get("cooperative_svd_singularity_avoidance_enabled", False))
@@ -1814,6 +1840,7 @@ def _build_svd_singularity_tracking_task(
         "active": False,
         "reason": "disabled" if not enabled else "",
         "sigma_threshold": float(controller_cfg.get("singularity_sigma_threshold", 0.08)),
+        "strict_svd_hqp_enabled": bool(controller_cfg.get("singularity_strict_svd_hqp_enabled", False)),
         "singular_count": 0,
         "singular_values": np.zeros(0, dtype=float),
     }
@@ -1824,24 +1851,24 @@ def _build_svd_singularity_tracking_task(
         slack_weight=tracking_slack_weight,
     )
     if not enabled:
-        return fallback_task, diag
+        return fallback_task, None, diag
     if control_mode != "cooperative":
         diag["reason"] = "not_cooperative"
-        return fallback_task, diag
+        return fallback_task, None, diag
     if n_m <= 0 or dof_count < 3 + n_m:
         diag["reason"] = "no_arm_dofs"
-        return fallback_task, diag
+        return fallback_task, None, diag
 
     arm_jacobian = np.asarray(full_tracking_jacobian[:, 3 : 3 + n_m], dtype=float)
     if arm_jacobian.size == 0:
         diag["reason"] = "empty_arm_jacobian"
-        return fallback_task, diag
+        return fallback_task, None, diag
 
     try:
         u_matrix, singular_values, _ = np.linalg.svd(arm_jacobian, full_matrices=True)
     except np.linalg.LinAlgError:
         diag["reason"] = "svd_failed"
-        return fallback_task, diag
+        return fallback_task, None, diag
 
     threshold = float(diag["sigma_threshold"])
     singular_mask = singular_values < threshold
@@ -1855,7 +1882,7 @@ def _build_svd_singularity_tracking_task(
     )
     if singular_count <= 0:
         diag["reason"] = "above_threshold"
-        return fallback_task, diag
+        return fallback_task, None, diag
 
     singular_indices = np.where(singular_mask)[0]
     u_s = u_matrix[:, singular_indices]
@@ -1865,20 +1892,33 @@ def _build_svd_singularity_tracking_task(
     split_rhs = u_s.T @ tracking_rhs
     row_labels = ["singular_platform"] * int(singular_indices.size)
     task = EqualityTaskLevel(
-        name="singularity_platform_preference",
+        name="strict_svd_singular_platform" if bool(diag["strict_svd_hqp_enabled"]) else "singularity_platform_preference",
         A=np.hstack([split_jacobian, np.zeros((split_jacobian.shape[0], actuation_count), dtype=float)]),
         b=split_rhs,
         slack_weight=float(controller_cfg.get("singularity_tracking_task_slack_weight", tracking_slack_weight)),
     )
+    nonsingular_task = None
+    nonsingular_indices = np.array([idx for idx in range(u_matrix.shape[1]) if idx not in set(singular_indices.tolist())], dtype=int)
+    if nonsingular_indices.size > 0:
+        u_ns = u_matrix[:, nonsingular_indices]
+        nonsingular_jacobian = u_ns.T @ full_tracking_jacobian
+        nonsingular_rhs = u_ns.T @ tracking_rhs
+        nonsingular_task = EqualityTaskLevel(
+            name="strict_svd_nonsingular_tracking",
+            A=np.hstack([nonsingular_jacobian, np.zeros((nonsingular_jacobian.shape[0], actuation_count), dtype=float)]),
+            b=nonsingular_rhs,
+            slack_weight=float(controller_cfg.get("strict_svd_nonsingular_task_slack_weight", tracking_slack_weight)),
+        )
     diag.update(
         {
             "active": True,
             "reason": "active",
             "row_labels": row_labels,
             "task_name": task.name,
+            "nonsingular_task_name": "" if nonsingular_task is None else nonsingular_task.name,
         }
     )
-    return task, diag
+    return task, nonsingular_task, diag
 
 
 def _build_mode_task_priority_audit(control_mode: str, task_phase: str, task_names: list[str]) -> Dict[str, Any]:

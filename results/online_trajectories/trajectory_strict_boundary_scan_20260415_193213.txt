@@ -1,0 +1,48 @@
+strict boundary scan; rmse<=0.025, max<=0.025, no fail/fallback/limit
+## line
+line param=0.620 all_ok=False
+  platform_only ok=True rmse=0.0045 max=0.0093 fail=0 fb=0 lim=0 pdelta=0.3100
+  arm_only      ok=False rmse=0.0058 max=0.0119 fail=6 fb=1 lim=0 pdelta=0.0179
+  cooperative   ok=True rmse=0.0065 max=0.0187 fail=0 fb=0 lim=0 pdelta=0.2491
+line param=0.650 all_ok=False
+  platform_only ok=True rmse=0.0047 max=0.0097 fail=0 fb=0 lim=0 pdelta=0.3250
+  arm_only      ok=False rmse=0.0135 max=0.0443 fail=13 fb=1 lim=0 pdelta=0.0283
+  cooperative   ok=True rmse=0.0071 max=0.0210 fail=0 fb=0 lim=0 pdelta=0.2705
+line param=0.680 all_ok=False
+  platform_only ok=True rmse=0.0049 max=0.0102 fail=0 fb=0 lim=0 pdelta=0.3400
+  arm_only      ok=False rmse=0.0152 max=0.0493 fail=11 fb=0 lim=0 pdelta=0.0282
+  cooperative   ok=True rmse=0.0077 max=0.0236 fail=0 fb=0 lim=0 pdelta=0.2912
+BEST_line=None
+## square
+square param=0.190 all_ok=True
+  platform_only ok=True rmse=0.0037 max=0.0101 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0046 max=0.0084 fail=0 fb=0 lim=0 pdelta=0.0073
+  cooperative   ok=True rmse=0.0041 max=0.0078 fail=0 fb=0 lim=0 pdelta=0.0433
+square param=0.200 all_ok=True
+  platform_only ok=True rmse=0.0047 max=0.0147 fail=0 fb=0 lim=0 pdelta=0.0001
+  arm_only      ok=True rmse=0.0049 max=0.0088 fail=0 fb=0 lim=0 pdelta=0.0083
+  cooperative   ok=True rmse=0.0043 max=0.0083 fail=0 fb=0 lim=0 pdelta=0.0464
+square param=0.210 all_ok=True
+  platform_only ok=True rmse=0.0065 max=0.0204 fail=0 fb=0 lim=0 pdelta=0.0003
+  arm_only      ok=True rmse=0.0051 max=0.0093 fail=0 fb=0 lim=0 pdelta=0.0078
+  cooperative   ok=True rmse=0.0045 max=0.0088 fail=0 fb=0 lim=0 pdelta=0.0499
+BEST_square=0.21
+## circle
+circle param=0.180 all_ok=False
+  platform_only ok=False rmse=0.0147 max=0.0501 fail=0 fb=0 lim=0 pdelta=0.0001
+  arm_only      ok=False rmse=0.0101 max=0.0332 fail=12 fb=0 lim=0 pdelta=0.0110
+  cooperative   ok=False rmse=0.1001 max=0.2940 fail=0 fb=0 lim=0 pdelta=0.1411
+circle param=0.200 all_ok=False
+  platform_only ok=False rmse=0.0289 max=0.0848 fail=0 fb=0 lim=0 pdelta=0.0001
+  arm_only      ok=False rmse=0.0158 max=0.0564 fail=23 fb=0 lim=0 pdelta=0.0140
+  cooperative   ok=False rmse=0.0187 max=0.0572 fail=0 fb=0 lim=0 pdelta=0.1723
+circle param=0.220 all_ok=False
+  platform_only ok=False rmse=0.0462 max=0.1287 fail=0 fb=0 lim=0 pdelta=0.0002
+  arm_only      ok=False rmse=0.0281 max=0.0921 fail=49 fb=0 lim=0 pdelta=0.0080
+  cooperative   ok=False rmse=0.2640 max=0.6712 fail=30 fb=26 lim=11 pdelta=0.2627
+circle param=0.250 all_ok=False
+  platform_only ok=False rmse=0.0579 max=0.1369 fail=2 fb=0 lim=3 pdelta=0.0001
+  arm_only      ok=False rmse=0.0525 max=0.1580 fail=54 fb=6 lim=0 pdelta=0.0131
+  cooperative   ok=False rmse=0.3467 max=0.7379 fail=60 fb=34 lim=18 pdelta=0.2013
+BEST_circle=None
+OUTPUT=C:\Users\A\Documents\MATLAB\HCDR_v6-codex\results\online_trajectories\trajectory_strict_boundary_scan_20260415_193213.txt

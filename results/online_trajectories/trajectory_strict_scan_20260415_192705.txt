@@ -1,0 +1,68 @@
+criteria: rmse_norm<=0.025m, tip_max_error<=0.025m, fail/fallback/limit all zero; move_duration=4.0s, settle=0.5s; line_style=centered
+## line
+line param=0.300 all_ok=True
+  platform_only ok=True rmse=0.0022 max=0.0045 fail=0 fb=0 lim=0 pdelta=0.1500
+  arm_only      ok=True rmse=0.0027 max=0.0057 fail=0 fb=0 lim=0 pdelta=0.0044
+  cooperative   ok=True rmse=0.0024 max=0.0051 fail=0 fb=0 lim=0 pdelta=0.0250
+line param=0.400 all_ok=True
+  platform_only ok=True rmse=0.0029 max=0.0060 fail=0 fb=0 lim=0 pdelta=0.2000
+  arm_only      ok=True rmse=0.0036 max=0.0076 fail=0 fb=0 lim=0 pdelta=0.0063
+  cooperative   ok=True rmse=0.0032 max=0.0069 fail=0 fb=0 lim=0 pdelta=0.0338
+line param=0.500 all_ok=True
+  platform_only ok=True rmse=0.0036 max=0.0075 fail=0 fb=0 lim=0 pdelta=0.2500
+  arm_only      ok=True rmse=0.0045 max=0.0096 fail=0 fb=0 lim=0 pdelta=0.0088
+  cooperative   ok=True rmse=0.0041 max=0.0088 fail=0 fb=0 lim=0 pdelta=0.0450
+line param=0.600 all_ok=True
+  platform_only ok=True rmse=0.0043 max=0.0090 fail=0 fb=0 lim=0 pdelta=0.3000
+  arm_only      ok=True rmse=0.0054 max=0.0115 fail=0 fb=0 lim=0 pdelta=0.0138
+  cooperative   ok=True rmse=0.0062 max=0.0170 fail=0 fb=0 lim=0 pdelta=0.2311
+line param=0.700 all_ok=False
+  platform_only ok=True rmse=0.0050 max=0.0105 fail=0 fb=0 lim=0 pdelta=0.3500
+  arm_only      ok=False rmse=0.0171 max=0.0594 fail=39 fb=3 lim=0 pdelta=0.0184
+  cooperative   ok=False rmse=0.0081 max=0.0259 fail=0 fb=0 lim=0 pdelta=0.3053
+BEST_line=0.6
+## square
+square param=0.120 all_ok=True
+  platform_only ok=True rmse=0.0020 max=0.0032 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0029 max=0.0051 fail=0 fb=0 lim=0 pdelta=0.0031
+  cooperative   ok=True rmse=0.0027 max=0.0049 fail=0 fb=0 lim=0 pdelta=0.0257
+square param=0.150 all_ok=True
+  platform_only ok=True rmse=0.0025 max=0.0042 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0036 max=0.0064 fail=0 fb=0 lim=0 pdelta=0.0042
+  cooperative   ok=True rmse=0.0033 max=0.0061 fail=0 fb=0 lim=0 pdelta=0.0327
+square param=0.180 all_ok=True
+  platform_only ok=True rmse=0.0031 max=0.0066 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0044 max=0.0079 fail=0 fb=0 lim=0 pdelta=0.0071
+  cooperative   ok=True rmse=0.0039 max=0.0074 fail=0 fb=0 lim=0 pdelta=0.0405
+square param=0.220 all_ok=False
+  platform_only ok=False rmse=0.0090 max=0.0273 fail=0 fb=0 lim=0 pdelta=0.0004
+  arm_only      ok=False rmse=0.0058 max=0.0107 fail=11 fb=0 lim=0 pdelta=0.0101
+  cooperative   ok=True rmse=0.0045 max=0.0087 fail=0 fb=0 lim=0 pdelta=0.1045
+square param=0.250 all_ok=False
+  platform_only ok=False rmse=0.0213 max=0.0493 fail=0 fb=0 lim=0 pdelta=0.0031
+  arm_only      ok=False rmse=0.0143 max=0.0510 fail=17 fb=0 lim=0 pdelta=0.0130
+  cooperative   ok=False rmse=0.0088 max=0.0291 fail=0 fb=0 lim=0 pdelta=0.1537
+BEST_square=0.18
+## circle
+circle param=0.060 all_ok=True
+  platform_only ok=True rmse=0.0016 max=0.0028 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0022 max=0.0036 fail=0 fb=0 lim=0 pdelta=0.0008
+  cooperative   ok=True rmse=0.0023 max=0.0037 fail=0 fb=0 lim=0 pdelta=0.0150
+circle param=0.080 all_ok=True
+  platform_only ok=True rmse=0.0022 max=0.0037 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0029 max=0.0048 fail=0 fb=0 lim=0 pdelta=0.0014
+  cooperative   ok=True rmse=0.0031 max=0.0048 fail=0 fb=0 lim=0 pdelta=0.0225
+circle param=0.100 all_ok=True
+  platform_only ok=True rmse=0.0027 max=0.0046 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0037 max=0.0060 fail=0 fb=0 lim=0 pdelta=0.0023
+  cooperative   ok=True rmse=0.0038 max=0.0060 fail=0 fb=0 lim=0 pdelta=0.0308
+circle param=0.120 all_ok=True
+  platform_only ok=True rmse=0.0031 max=0.0055 fail=0 fb=0 lim=0 pdelta=0.0000
+  arm_only      ok=True rmse=0.0045 max=0.0077 fail=0 fb=0 lim=0 pdelta=0.0046
+  cooperative   ok=True rmse=0.0045 max=0.0079 fail=0 fb=0 lim=0 pdelta=0.0383
+circle param=0.150 all_ok=True
+  platform_only ok=True rmse=0.0060 max=0.0200 fail=0 fb=0 lim=0 pdelta=0.0001
+  arm_only      ok=True rmse=0.0058 max=0.0109 fail=0 fb=0 lim=0 pdelta=0.0078
+  cooperative   ok=True rmse=0.0057 max=0.0106 fail=0 fb=0 lim=0 pdelta=0.0477
+BEST_circle=0.15
+OUTPUT=C:\Users\A\Documents\MATLAB\HCDR_v6-codex\results\online_trajectories\trajectory_strict_scan_20260415_192705.txt

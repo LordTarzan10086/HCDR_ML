@@ -1,0 +1,76 @@
+criteria: rmse_norm<=0.025m, tip_max_error<=0.05m, fail/fallback/limit all zero; move_duration=4.0s, settle=0.5s
+## line
+line param=0.100 all_ok=True
+  platform_only ok=True rmse=0.0005 max=0.0008 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0006 max=0.0009 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0005 max=0.0008 fail=0 fb=0 lim=0
+line param=0.200 all_ok=True
+  platform_only ok=True rmse=0.0009 max=0.0016 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0011 max=0.0019 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0010 max=0.0016 fail=0 fb=0 lim=0
+line param=0.300 all_ok=True
+  platform_only ok=True rmse=0.0014 max=0.0023 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0017 max=0.0028 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0015 max=0.0024 fail=0 fb=0 lim=0
+line param=0.400 all_ok=False
+  platform_only ok=True rmse=0.0019 max=0.0031 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0342 max=0.0838 fail=84 fb=6 lim=0
+  cooperative   ok=True rmse=0.0041 max=0.0107 fail=0 fb=0 lim=0
+line param=0.500 all_ok=False
+  platform_only ok=False rmse=0.0390 max=0.0987 fail=6 fb=5 lim=0
+  arm_only      ok=False rmse=0.1006 max=0.2044 fail=102 fb=16 lim=0
+  cooperative   ok=True rmse=0.0056 max=0.0175 fail=0 fb=0 lim=0
+BEST_line=0.3
+## square
+square param=0.050 all_ok=True
+  platform_only ok=True rmse=0.0008 max=0.0013 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0012 max=0.0021 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0012 max=0.0021 fail=0 fb=0 lim=0
+square param=0.080 all_ok=True
+  platform_only ok=True rmse=0.0013 max=0.0021 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0019 max=0.0034 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0018 max=0.0034 fail=0 fb=0 lim=0
+square param=0.100 all_ok=True
+  platform_only ok=True rmse=0.0017 max=0.0026 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0024 max=0.0042 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0023 max=0.0042 fail=0 fb=0 lim=0
+square param=0.120 all_ok=True
+  platform_only ok=True rmse=0.0020 max=0.0032 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0029 max=0.0051 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0027 max=0.0049 fail=0 fb=0 lim=0
+square param=0.150 all_ok=False
+  platform_only ok=True rmse=0.0025 max=0.0042 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0036 max=0.0063 fail=7 fb=0 lim=0
+  cooperative   ok=True rmse=0.0033 max=0.0061 fail=0 fb=0 lim=0
+square param=0.180 all_ok=False
+  platform_only ok=True rmse=0.0031 max=0.0066 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0044 max=0.0080 fail=25 fb=0 lim=0
+  cooperative   ok=True rmse=0.0039 max=0.0074 fail=0 fb=0 lim=0
+BEST_square=0.12
+## circle
+circle param=0.040 all_ok=True
+  platform_only ok=True rmse=0.0011 max=0.0018 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0015 max=0.0024 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0015 max=0.0025 fail=0 fb=0 lim=0
+circle param=0.060 all_ok=True
+  platform_only ok=True rmse=0.0016 max=0.0028 fail=0 fb=0 lim=0
+  arm_only      ok=True rmse=0.0022 max=0.0036 fail=0 fb=0 lim=0
+  cooperative   ok=True rmse=0.0023 max=0.0037 fail=0 fb=0 lim=0
+circle param=0.080 all_ok=False
+  platform_only ok=True rmse=0.0022 max=0.0037 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0029 max=0.0049 fail=11 fb=0 lim=0
+  cooperative   ok=True rmse=0.0031 max=0.0048 fail=0 fb=0 lim=0
+circle param=0.100 all_ok=False
+  platform_only ok=True rmse=0.0027 max=0.0046 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0083 max=0.0324 fail=31 fb=3 lim=0
+  cooperative   ok=True rmse=0.0038 max=0.0060 fail=0 fb=0 lim=0
+circle param=0.120 all_ok=False
+  platform_only ok=True rmse=0.0031 max=0.0055 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0045 max=0.0072 fail=12 fb=0 lim=0
+  cooperative   ok=True rmse=0.0045 max=0.0079 fail=0 fb=0 lim=0
+circle param=0.150 all_ok=False
+  platform_only ok=True rmse=0.0060 max=0.0200 fail=0 fb=0 lim=0
+  arm_only      ok=False rmse=0.0055 max=0.0089 fail=15 fb=0 lim=0
+  cooperative   ok=True rmse=0.0057 max=0.0106 fail=0 fb=0 lim=0
+BEST_circle=0.06
+OUTPUT=C:\Users\A\Documents\MATLAB\HCDR_v6-codex\results\online_trajectories\trajectory_stable_scan_20260415_164025.txt

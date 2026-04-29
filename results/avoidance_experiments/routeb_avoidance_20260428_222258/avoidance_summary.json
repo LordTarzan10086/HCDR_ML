@@ -1,0 +1,136 @@
+{
+  "config_path": "results\\online_config\\routeb_online_config_manual_smoke.json",
+  "joint_limit_setup": {
+    "joint_index_zero_based": 1,
+    "joint_index_one_based": 2,
+    "probe_peak_delta_rad": -0.7112215455393942,
+    "arm_position_min": [
+      -3.141592653589793,
+      -0.024538313708485138,
+      -3.141592653589793,
+      -3.141592653589793,
+      -3.141592653589793,
+      -3.141592653589793
+    ],
+    "arm_position_max": [
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793
+    ],
+    "arm_joint_limit_margin": [
+      0.2,
+      0.33249607253966684,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ]
+  },
+  "records": [
+    {
+      "label": "singularity_off",
+      "control_mode": "cooperative",
+      "target_delta": [
+        0.6,
+        0.0,
+        0.25
+      ],
+      "rmse_norm_m": 0.004248498094547265,
+      "max_error_m": 0.006486232514114178,
+      "solver_fail_count": 0,
+      "fallback_count": 0,
+      "min_sigma_min": 0.0022183088941162095,
+      "min_joint_margin_rad": 1.5745102942466056,
+      "singularity_active_count": 0,
+      "joint_limit_active_count": 0
+    },
+    {
+      "label": "singularity_strict_svd",
+      "control_mode": "cooperative",
+      "target_delta": [
+        0.6,
+        0.0,
+        0.25
+      ],
+      "rmse_norm_m": 0.003989490335482909,
+      "max_error_m": 0.006658671619515659,
+      "solver_fail_count": 0,
+      "fallback_count": 0,
+      "min_sigma_min": 0.08003393351122731,
+      "min_joint_margin_rad": 1.8776323727169282,
+      "singularity_active_count": 27,
+      "joint_limit_active_count": 0
+    },
+    {
+      "label": "singularity_on",
+      "control_mode": "cooperative",
+      "target_delta": [
+        0.6,
+        0.0,
+        0.25
+      ],
+      "rmse_norm_m": 0.003889967783885856,
+      "max_error_m": 0.005571918938142137,
+      "solver_fail_count": 0,
+      "fallback_count": 0,
+      "min_sigma_min": 0.08031770338637122,
+      "min_joint_margin_rad": 1.8776323727169282,
+      "singularity_active_count": 27,
+      "joint_limit_active_count": 0
+    },
+    {
+      "label": "joint_limit_probe",
+      "control_mode": "cooperative",
+      "target_delta": [
+        0.45,
+        0.0,
+        0.25
+      ],
+      "rmse_norm_m": 0.0026751490684069116,
+      "max_error_m": 0.004567070048663126,
+      "solver_fail_count": 0,
+      "fallback_count": 0,
+      "min_sigma_min": 0.14294473155918086,
+      "min_joint_margin_rad": 1.7541539163261592,
+      "singularity_active_count": 0,
+      "joint_limit_active_count": 0
+    },
+    {
+      "label": "joint_limit_off",
+      "control_mode": "cooperative",
+      "target_delta": [
+        0.45,
+        0.0,
+        0.25
+      ],
+      "rmse_norm_m": 0.0026751490684069116,
+      "max_error_m": 0.004567070048663126,
+      "solver_fail_count": 0,
+      "fallback_count": 0,
+      "min_sigma_min": 0.14294473155918086,
+      "min_joint_margin_rad": -0.43917930437057595,
+      "singularity_active_count": 0,
+      "joint_limit_active_count": 0
+    },
+    {
+      "label": "joint_limit_on",
+      "control_mode": "cooperative",
+      "target_delta": [
+        0.45,
+        0.0,
+        0.25
+      ],
+      "rmse_norm_m": 0.0030024726272988096,
+      "max_error_m": 0.005090474426287086,
+      "solver_fail_count": 0,
+      "fallback_count": 0,
+      "min_sigma_min": 0.14294473155918086,
+      "min_joint_margin_rad": -0.005775298830015152,
+      "singularity_active_count": 0,
+      "joint_limit_active_count": 130
+    }
+  ]
+}

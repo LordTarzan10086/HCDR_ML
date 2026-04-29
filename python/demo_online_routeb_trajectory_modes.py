@@ -60,6 +60,7 @@ def main() -> None:
     parser.add_argument("--square-side", type=float, default=0.0, help="Override --side for square trajectories")
     parser.add_argument("--radius", type=float, default=0.08)
     parser.add_argument("--helix-dz", type=float, default=0.08)
+    parser.add_argument("--helix-axis", type=str, default="z", choices=("x", "y", "z"), help="Axis of the helix; x/y are horizontal plane axes")
     parser.add_argument("--circle-dz", type=float, default=0.0, help="Optional z drift over one circle; keep 0 for planar circle")
     parser.add_argument("--circle-start-angle-deg", type=float, default=0.0, help="Start angle on circle/helix around the anchor point")
     parser.add_argument("--turns", type=float, default=1.0, help="Number of turns for circle/helix")
@@ -170,6 +171,7 @@ def run_single_mode_trajectory(
         square_side=float(getattr(args, "square_side", 0.0)),
         radius=float(args.radius),
         helix_dz=float(args.helix_dz),
+        helix_axis=str(getattr(args, "helix_axis", "z")),
         circle_dz=float(getattr(args, "circle_dz", 0.0)),
         circle_start_angle_deg=float(getattr(args, "circle_start_angle_deg", 0.0)),
         turns=float(getattr(args, "turns", 1.0)),
@@ -228,6 +230,7 @@ def build_trajectory_spec(
     side: float,
     radius: float,
     helix_dz: float,
+    helix_axis: str = "z",
     triangle_side: float = 0.0,
     square_side: float = 0.0,
     circle_dz: float = 0.0,
@@ -279,9 +282,9 @@ def build_trajectory_spec(
         )
         return build_piecewise_minimum_jerk_spec(name, anchor, waypoints, duration)
     if name == "circle":
-        return build_circle_like_spec(name, anchor, duration, radius=radius, helix_dz=circle_dz, turns=turns, path_yaw_rad=yaw_rad, start_angle_deg=circle_start_angle_deg)
+        return build_circle_like_spec(name, anchor, duration, radius=radius, helix_dz=circle_dz, helix_axis="z", turns=turns, path_yaw_rad=yaw_rad, start_angle_deg=circle_start_angle_deg)
     if name == "helix":
-        return build_circle_like_spec(name, anchor, duration, radius=radius, helix_dz=helix_dz, turns=turns, path_yaw_rad=yaw_rad, start_angle_deg=circle_start_angle_deg)
+        return build_circle_like_spec(name, anchor, duration, radius=radius, helix_dz=helix_dz, helix_axis=helix_axis, turns=turns, path_yaw_rad=yaw_rad, start_angle_deg=circle_start_angle_deg)
     raise ValueError(f"Unsupported trajectory: {trajectory_name}")
 
 
@@ -419,6 +422,7 @@ def build_circle_like_spec(
     *,
     radius: float,
     helix_dz: float,
+    helix_axis: str = "z",
     turns: float = 1.0,
     path_yaw_rad: float = 0.0,
     start_angle_deg: float = 0.0,
@@ -428,6 +432,9 @@ def build_circle_like_spec(
     center = np.asarray(start, dtype=float).reshape(3)
     radius_value = float(radius)
     helix_delta = float(helix_dz)
+    axis = str(helix_axis).strip().lower()
+    if axis not in ("x", "y", "z"):
+        raise ValueError(f"Unsupported helix_axis: {helix_axis}")
     turn_count = float(turns)
     start_angle_rad = np.deg2rad(float(start_angle_deg))
 
@@ -439,16 +446,27 @@ def build_circle_like_spec(
         theta_dd = 2.0 * np.pi * turn_count * blend_dd
         sin_t = np.sin(theta)
         cos_t = np.cos(theta)
-        rel_local = np.array([radius_value * cos_t, radius_value * sin_t, helix_delta * blend], dtype=float)
-        rel_d_local = np.array([-radius_value * sin_t * theta_d, radius_value * cos_t * theta_d, helix_delta * blend_d], dtype=float)
-        rel_dd_local = np.array(
-            [
-                -radius_value * (sin_t * theta_dd + cos_t * theta_d * theta_d),
-                radius_value * (cos_t * theta_dd - sin_t * theta_d * theta_d),
-                helix_delta * blend_dd,
-            ],
-            dtype=float,
-        )
+        radial_a = radius_value * cos_t
+        radial_a_d = -radius_value * sin_t * theta_d
+        radial_a_dd = -radius_value * (sin_t * theta_dd + cos_t * theta_d * theta_d)
+        radial_b = radius_value * sin_t
+        radial_b_d = radius_value * cos_t * theta_d
+        radial_b_dd = radius_value * (cos_t * theta_dd - sin_t * theta_d * theta_d)
+        axial = helix_delta * blend
+        axial_d = helix_delta * blend_d
+        axial_dd = helix_delta * blend_dd
+        if axis == "x":
+            rel_local = np.array([axial, radial_a, radial_b], dtype=float)
+            rel_d_local = np.array([axial_d, radial_a_d, radial_b_d], dtype=float)
+            rel_dd_local = np.array([axial_dd, radial_a_dd, radial_b_dd], dtype=float)
+        elif axis == "y":
+            rel_local = np.array([radial_a, axial, radial_b], dtype=float)
+            rel_d_local = np.array([radial_a_d, axial_d, radial_b_d], dtype=float)
+            rel_dd_local = np.array([radial_a_dd, axial_dd, radial_b_dd], dtype=float)
+        else:
+            rel_local = np.array([radial_a, radial_b, axial], dtype=float)
+            rel_d_local = np.array([radial_a_d, radial_b_d, axial_d], dtype=float)
+            rel_dd_local = np.array([radial_a_dd, radial_b_dd, axial_dd], dtype=float)
         rel = rotate_xy(rel_local, path_yaw_rad)
         rel_d = rotate_xy(rel_d_local, path_yaw_rad)
         rel_dd = rotate_xy(rel_dd_local, path_yaw_rad)
@@ -468,6 +486,7 @@ def build_circle_like_spec(
         "center_world": center,
         "radius_m": radius_value,
         "helix_dz_m": helix_delta,
+        "helix_axis": axis,
         "turns": turn_count,
         "path_yaw_deg": float(np.rad2deg(path_yaw_rad)),
         "start_angle_deg": float(start_angle_deg),
@@ -552,7 +571,13 @@ def compute_circle_metrics(tip: np.ndarray, desired: np.ndarray, spec: dict) -> 
 
     center = np.asarray(spec["center_world"], dtype=float).reshape(3)
     desired_radius = float(spec["radius_m"])
-    actual_radius = np.linalg.norm(tip[:, :2] - center[:2], axis=1)
+    axis = str(spec.get("helix_axis", "z")).strip().lower()
+    if axis == "x":
+        actual_radius = np.linalg.norm(tip[:, [1, 2]] - center[[1, 2]], axis=1)
+    elif axis == "y":
+        actual_radius = np.linalg.norm(tip[:, [0, 2]] - center[[0, 2]], axis=1)
+    else:
+        actual_radius = np.linalg.norm(tip[:, :2] - center[:2], axis=1)
     desired_z = desired[:, 2]
     radial_error = actual_radius - desired_radius
     z_error = desired_z - tip[:, 2]
@@ -561,6 +586,7 @@ def compute_circle_metrics(tip: np.ndarray, desired: np.ndarray, spec: dict) -> 
         "radial_error_max_abs_m": float(np.max(np.abs(radial_error))),
         "z_error_rmse_m": float(np.sqrt(np.mean(z_error**2))),
         "z_error_max_abs_m": float(np.max(np.abs(z_error))),
+        "helix_axis": axis,
     }
 
 
@@ -710,6 +736,7 @@ def export_trajectory_results(records: list[dict], config_path: Path, args: argp
         "dt": float(args.dt),
         "move_duration": float(args.move_duration),
         "settle_duration": float(args.settle_duration),
+        "helix_axis": str(getattr(args, "helix_axis", "z")),
         "records": [
             {
                 "mode": record["mode"],
@@ -748,6 +775,11 @@ def export_record_csv(csv_path: Path, record: dict) -> None:
         "fallback_applied",
         "hold_active",
     ]
+    q_width = 0
+    for entry in record["logs"]:
+        q_next = np.asarray(entry.get("q_next", entry.get("q", [])), dtype=float).reshape(-1)
+        q_width = max(q_width, int(q_next.size))
+    fieldnames.extend([f"q_{index + 1}" for index in range(q_width)])
     with csv_path.open("w", newline="", encoding="utf-8") as fid:
         writer = csv.DictWriter(fid, fieldnames=fieldnames)
         writer.writeheader()
@@ -758,8 +790,7 @@ def export_record_csv(csv_path: Path, record: dict) -> None:
             desired = np.asarray(reference.get("x_des", record["spec"]["target_world"]), dtype=float).reshape(3)
             q_next = np.asarray(entry.get("q_next", entry.get("q", np.zeros(3))), dtype=float).reshape(-1)
             solver = entry.get("diagnostics", {}).get("solver", {})
-            writer.writerow(
-                {
+            row = {
                     "step": int(entry.get("step", 0)) + 1,
                     "time_s": float(entry.get("time_s", 0.0)),
                     "tip_x": float(tip[0]),
@@ -778,8 +809,10 @@ def export_record_csv(csv_path: Path, record: dict) -> None:
                     "fail_reason": str(solver.get("fail_reason", "")),
                     "fallback_applied": bool(entry.get("diagnostics", {}).get("fallback_applied", False)),
                     "hold_active": bool(entry.get("diagnostics", {}).get("hold_active", False)),
-                }
-            )
+            }
+            for index in range(q_width):
+                row[f"q_{index + 1}"] = float(q_next[index]) if q_next.size > index else np.nan
+            writer.writerow(row)
 
 
 def resolve_config_path(config_arg: str) -> Path:

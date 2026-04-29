@@ -51,6 +51,7 @@ class SuiteCase:
     turns: float = 1.0
     path_yaw_deg: float = 0.0
     circle_start_angle_deg: float = 0.0
+    helix_axis: str = "z"
 
 
 DEFAULT_CASES = (
@@ -176,6 +177,7 @@ def _case_to_namespace(case: SuiteCase, *, dt: float) -> SimpleNamespace:
         turns=float(case.turns),
         path_yaw_deg=float(case.path_yaw_deg),
         circle_start_angle_deg=float(case.circle_start_angle_deg),
+        helix_axis=str(case.helix_axis),
     )
 
 

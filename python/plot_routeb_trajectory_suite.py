@@ -14,6 +14,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from online_config_utils import normalize_online_config_payload
+from pinocchio_terms_online import compute_pinocchio_terms
+
 
 MODE_COLORS = {
     "platform_only": "#1f77b4",
@@ -45,6 +48,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Plot Route-B trajectory suite figures.")
     parser.add_argument("--suite-dir", type=str, default="", help="Existing results/tracking/routeb_trajectory_suite_* directory")
+    parser.add_argument("--motion-distribution-trajectory", type=str, default="line", help="Trajectory used for the focused cooperative motion-distribution figure")
     args = parser.parse_args()
     _configure_matplotlib_for_chinese()
 
@@ -54,6 +58,8 @@ def main() -> None:
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     summary_rows = _read_summary_csv(suite_dir / "trajectory_suite_summary.csv")
+    summary_json = json.loads((suite_dir / "trajectory_suite_summary.json").read_text(encoding="utf-8"))
+    payload = _load_payload_from_summary(suite_dir, summary_json, repo_root)
     grouped = _load_records_by_trajectory(suite_dir)
     generated: list[Path] = []
     generated.append(_plot_metrics_summary(summary_rows, figures_dir))
@@ -63,6 +69,8 @@ def main() -> None:
         generated.append(_plot_trajectory_3d(trajectory, records, figures_dir))
         generated.append(_plot_trajectory_projections(trajectory, records, figures_dir))
         generated.append(_plot_error_timeseries(trajectory, records, figures_dir))
+        if trajectory == str(args.motion_distribution_trajectory).strip():
+            generated.append(_plot_motion_distribution_timeseries(trajectory, records, payload, figures_dir))
         if any(_has_prefix(record["columns"], "cable_force_") for record in records):
             generated.append(_plot_cable_forces(trajectory, records, figures_dir))
         if any(_has_prefix(record["columns"], "arm_torque_") for record in records):
@@ -89,6 +97,21 @@ def _read_summary_csv(path: Path) -> list[dict[str, str]]:
 
     with path.open("r", encoding="utf-8", newline="") as fid:
         return list(csv.DictReader(fid))
+
+
+def _load_payload_from_summary(suite_dir: Path, summary_json: dict, repo_root: Path) -> dict:
+    """Load and normalize the online config used by one trajectory suite."""
+
+    config_path = Path(str(summary_json.get("config_path", "")))
+    if not config_path.is_absolute():
+        candidate = suite_dir / config_path
+        config_path = candidate if candidate.is_file() else repo_root / config_path
+    if not config_path.is_file():
+        raise FileNotFoundError(f"Cannot resolve suite config path: {config_path}")
+    return normalize_online_config_payload(
+        json.loads(config_path.read_text(encoding="utf-8")),
+        repo_root=repo_root,
+    )
 
 
 def _load_records_by_trajectory(suite_dir: Path) -> dict[str, list[dict]]:
@@ -218,6 +241,114 @@ def _plot_tension_summary(suite_dir: Path, figures_dir: Path) -> Path:
     ax.legend()
     fig.tight_layout()
     return _save(fig, figures_dir / "summary_cable_force.png")
+
+
+def _plot_motion_distribution_summary(grouped: dict[str, list[dict]], payload: dict, figures_dir: Path) -> Path:
+    """Plot average platform/arm contribution ratio for cooperative runs."""
+
+    labels: list[str] = []
+    platform_ratios: list[float] = []
+    arm_ratios: list[float] = []
+    for trajectory, records in grouped.items():
+        cooperative = next((record for record in records if record["mode"] == "cooperative"), None)
+        if cooperative is None:
+            continue
+        ratio = _estimate_motion_distribution(cooperative, payload)
+        if ratio["time_s"].size == 0:
+            continue
+        labels.append(_trajectory_label(trajectory))
+        platform_ratios.append(100.0 * float(np.nanmean(ratio["platform_ratio"])))
+        arm_ratios.append(100.0 * float(np.nanmean(ratio["arm_ratio"])))
+    x = np.arange(len(labels))
+    fig, ax = plt.subplots(figsize=(9.5, 5.0), dpi=170)
+    ax.bar(x, platform_ratios, label="平台贡献比例", color="#1f77b4")
+    ax.bar(x, arm_ratios, bottom=platform_ratios, label="机械臂贡献比例", color="#2ca02c")
+    ax.set_ylabel("末端运动贡献比例 [%]")
+    ax.set_title("协同模式末端运动分配比例汇总")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=20, ha="right")
+    ax.set_ylim(0.0, 100.0)
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend()
+    fig.tight_layout()
+    return _save(fig, figures_dir / "summary_motion_distribution_ratio.png")
+
+
+def _plot_motion_distribution_timeseries(trajectory: str, records: list[dict], payload: dict, figures_dir: Path) -> Path:
+    """Plot cooperative platform/arm contribution ratio over time."""
+
+    cooperative = next((record for record in records if record["mode"] == "cooperative"), None)
+    fig, ax = plt.subplots(figsize=(10.5, 4.8), dpi=170)
+    if cooperative is not None:
+        ratio = _estimate_motion_distribution(cooperative, payload)
+        if ratio["time_s"].size > 0:
+            time_s = ratio["time_s"]
+            platform_percent = 100.0 * ratio["platform_ratio"]
+            arm_percent = 100.0 * ratio["arm_ratio"]
+            ax.stackplot(
+                time_s,
+                platform_percent,
+                arm_percent,
+                colors=["#00B8D9", "#FF7A00"],
+                alpha=0.86,
+                labels=["CDPR / 平台贡献", "机械臂贡献"],
+            )
+            ax.plot(time_s, platform_percent, color="#005B73", linewidth=1.15)
+            ax.plot(time_s, platform_percent + arm_percent, color="#2b2b2b", linewidth=0.8)
+    ax.set_xlabel("时间 [s]")
+    ax.set_ylabel("末端运动贡献比例 [%]")
+    ax.set_title(f"{_trajectory_label(trajectory)}：cooperative 末端运动分配比例")
+    ax.set_ylim(0.0, 100.0)
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    return _save(fig, figures_dir / f"{trajectory}_motion_distribution_ratio.png")
+
+def _estimate_motion_distribution(record: dict, payload: dict) -> dict[str, np.ndarray]:
+    """Estimate tip-motion contributions by finite-difference FK decomposition."""
+
+    if not all(f"q_{index + 1}" in record for index in range(9)):
+        return {"time_s": np.zeros(0), "platform_ratio": np.zeros(0), "arm_ratio": np.zeros(0)}
+    q_series = np.column_stack([record[f"q_{index + 1}"] for index in range(9)])
+    time_s = np.asarray(record["time_s"], dtype=float)
+    if q_series.shape[0] < 2:
+        return {"time_s": np.zeros(0), "platform_ratio": np.zeros(0), "arm_ratio": np.zeros(0)}
+    platform_energy: list[float] = []
+    arm_energy: list[float] = []
+    ratio_time: list[float] = []
+    model_kwargs = payload["model_kwargs"]
+    zero_qd = np.zeros(q_series.shape[1], dtype=float)
+    for idx in range(q_series.shape[0] - 1):
+        q0 = q_series[idx, :]
+        q1 = q_series[idx + 1, :]
+        q_platform_only = q0.copy()
+        q_platform_only[:3] = q1[:3]
+        q_arm_only = q0.copy()
+        q_arm_only[3:] = q1[3:]
+        try:
+            x0 = compute_pinocchio_terms(q0, zero_qd, model_kwargs).x_cur
+            x_platform = compute_pinocchio_terms(q_platform_only, zero_qd, model_kwargs).x_cur
+            x_arm = compute_pinocchio_terms(q_arm_only, zero_qd, model_kwargs).x_cur
+        except Exception:
+            continue
+        platform_step = float(np.linalg.norm(np.asarray(x_platform) - np.asarray(x0)))
+        arm_step = float(np.linalg.norm(np.asarray(x_arm) - np.asarray(x0)))
+        platform_energy.append(platform_step * platform_step)
+        arm_energy.append(arm_step * arm_step)
+        ratio_time.append(float(time_s[idx + 1]))
+    platform_energy_array = np.asarray(platform_energy, dtype=float)
+    arm_energy_array = np.asarray(arm_energy, dtype=float)
+    denom = platform_energy_array + arm_energy_array
+    valid = denom > 1e-16
+    platform_ratio = np.zeros_like(denom)
+    arm_ratio = np.zeros_like(denom)
+    platform_ratio[valid] = platform_energy_array[valid] / denom[valid]
+    arm_ratio[valid] = arm_energy_array[valid] / denom[valid]
+    return {
+        "time_s": np.asarray(ratio_time, dtype=float),
+        "platform_ratio": platform_ratio,
+        "arm_ratio": arm_ratio,
+    }
 
 
 def _plot_trajectory_3d(trajectory: str, records: list[dict], figures_dir: Path) -> Path:
@@ -400,6 +531,8 @@ def _figure_caption(stem: str) -> str:
         return "最终平台运动分配汇总"
     if stem == "summary_cable_force":
         return "索力统计汇总"
+    if stem == "summary_motion_distribution_ratio":
+        return "协同模式末端运动分配比例汇总"
     for trajectory, label in TRAJECTORY_LABELS.items():
         prefix = f"{trajectory}_"
         if not stem.startswith(prefix):
@@ -411,6 +544,7 @@ def _figure_caption(stem: str) -> str:
             "tracking_errors": "跟踪误差时间序列",
             "cable_forces": "8 根索张力时间序列",
             "arm_torques": "机械臂关节力矩命令",
+            "motion_distribution_ratio": "协同模式末端运动分配比例",
         }
         return f"{label}：{suffix_titles.get(suffix, suffix)}"
     return stem
@@ -425,6 +559,8 @@ def _figure_note(stem: str) -> str:
         return "图注：展示运行结束时平台的平移与偏航角分配，用于判断 cooperative 是否产生合理平台运动。"
     if stem == "summary_cable_force":
         return "图注：统计所有索在每次运行中的最小、均值和最大张力。"
+    if stem == "summary_motion_distribution_ratio":
+        return "图注：通过冻结平台/机械臂的有限差分 FK 估计 cooperative 中末端运动由平台和机械臂分别贡献的比例。"
     if stem.endswith("_trajectory_3d"):
         return "图注：红色为期望末端轨迹，其余曲线为不同 mode 的实际末端轨迹。"
     if stem.endswith("_trajectory_projections"):
@@ -435,6 +571,8 @@ def _figure_note(stem: str) -> str:
         return "图注：展示 8 根索在运行过程中的张力变化。"
     if stem.endswith("_arm_torques"):
         return "图注：展示 6 个机械臂关节的力矩命令变化。"
+    if stem.endswith("_motion_distribution_ratio"):
+        return "图注：展示 cooperative 运行过程中平台与机械臂对末端运动的相对贡献比例。"
     return "图注：由轨迹 suite 导出数据生成。"
 
 

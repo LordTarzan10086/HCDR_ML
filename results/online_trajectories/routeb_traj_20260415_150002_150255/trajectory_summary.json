@@ -1,0 +1,460 @@
+{
+  "config_path": "C:\\Users\\A\\Documents\\MATLAB\\HCDR_v6-codex\\results\\online_config\\routeb_online_config_manual_smoke.json",
+  "trajectory": "line",
+  "dt": 0.02,
+  "move_duration": 2.0,
+  "settle_duration": 0.8,
+  "records": [
+    {
+      "mode": "platform_only",
+      "trajectory": "line",
+      "summary": {
+        "tip_rmse": [
+          0.000982042058504486,
+          0.00032937126972972463,
+          1.6879797943981192e-16
+        ],
+        "tip_max_error": 0.00189099572340643,
+        "first_fail_step": -1,
+        "solver_fail_count": 0,
+        "platform_limit_violation_count": 0,
+        "initial_platform_pose": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final_platform_pose": [
+          0.1199992335003602,
+          -0.03999950236443553,
+          -2.343485565723065e-06
+        ],
+        "platform_delta": [
+          0.1199992335003602,
+          -0.03999950236443553,
+          -2.343485565723065e-06
+        ],
+        "initial_arm_pose": [
+          0.0,
+          0.58,
+          0.92,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final_arm_pose": [
+          0.0,
+          0.58,
+          0.92,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "arm_final_delta_norm": 0.0,
+        "arm_max_delta_norm": 0.0,
+        "arm_max_abs_joint_delta": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "arm_max_qd_norm": 0.0,
+        "arm_max_abs_torque": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "solver_backend_counts": {
+          "osqp": 140
+        },
+        "fail_reason_counts": {
+          "none": 140
+        },
+        "max_platform_abs": [
+          0.12041165345230623,
+          0.040176265752915066,
+          4.257763406072205e-05
+        ],
+        "min_platform_limit_margin": 0.32958834654769376,
+        "min_platform_distance_margin_m": 0.32958834654769376,
+        "min_platform_angle_margin_rad": 0.43628973536452165,
+        "max_cable_force": 8.425417743283383,
+        "min_cable_length": 1.0900065666046128,
+        "max_cable_length": 1.3168568192746963,
+        "nonzero_cable_force_step_count": 140,
+        "fallback_count": 0,
+        "hold_ratio": 0.0,
+        "phase_metrics": {
+          "acquisition": {
+            "count": 0,
+            "rmse": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_error": 0.0,
+            "mean_error_norm": 0.0
+          },
+          "near_goal": {
+            "count": 104,
+            "rmse": [
+              0.0011387585772290453,
+              0.00038180632193617666,
+              1.681711642673626e-16
+            ],
+            "max_error": 0.00189099572340643,
+            "mean_error_norm": 0.0010124175680046462
+          },
+          "terminal_approach": {
+            "count": 36,
+            "rmse": [
+              6.513459225992492e-05,
+              2.7512445843795537e-05,
+              1.7059584221736345e-16
+            ],
+            "max_error": 0.00022222899378898862,
+            "mean_error_norm": 3.802692423338411e-05
+          },
+          "terminal_hold": {
+            "count": 0,
+            "rmse": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_error": 0.0,
+            "mean_error_norm": 0.0
+          }
+        },
+        "terminal_static_drift_max": 0.00036062778404475254,
+        "terminal_static_drift_mean": 0.00029513937918124324,
+        "terminal_static_sample_count": 40,
+        "hold_drift_max": 0.0,
+        "hold_drift_mean": 0.0,
+        "hold_sample_count": 0,
+        "pre_hold_last10_rmse": [
+          1.1788620677552988e-06,
+          5.761080296183861e-07,
+          1.5503420817984882e-16
+        ],
+        "pre_hold_last10_max_error": 1.6423120270921695e-06,
+        "pre_hold_last10_count": 10,
+        "pre_hold_last10_source": "no_terminal_hold_last10",
+        "trajectory_error_rmse_norm": 0.00103580501929422,
+        "trajectory_final_error_norm": 8.274288690020129e-07,
+        "corner_max_error_m": 0.000358994530441308,
+        "corner_error_m": [
+          0.0,
+          0.000358994530441308
+        ],
+        "xy_cross_track_rmse_m": 0.00103580501929422,
+        "xy_cross_track_max_m": 0.00189099572340643
+      }
+    },
+    {
+      "mode": "arm_only",
+      "trajectory": "line",
+      "summary": {
+        "tip_rmse": [
+          0.0012220605753919683,
+          0.00041714296901591586,
+          6.1511032340375176e-06
+        ],
+        "tip_max_error": 0.0024016370146238888,
+        "first_fail_step": -1,
+        "solver_fail_count": 0,
+        "platform_limit_violation_count": 0,
+        "initial_platform_pose": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final_platform_pose": [
+          0.002023845511252419,
+          -4.9803147824494627e-05,
+          8.189290260350625e-06
+        ],
+        "platform_delta": [
+          0.002023845511252419,
+          -4.9803147824494627e-05,
+          8.189290260350625e-06
+        ],
+        "initial_arm_pose": [
+          0.0,
+          0.58,
+          0.92,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final_arm_pose": [
+          -0.012497996442710286,
+          0.3082610178700252,
+          0.7760825278483401,
+          0.045176375808011426,
+          -0.1770231763632359,
+          -0.011689053887929214
+        ],
+        "arm_final_delta_norm": 0.3580855442437065,
+        "arm_max_delta_norm": 0.3580855442437065,
+        "arm_max_abs_joint_delta": [
+          0.03398368267311772,
+          0.27173898212997477,
+          0.14391747215165995,
+          0.050611697579218656,
+          0.1770231763632359,
+          0.014321549963989688
+        ],
+        "arm_max_qd_norm": 0.32468770738309694,
+        "arm_max_abs_torque": [
+          0.012764271250287267,
+          0.1313045419552204,
+          0.028562565344212563,
+          0.0011148641487986383,
+          0.0017907045331395117,
+          4.3880875974502095e-05
+        ],
+        "solver_backend_counts": {
+          "osqp": 121,
+          "slsqp": 19
+        },
+        "fail_reason_counts": {
+          "none": 140
+        },
+        "max_platform_abs": [
+          0.002241963520471163,
+          0.00010798043071561609,
+          0.0009758357347394267
+        ],
+        "min_platform_limit_margin": 0.0779714978408575,
+        "min_platform_distance_margin_m": 0.0779714978408575,
+        "min_platform_angle_margin_rad": 0.1394630271364544,
+        "max_cable_force": 78.73304598011833,
+        "min_cable_length": 1.2004365238490307,
+        "max_cable_length": 1.2037284705496365,
+        "nonzero_cable_force_step_count": 140,
+        "fallback_count": 0,
+        "hold_ratio": 0.0,
+        "phase_metrics": {
+          "acquisition": {
+            "count": 0,
+            "rmse": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_error": 0.0,
+            "mean_error_norm": 0.0
+          },
+          "near_goal": {
+            "count": 104,
+            "rmse": [
+              0.0014178816327935113,
+              0.0004839723477091061,
+              6.300890300948955e-06
+            ],
+            "max_error": 0.0024016370146238888,
+            "mean_error_norm": 0.0012247397110877036
+          },
+          "terminal_approach": {
+            "count": 36,
+            "rmse": [
+              1.676885810028799e-06,
+              6.045328369051151e-06,
+              5.696302910691087e-06
+            ],
+            "max_error": 2.1123907191160332e-05,
+            "mean_error_norm": 6.230537909509611e-06
+          },
+          "terminal_hold": {
+            "count": 0,
+            "rmse": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_error": 0.0,
+            "mean_error_norm": 0.0
+          }
+        },
+        "terminal_static_drift_max": 3.7669040473878326e-05,
+        "terminal_static_drift_mean": 3.131711795191764e-05,
+        "terminal_static_sample_count": 40,
+        "hold_drift_max": 0.0,
+        "hold_drift_mean": 0.0,
+        "hold_sample_count": 0,
+        "pre_hold_last10_rmse": [
+          2.8525163259422853e-07,
+          6.331615697699874e-07,
+          5.671715683481489e-07
+        ],
+        "pre_hold_last10_max_error": 1.294422258318529e-06,
+        "pre_hold_last10_count": 10,
+        "pre_hold_last10_source": "no_terminal_hold_last10",
+        "trajectory_error_rmse_norm": 0.001291308693766815,
+        "trajectory_final_error_norm": 5.967081980940756e-07,
+        "corner_max_error_m": 3.8206674857436874e-05,
+        "corner_error_m": [
+          0.0,
+          3.8206674857436874e-05
+        ],
+        "xy_cross_track_rmse_m": 0.001291294043402494,
+        "xy_cross_track_max_m": 0.00240163037674807
+      }
+    },
+    {
+      "mode": "cooperative",
+      "trajectory": "line",
+      "summary": {
+        "tip_rmse": [
+          0.0011219207779442546,
+          0.0003979772481821752,
+          2.057621932434663e-05
+        ],
+        "tip_max_error": 0.0022634597082325483,
+        "first_fail_step": -1,
+        "solver_fail_count": 0,
+        "platform_limit_violation_count": 0,
+        "initial_platform_pose": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final_platform_pose": [
+          0.014119978483997164,
+          -3.3441510982193645e-06,
+          -0.00010232609602584161
+        ],
+        "platform_delta": [
+          0.014119978483997164,
+          -3.3441510982193645e-06,
+          -0.00010232609602584161
+        ],
+        "initial_arm_pose": [
+          0.0,
+          0.58,
+          0.92,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final_arm_pose": [
+          0.09219554716846946,
+          0.342354824129595,
+          0.8051803465426253,
+          0.04351355201291798,
+          -0.09978503111668065,
+          -0.0030154473274403588
+        ],
+        "arm_final_delta_norm": 0.3000306249677909,
+        "arm_max_delta_norm": 0.3487887890198885,
+        "arm_max_abs_joint_delta": [
+          0.09219554716846946,
+          0.2847982722415214,
+          0.1460381697804065,
+          0.055635885183681115,
+          0.10788401842394256,
+          0.011913681348950404
+        ],
+        "arm_max_qd_norm": 0.3551733352818644,
+        "arm_max_abs_torque": [
+          0.009821652967564454,
+          0.11979849309637568,
+          0.027774120274138527,
+          0.0012813344136394025,
+          0.0017764328791652127,
+          4.228315427620142e-05
+        ],
+        "solver_backend_counts": {
+          "osqp": 140
+        },
+        "fail_reason_counts": {
+          "none": 140
+        },
+        "max_platform_abs": [
+          0.014119978483997164,
+          0.0002981506298505812,
+          0.0007682482813641902
+        ],
+        "min_platform_limit_margin": 0.31339101707761513,
+        "min_platform_distance_margin_m": 0.336072989569014,
+        "min_platform_angle_margin_rad": 0.31339101707761513,
+        "max_cable_force": 7.0,
+        "min_cable_length": 1.192136441475091,
+        "max_cable_length": 1.212109507757706,
+        "nonzero_cable_force_step_count": 140,
+        "fallback_count": 0,
+        "hold_ratio": 0.0,
+        "phase_metrics": {
+          "acquisition": {
+            "count": 0,
+            "rmse": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_error": 0.0,
+            "mean_error_norm": 0.0
+          },
+          "near_goal": {
+            "count": 104,
+            "rmse": [
+              0.0012938600225982984,
+              0.00046121095333886183,
+              2.2848008346688445e-05
+            ],
+            "max_error": 0.0022634597082325483,
+            "mean_error_norm": 0.001131479492734378
+          },
+          "terminal_approach": {
+            "count": 36,
+            "rmse": [
+              0.00024239554666257733,
+              3.786235597484927e-05,
+              1.176392526260582e-05
+            ],
+            "max_error": 0.00043501129712189324,
+            "mean_error_norm": 0.0002094987385464876
+          },
+          "terminal_hold": {
+            "count": 0,
+            "rmse": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "max_error": 0.0,
+            "mean_error_norm": 0.0
+          }
+        },
+        "terminal_static_drift_max": 0.0007543033873549499,
+        "terminal_static_drift_mean": 0.00043161371875860804,
+        "terminal_static_sample_count": 40,
+        "hold_drift_max": 0.0,
+        "hold_drift_mean": 0.0,
+        "hold_sample_count": 0,
+        "pre_hold_last10_rmse": [
+          0.0003751372498581459,
+          5.107404153623989e-05,
+          1.7465801583884707e-05
+        ],
+        "pre_hold_last10_max_error": 0.00043501129712189324,
+        "pre_hold_last10_count": 10,
+        "pre_hold_last10_source": "no_terminal_hold_last10",
+        "trajectory_error_rmse_norm": 0.0011905946005485585,
+        "trajectory_final_error_norm": 0.00043501129712189324,
+        "corner_max_error_m": 0.0003307112174908448,
+        "corner_error_m": [
+          0.0,
+          0.0003307112174908448
+        ],
+        "xy_cross_track_rmse_m": 0.001190416785018465,
+        "xy_cross_track_max_m": 0.0022634108445349966
+      }
+    }
+  ]
+}
