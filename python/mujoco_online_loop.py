@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence
 
 import numpy as np
 
-from ipc_json import request as ipc_request
+from ipc_json import PersistentJsonClient, request as ipc_request, request_profiled
 from ipc_json import wait_until_ready
 from online_config_utils import normalize_online_config_payload
 
@@ -126,35 +128,83 @@ def run_routeb_online_loop(
 class BackendClient:
     """JSON-over-TCP client for the headless MuJoCo backend service."""
 
-    def __init__(self, host: str, port: int, timeout_s: float = 5.0):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        timeout_s: float = 5.0,
+        *,
+        connection_mode: str = "oneshot",
+        snapshot_mode: str = "full",
+        profile: bool = False,
+    ):
         self.host = str(host)
         self.port = int(port)
         self.timeout_s = float(timeout_s)
+        self.connection_mode = str(connection_mode).strip().lower()
+        self.snapshot_mode = str(snapshot_mode).strip().lower()
+        self.profile = bool(profile)
+        self._persistent_client: PersistentJsonClient | None = None
+        if self.connection_mode == "persistent":
+            self._persistent_client = PersistentJsonClient(self.host, self.port, timeout_s=self.timeout_s)
 
     def ping(self) -> dict[str, Any]:
-        return _checked_ipc_request(self.host, self.port, {"cmd": "ping"}, timeout_s=self.timeout_s)
+        return self._checked_request({"cmd": "ping"})
 
     def reset(self, q: Sequence[float], qd: Sequence[float], *, microgravity: bool = True) -> dict[str, Any]:
-        return _checked_ipc_request(
-            self.host,
-            self.port,
+        return self._checked_request(
             {
                 "cmd": "reset",
                 "q": np.asarray(q, dtype=float).reshape(-1),
                 "qd": np.asarray(qd, dtype=float).reshape(-1),
                 "microgravity": bool(microgravity),
-            },
-            timeout_s=self.timeout_s,
+                "snapshot_mode": self.snapshot_mode,
+            }
         )
 
     def get_state(self) -> dict[str, Any]:
-        return _checked_ipc_request(self.host, self.port, {"cmd": "get_state"}, timeout_s=self.timeout_s)
+        return self._checked_request({"cmd": "get_state", "snapshot_mode": self.snapshot_mode})
 
     def step(self, payload: Mapping[str, Any]) -> dict[str, Any]:
-        return _checked_ipc_request(self.host, self.port, {"cmd": "step", "payload": dict(payload)}, timeout_s=self.timeout_s)
+        return self._checked_request(
+            {
+                "cmd": "step",
+                "payload": dict(payload),
+                "snapshot_mode": self.snapshot_mode,
+                "profile": self.profile,
+            }
+        )
 
     def shutdown(self) -> dict[str, Any]:
-        return _checked_ipc_request(self.host, self.port, {"cmd": "shutdown"}, timeout_s=self.timeout_s)
+        try:
+            return self._checked_request({"cmd": "shutdown"})
+        finally:
+            self.close()
+
+    def close(self) -> None:
+        """Close persistent connection if this client owns one."""
+
+        if self._persistent_client is not None:
+            self._persistent_client.close()
+
+    def _checked_request(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        reply = self._request(payload)
+        if not bool(reply.get("ok", False)):
+            raise RuntimeError(f"IPC {payload.get('cmd', 'unknown')} failed on {self.host}:{self.port}: {reply}")
+        return reply
+
+    def _request(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        if self.connection_mode == "persistent":
+            if self._persistent_client is None:
+                self._persistent_client = PersistentJsonClient(self.host, self.port, timeout_s=self.timeout_s)
+            return self._persistent_client.request(payload, profile=self.profile)
+        if self.profile:
+            reply, profile = request_profiled(self.host, self.port, payload, timeout_s=self.timeout_s)
+            profile_block = dict(reply.get("_profile", {}))
+            profile_block.update(profile)
+            reply["_profile"] = profile_block
+            return reply
+        return ipc_request(self.host, self.port, payload, timeout_s=self.timeout_s)
 
 
 class ViewerClient:
@@ -222,6 +272,22 @@ def launch_routeb_services(
     viewer_port_cfg = int(transport_cfg["viewer_port"])
     timeout_s = float(transport_cfg.get("timeout_s", 5.0))
     poll_interval_s = float(transport_cfg.get("poll_interval_s", 0.05))
+    backend_connection_mode = str(
+        os.environ.get(
+            "HCDR_BACKEND_CONNECTION_MODE",
+            transport_cfg.get("backend_connection_mode", "oneshot"),
+        )
+    ).strip().lower()
+    backend_snapshot_mode = str(
+        os.environ.get(
+            "HCDR_BACKEND_SNAPSHOT_MODE",
+            transport_cfg.get("backend_snapshot_mode", "full"),
+        )
+    ).strip().lower()
+    backend_profile = _env_flag(
+        "HCDR_BACKEND_PROFILE",
+        bool(transport_cfg.get("backend_profile", False)),
+    )
     use_persistent_ports = bool(persistent_session or reuse_viewer)
     backend_port = int(backend_port_cfg) if use_persistent_ports else _reserve_service_port(host, backend_port_cfg)
     viewer_port = (
@@ -230,7 +296,14 @@ def launch_routeb_services(
         else (_reserve_service_port(host, viewer_port_cfg, exclude_ports=[backend_port]) if enable_viewer else int(viewer_port_cfg))
     )
 
-    backend_client = BackendClient(host, backend_port, timeout_s=timeout_s)
+    backend_client = BackendClient(
+        host,
+        backend_port,
+        timeout_s=timeout_s,
+        connection_mode=backend_connection_mode,
+        snapshot_mode=backend_snapshot_mode,
+        profile=backend_profile,
+    )
     backend_process = None
     backend_reused = False
     if use_persistent_ports:
@@ -301,6 +374,9 @@ def launch_routeb_services(
         "viewer_port": viewer_port,
         "viewer_reused": bool(viewer_reused),
         "persistent_session": bool(use_persistent_ports),
+        "backend_connection_mode": backend_connection_mode,
+        "backend_snapshot_mode": backend_snapshot_mode,
+        "backend_profile": bool(backend_profile),
     }
 
 
@@ -333,6 +409,11 @@ def shutdown_routeb_services(
         viewer_process.terminate()
     if isinstance(backend_process, ManagedServiceProcess) and terminate_backend:
         backend_process.terminate()
+    if backend_client is not None and hasattr(backend_client, "close"):
+        try:
+            backend_client.close()
+        except Exception:
+            pass
 
 
 def run_routeb_online_loop_ipc(
@@ -348,17 +429,27 @@ def run_routeb_online_loop_ipc(
     platform_pose_des: Iterable[float] | None = None,
     microgravity: bool = True,
     reset_backend: bool = True,
+    single_request: bool | None = None,
 ) -> List[Dict[str, Any]]:
     """Run split-process Route-B online loop against headless backend."""
 
+    use_single_request = _env_flag("HCDR_LOOP_SINGLE_REQUEST", False) if single_request is None else bool(single_request)
     if reset_backend:
         initial_snapshot = backend_client.reset(q0, qd0, microgravity=microgravity)
         snapshot_for_viewer = initial_snapshot.get("snapshot", None)
         loop_time_origin_s = 0.0
+        cached_state_payload = {
+            "q": np.asarray(q0, dtype=float).reshape(-1),
+            "qd": np.asarray(qd0, dtype=float).reshape(-1),
+            "time_s": 0.0,
+        }
+        cached_snapshot = snapshot_for_viewer or {}
     else:
         initial_state_reply = backend_client.get_state()
         snapshot_for_viewer = initial_state_reply.get("snapshot", None)
         loop_time_origin_s = float(initial_state_reply.get("state", {}).get("time_s", 0.0))
+        cached_state_payload = dict(initial_state_reply["state"])
+        cached_snapshot = snapshot_for_viewer or {}
     if viewer_client is not None:
         try:
             if snapshot_for_viewer is None:
@@ -370,14 +461,26 @@ def run_routeb_online_loop_ipc(
 
     logs: List[Dict[str, Any]] = []
     for step_idx in range(int(num_steps)):
-        state_reply = backend_client.get_state()
-        state_payload = state_reply["state"]
-        current_snapshot = state_reply.get("snapshot", {})
+        loop_start = time.perf_counter()
+        if use_single_request:
+            get_state_ms = 0.0
+            state_reply = {"_profile": {}, "state": cached_state_payload, "snapshot": cached_snapshot}
+            state_payload = cached_state_payload
+            current_snapshot = cached_snapshot
+        else:
+            get_state_start = time.perf_counter()
+            state_reply = backend_client.get_state()
+            get_state_ms = (time.perf_counter() - get_state_start) * 1000.0
+            state_payload = state_reply["state"]
+            current_snapshot = state_reply.get("snapshot", {})
         q = np.asarray(state_payload["q"], dtype=float).reshape(-1)
         qd = np.asarray(state_payload["qd"], dtype=float).reshape(-1)
         time_s = float(state_payload["time_s"])
         reference_time_s = max(0.0, time_s - loop_time_origin_s)
+        reference_start = time.perf_counter()
         reference = trajectory_fn(reference_time_s)
+        reference_update_ms = (time.perf_counter() - reference_start) * 1000.0
+        controller_start = time.perf_counter()
         step_result = controller.solve_step(
             q,
             qd,
@@ -391,6 +494,7 @@ def run_routeb_online_loop_ipc(
             reference_complete=reference.get("reference_complete", None),
             backend_platform_wrench_map=current_snapshot.get("platform_wrench_map_A2D", None),
         )
+        controller_solve_ms = (time.perf_counter() - controller_start) * 1000.0
         if step_result.command is None:
             raise RuntimeError("RouteBOnlineController returned no command.")
 
@@ -407,14 +511,35 @@ def run_routeb_online_loop_ipc(
             backend_payload["arm_q_hold"] = np.asarray(step_result.command.metadata.get("arm_q_hold", []), dtype=float).reshape(-1)
             backend_payload["arm_qd_hold"] = np.asarray(step_result.command.metadata.get("arm_qd_hold", []), dtype=float).reshape(-1)
 
+        backend_step_start = time.perf_counter()
         step_reply = backend_client.step(backend_payload)
+        backend_client_step_ms = (time.perf_counter() - backend_step_start) * 1000.0
         snapshot = step_reply.get("snapshot", {})
+        cached_state_payload = {
+            "q": np.asarray(step_reply["q_next"], dtype=float).reshape(-1),
+            "qd": np.asarray(step_reply["qd_next"], dtype=float).reshape(-1),
+            "time_s": float(step_reply.get("time_s", time_s + float(dt))),
+        }
+        cached_snapshot = snapshot
         if viewer_client is not None and snapshot:
             try:
                 viewer_client.draw(snapshot)
             except Exception:
                 pass
 
+        logging_start = time.perf_counter()
+        timing_profile = _build_step_timing_profile(
+            controller_solve_ms=controller_solve_ms,
+            backend_client_step_ms=backend_client_step_ms,
+            get_state_ms=get_state_ms,
+            reference_update_ms=reference_update_ms,
+            loop_total_ms=(time.perf_counter() - loop_start) * 1000.0,
+            single_request=use_single_request,
+            dt=float(dt),
+            controller_profile=step_result.diagnostics.get("controller_profile", {}),
+            get_state_profile=state_reply.get("_profile", {}),
+            step_profile=step_reply.get("_profile", {}),
+        )
         logs.append(
             {
                 "step": step_idx,
@@ -441,8 +566,10 @@ def run_routeb_online_loop_ipc(
                     }
                 },
                 "snapshot": snapshot,
+                "timing": timing_profile,
             }
         )
+        logs[-1]["timing"]["logging_ms"] = (time.perf_counter() - logging_start) * 1000.0
 
     return logs
 
@@ -454,6 +581,72 @@ def _checked_ipc_request(host: str, port: int, payload: Mapping[str, Any], *, ti
     if not bool(reply.get("ok", False)):
         raise RuntimeError(f"IPC {payload.get('cmd', 'unknown')} failed on {host}:{port}: {reply}")
     return reply
+
+
+def _build_step_timing_profile(
+    *,
+    controller_solve_ms: float,
+    backend_client_step_ms: float,
+    get_state_ms: float,
+    reference_update_ms: float,
+    loop_total_ms: float,
+    single_request: bool,
+    dt: float,
+    controller_profile: Mapping[str, Any],
+    get_state_profile: Mapping[str, Any],
+    step_profile: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Merge client/server timing blocks into one log-friendly structure."""
+
+    step_profile_dict = {str(key): value for key, value in dict(step_profile).items()}
+    timing = {
+        "controller_solve_ms": float(controller_solve_ms),
+        "controller_total_ms": float(controller_solve_ms),
+        "backend_total_ms": float(backend_client_step_ms),
+        "backend_step_total_ms": float(backend_client_step_ms),
+        "get_state_ms": float(get_state_ms),
+        "state_fetch_total_ms": float(get_state_ms),
+        "reference_update_ms": float(reference_update_ms),
+        "loop_total_ms": float(loop_total_ms),
+        "combined_ms": float(controller_solve_ms + backend_client_step_ms),
+        "deadline_miss_bool": bool((controller_solve_ms + backend_client_step_ms) > float(dt) * 1000.0),
+        "single_request": bool(single_request),
+    }
+    for key, value in dict(controller_profile).items():
+        if str(key).endswith("_ms"):
+            try:
+                timing[str(key)] = float(value)
+            except Exception:
+                timing[str(key)] = value
+    for key in (
+        "ipc_connect_ms",
+        "ipc_send_serialize_ms",
+        "ipc_send_ms",
+        "ipc_recv_ms",
+        "ipc_recv_deserialize_ms",
+        "backend_dispatch_ms",
+        "mujoco_step_ms",
+        "snapshot_build_ms",
+    ):
+        if key in step_profile_dict:
+            try:
+                timing[key] = float(step_profile_dict[key])
+            except Exception:
+                timing[key] = step_profile_dict[key]
+    if "snapshot_mode" in step_profile_dict:
+        timing["snapshot_mode"] = str(step_profile_dict["snapshot_mode"])
+    if get_state_profile:
+        timing["get_state_profile"] = dict(get_state_profile)
+    return timing
+
+
+def _env_flag(name: str, default_value: bool = False) -> bool:
+    """Parse environment flag values used for benchmark-only transport modes."""
+
+    value = os.environ.get(name)
+    if value is None:
+        return bool(default_value)
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _build_bridge_payload(

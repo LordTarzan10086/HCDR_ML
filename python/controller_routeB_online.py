@@ -12,6 +12,8 @@ v3.3 front-half:
 from __future__ import annotations
 
 import json
+import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, Optional
@@ -20,7 +22,7 @@ import numpy as np
 
 from common_types import OnlineStepResult, RouteBCommand, RouteBState, TaskReference
 from pinocchio_terms_online import compute_pinocchio_terms
-from qp_solver_backends import solve_qp
+from qp_solver_backends import OSQPReusableSolver, has_osqp, solve_qp
 
 
 def build_task_acceleration_reference(
@@ -81,6 +83,36 @@ class ModeAwareTaskPlan:
     singularity_avoidance_diag: Dict[str, Any] = field(default_factory=dict)
 
 
+def _profile_enabled(controller_cfg: Mapping[str, Any]) -> bool:
+    """Return true when per-cycle controller timing should be recorded."""
+
+    if str(os.environ.get("HCDR_CONTROLLER_PROFILE", "")).strip().lower() in {"1", "true", "yes", "on"}:
+        return True
+    return bool(controller_cfg.get("controller_profile", False))
+
+
+def _profile_add(profile: Optional[Dict[str, float]], key: str, elapsed_ms: float) -> None:
+    """Accumulate elapsed milliseconds into a mutable profile dictionary."""
+
+    if profile is None:
+        return
+    profile[key] = float(profile.get(key, 0.0) + float(elapsed_ms))
+
+
+def _profile_tic(profile: Optional[Dict[str, float]], key: str) -> float:
+    """Start a lightweight timing span; caller must pass result to `_profile_toc`."""
+
+    return time.perf_counter() if profile is not None else 0.0
+
+
+def _profile_toc(profile: Optional[Dict[str, float]], key: str, start_s: float) -> None:
+    """Finish a timing span started by `_profile_tic`."""
+
+    if profile is None:
+        return
+    _profile_add(profile, key, (time.perf_counter() - start_s) * 1000.0)
+
+
 def solve_routeb_online_step(
     q: Iterable[float],
     qd: Iterable[float],
@@ -102,9 +134,12 @@ def solve_routeb_online_step(
     reference_complete: Optional[bool] = None,
     integral_error: Optional[Iterable[float]] = None,
     backend_platform_wrench_map: Optional[Iterable[Iterable[float]]] = None,
+    qp_solver_cache: Optional[Dict[str, OSQPReusableSolver]] = None,
+    profile: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Solve one Python-side Route-B step and return command + diagnostics."""
 
+    q_prepare_start = _profile_tic(profile, "q_prepare_ms")
     q_vec = _as_vector(q)
     qd_vec = _as_vector(qd, expected=q_vec.size)
     dof_count = q_vec.size
@@ -113,10 +148,16 @@ def solve_routeb_online_step(
     if dof_count != 3 + n_m:
         raise ValueError(f"Expected q/qd length {3 + n_m}, got {dof_count}.")
     requested_control_mode = _normalize_control_mode(controller_cfg.get("control_mode", "cooperative"))
+    _profile_toc(profile, "q_prepare_ms", q_prepare_start)
 
+    pin_start = _profile_tic(profile, "pinocchio_terms_ms")
     terms = compute_pinocchio_terms(q_vec, qd_vec, dict(model_kwargs))
+    _profile_toc(profile, "pinocchio_terms_ms", pin_start)
+    if profile is not None:
+        profile["fk_jacobian_ms"] = float(profile.get("fk_jacobian_ms", 0.0) + profile.get("pinocchio_terms_ms", 0.0))
     if current_tip_world is not None:
         terms.x_cur = _as_vector(current_tip_world, expected=3)
+    task_error_start = _profile_tic(profile, "task_error_ms")
     xd_des_vec = _as_vector(xd_des, expected=3)
     xdd_des_vec = _as_vector(xdd_des, expected=3)
     desired_velocity_norm = float(np.linalg.norm(xd_des_vec))
@@ -154,7 +195,9 @@ def solve_routeb_online_step(
     )
     if bool(arm_only_task_scaling_diag.get("enabled", False)):
         a_des = float(arm_only_task_scaling_diag.get("scale", 1.0)) * a_des
+    _profile_toc(profile, "task_error_ms", task_error_start)
 
+    qp_prepare_start = _profile_tic(profile, "qp_prepare_ms")
     z0 = float(controller_cfg["z0"])
     anchors_world = _as_matrix(controller_cfg["cable_anchors_world"], shape=(3, n_c))
     attach_local = _as_matrix(controller_cfg["platform_attach_local"], shape=(3, n_c))
@@ -346,6 +389,7 @@ def solve_routeb_online_step(
     )
     qdd_ref[:3] = platform_qdd_ref
     a_des = _clip_task_acceleration(a_des, effective_controller_cfg)
+    _profile_toc(profile, "qp_prepare_ms", qp_prepare_start)
 
     if requested_control_mode == "arm_only_osc_baseline":
         result = _solve_arm_only_osc_baseline(
@@ -362,6 +406,7 @@ def solve_routeb_online_step(
             qd=qd_vec,
         )
     else:
+        hqp_start = _profile_tic(profile, "hqp_total_ms")
         result = _solve_routeb_hqp(
             M=np.asarray(terms.M, dtype=float),
             ST=st,
@@ -378,7 +423,10 @@ def solve_routeb_online_step(
             q=q_vec,
             qd=qd_vec,
             dt=float(dt),
+            qp_solver_cache=qp_solver_cache,
+            profile=profile,
         )
+        _profile_toc(profile, "hqp_total_ms", hqp_start)
 
     result.update(
         {
@@ -415,6 +463,8 @@ def solve_routeb_online_step(
             "task_phase": task_phase,
         }
     )
+    if profile is not None:
+        result["controller_profile"] = dict(profile)
     return result
 
 
@@ -436,6 +486,7 @@ class RouteBOnlineController:
     stable_hold_counter: int = field(default=0)
     terminal_reference_latched: bool = field(default=False)
     terminal_reference_counter: int = field(default=0)
+    qp_solver_cache: Dict[str, OSQPReusableSolver] = field(default_factory=dict)
 
     @classmethod
     def from_exported_json(cls, json_path: str | Path) -> "RouteBOnlineController":
@@ -469,6 +520,9 @@ class RouteBOnlineController:
         reference_complete: Optional[bool] = None,
         backend_platform_wrench_map: Optional[Iterable[Iterable[float]]] = None,
     ) -> OnlineStepResult:
+        controller_profile: Optional[Dict[str, float]] = {} if _profile_enabled(self.controller_cfg) else None
+        controller_total_start = _profile_tic(controller_profile, "controller_total_ms")
+        q_prepare_start = _profile_tic(controller_profile, "q_prepare_ms")
         q_vec = np.asarray(q, dtype=float).reshape(-1)
         if self.arm_posture_ref is None:
             self.arm_posture_ref = q_vec[3:].copy()
@@ -498,6 +552,7 @@ class RouteBOnlineController:
             platform_pose_reference = self.terminal_platform_reference.copy()
             if self.terminal_arm_reference is not None:
                 arm_posture_reference = self.terminal_arm_reference.copy()
+        _profile_toc(controller_profile, "q_prepare_ms", q_prepare_start)
 
         result = solve_routeb_online_step(
             q_vec,
@@ -519,13 +574,18 @@ class RouteBOnlineController:
             reference_complete=reference_complete,
             integral_error=self.hold_integral_error,
             backend_platform_wrench_map=backend_platform_wrench_map,
+            qp_solver_cache=self.qp_solver_cache,
+            profile=controller_profile,
         )
 
         fallback_applied = False
+        fallback_check_start = _profile_tic(controller_profile, "fallback_check_ms")
         command_u_a = np.asarray(result["u_a"], dtype=float).reshape(-1)
         command_qdd = np.asarray(result["qdd"], dtype=float).reshape(-1)
+        _profile_toc(controller_profile, "fallback_check_ms", fallback_check_start)
         if not np.all(np.isfinite(command_u_a)) or not np.all(np.isfinite(command_qdd)):
             fallback_applied = True
+            fallback_solve_start = _profile_tic(controller_profile, "fallback_solve_ms")
             command_u_a = _build_fallback_actuation(
                 self.prev_u_a,
                 self.controller_cfg,
@@ -535,6 +595,7 @@ class RouteBOnlineController:
                 platform_pose_target=(platform_pose_reference if platform_pose_reference is not None else q_vec[:3]),
             )
             command_qdd = np.zeros_like(q_vec) if self.prev_qdd is None else np.asarray(self.prev_qdd, dtype=float).reshape(-1)
+            _profile_toc(controller_profile, "fallback_solve_ms", fallback_solve_start)
 
         arm_hold_diagnostics = {"enabled": False, "reason": "not_platform_only"}
         result_control_mode = _normalize_control_mode(result["diagnostics"].get("control_mode", self.controller_cfg.get("control_mode", "cooperative")))
@@ -553,6 +614,7 @@ class RouteBOnlineController:
             and self.controller_cfg.get("platform_only_arm_kinematic_hold_enabled", True)
         )
 
+        command_pack_start = _profile_tic(controller_profile, "command_pack_ms")
         command = RouteBCommand(
             u_a=command_u_a.copy(),
             qdd=command_qdd.copy(),
@@ -571,6 +633,7 @@ class RouteBOnlineController:
                 "arm_qd_hold": np.zeros_like(np.asarray(arm_posture_reference, dtype=float).reshape(-1)),
             },
         )
+        _profile_toc(controller_profile, "command_pack_ms", command_pack_start)
 
         if np.all(np.isfinite(np.asarray(result["u_a_wo"], dtype=float).reshape(-1))):
             self.prev_u_a_wo = np.asarray(result["u_a_wo"], dtype=float).reshape(-1)
@@ -655,6 +718,8 @@ class RouteBOnlineController:
         else:
             self.hold_integral_error = np.zeros(3, dtype=float)
 
+        _profile_toc(controller_profile, "controller_total_ms", controller_total_start)
+        controller_profile_out = dict(controller_profile or {})
         return OnlineStepResult(
             state=result["state"],
             task=result["task"],
@@ -694,6 +759,7 @@ class RouteBOnlineController:
                 "reference_complete": bool(reference_complete) if reference_complete is not None else reference_static_enough,
                 "task_phase": str(result.get("task_phase", "")),
                 "platform_limit_diag": result["platform_limit_diag"],
+                "controller_profile": controller_profile_out,
             },
         )
 
@@ -914,6 +980,8 @@ def _solve_routeb_hqp(
     q: np.ndarray,
     qd: np.ndarray,
     dt: float,
+    qp_solver_cache: Optional[Dict[str, OSQPReusableSolver]] = None,
+    profile: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Solve Route-B using an explicit HCDR_HQP-like task stack."""
 
@@ -925,6 +993,7 @@ def _solve_routeb_hqp(
     previous_uwo = np.zeros(actuation_count, dtype=float) if prev_u_a_wo is None else _as_vector(prev_u_a_wo, expected=actuation_count)
     previous_qdd = np.zeros(dof_count, dtype=float) if prev_qdd is None else _as_vector(prev_qdd, expected=dof_count)
     qp_backend = str(controller_cfg.get("qp_solver_backend", "auto"))
+    osqp_settings = _osqp_reusable_settings(controller_cfg)
 
     alpha_t = float(controller_cfg.get("alpha_T", 1e-3))
     beta_tau = float(controller_cfg.get("beta_tau", 1e-3))
@@ -999,6 +1068,10 @@ def _solve_routeb_hqp(
         z_ref,
         qp_backend,
         task_level_regularization,
+        qp_solver_cache=qp_solver_cache,
+        solver_key_prefix=f"{control_mode}:{task_phase}",
+        osqp_settings=osqp_settings,
+        profile=profile,
     )
     if not level_results["success"]:
         failure = _failure_result(dof_count, actuation_count, n_c, h_a, level_results["fail_reason"], level_results["last_solver"])
@@ -1018,6 +1091,7 @@ def _solve_routeb_hqp(
                 "singularity_avoidance": singularity_avoidance_diag,
                 "joint_limit_avoidance": joint_limit_avoidance_diag,
                 "task_stack": level_results.get("level_summaries", []),
+                "qp_profile": _compact_qp_profile(level_results.get("qp_profiles", [])),
                 "task_failure_detail": {
                     "stage": "task_stack_level",
                     "failed_task_name": str(level_results.get("failed_task_name", "")),
@@ -1054,7 +1128,24 @@ def _solve_routeb_hqp(
     )
     final_eq, final_rhs = _assemble_fixed_task_constraints(hard_eq, hard_rhs, task_levels, level_results["slacks"])
     final_x0 = z_stack.copy()
-    final_solver = solve_qp(min_h, min_g, final_eq, final_rhs, z_lower, z_upper, final_x0, backend=qp_backend)
+    final_solver = _solve_qp_cached(
+        min_h,
+        min_g,
+        final_eq,
+        final_rhs,
+        z_lower,
+        z_upper,
+        final_x0,
+        backend=qp_backend,
+        solver_cache=qp_solver_cache,
+        solver_key=f"{control_mode}:{task_phase}:final_min_task",
+        osqp_settings=osqp_settings,
+        profile=profile,
+        allow_slsqp_fallback=not (
+            bool(controller_cfg.get("allow_min_task_task_stack_fallback", True))
+            and bool(controller_cfg.get("skip_slsqp_for_min_task_fallback", True))
+        ),
+    )
 
     tracking_slack_norm = float(level_results["tracking_slack_norm"])
     min_task_fallback_applied = False
@@ -1120,6 +1211,7 @@ def _solve_routeb_hqp(
         "min_task_failure_detail": min_task_failure_detail,
         "min_task_fallback_applied": bool(min_task_fallback_applied),
         "solver_runtime_s": float(level_results["runtime_s"] + float(final_solver.get("runtime_s", 0.0))),
+        "qp_profile": _compact_qp_profile(level_results.get("qp_profiles", []) + [final_solver.get("profile", {})]),
     }
 
     return {
@@ -1966,6 +2058,11 @@ def _solve_task_stack_levels(
     z_ref: np.ndarray,
     qp_backend: str,
     regularization: float,
+    *,
+    qp_solver_cache: Optional[Dict[str, OSQPReusableSolver]] = None,
+    solver_key_prefix: str = "routeb",
+    osqp_settings: Optional[Mapping[str, Any]] = None,
+    profile: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Solve explicit HCDR_HQP-like task levels sequentially."""
 
@@ -1973,10 +2070,11 @@ def _solve_task_stack_levels(
     z_current = np.asarray(z_ref, dtype=float).reshape(-1).copy()
     slack_map: Dict[str, np.ndarray] = {}
     level_summaries: list[dict[str, Any]] = []
+    qp_profiles: list[dict[str, Any]] = []
     backend_used = ""
     total_runtime_s = 0.0
 
-    for task in task_levels:
+    for level_index, task in enumerate(task_levels):
         slack_dim = int(task.A.shape[0])
         H = np.zeros((decision_dim + slack_dim, decision_dim + slack_dim), dtype=float)
         H[:decision_dim, :decision_dim] = regularization * np.eye(decision_dim, dtype=float)
@@ -1997,7 +2095,21 @@ def _solve_task_stack_levels(
         ub = np.concatenate([z_upper, np.inf * np.ones(slack_dim, dtype=float)])
         slack0 = np.asarray(task.b, dtype=float).reshape(-1) - np.asarray(task.A, dtype=float) @ z_current
         x0 = np.concatenate([z_current, slack0])
-        solver = solve_qp(H, g, eq, rhs, lb, ub, x0, backend=qp_backend)
+        solver = _solve_qp_cached(
+            H,
+            g,
+            eq,
+            rhs,
+            lb,
+            ub,
+            x0,
+            backend=qp_backend,
+            solver_cache=qp_solver_cache,
+            solver_key=f"{solver_key_prefix}:level:{level_index}:{task.name}",
+            osqp_settings=osqp_settings,
+            profile=profile,
+        )
+        qp_profiles.append(dict(solver.get("profile", {})))
         total_runtime_s += float(solver.get("runtime_s", 0.0))
         backend_used = str(solver.get("backend", backend_used))
         if not solver["success"] or solver["x"] is None:
@@ -2008,6 +2120,7 @@ def _solve_task_stack_levels(
                 "completed_task_names": [summary["name"] for summary in level_summaries],
                 "last_solver": solver,
                 "level_summaries": level_summaries,
+                "qp_profiles": qp_profiles,
                 "runtime_s": total_runtime_s,
                 "backend_used": backend_used,
             }
@@ -2023,6 +2136,8 @@ def _solve_task_stack_levels(
                 "status": str(solver.get("status", "")),
                 "objective": float(solver.get("objective", float("nan"))),
                 "slack_norm": float(np.linalg.norm(slack_map[task.name])),
+                "osqp_reused": bool(solver.get("osqp_reused", False)),
+                "fallback_from": str(solver.get("fallback_from", "")),
             }
         )
 
@@ -2036,6 +2151,7 @@ def _solve_task_stack_levels(
         "slacks": slack_map,
         "tracking_slack_norm": float(np.linalg.norm(tracking_slack)),
         "level_summaries": level_summaries,
+        "qp_profiles": qp_profiles,
         "runtime_s": total_runtime_s,
         "backend_used": backend_used,
         "last_solver": {"success": True, "status": "ok", "runtime_s": total_runtime_s},
@@ -2142,6 +2258,164 @@ def _build_min_cost_objective(
         + np.concatenate([tension_ref_weight * desired_cable_uwo, np.zeros(n_m, dtype=float)])
     )
     return H, g
+
+
+def _osqp_reusable_settings(controller_cfg: Mapping[str, Any]) -> Dict[str, Any]:
+    """Fast reusable-OSQP settings used by the online loop."""
+
+    return {
+        "polish": bool(controller_cfg.get("osqp_reusable_polish", False)),
+        "max_iter": int(controller_cfg.get("osqp_reusable_max_iter", 1000)),
+        "eps_abs": float(controller_cfg.get("osqp_reusable_eps_abs", 1e-4)),
+        "eps_rel": float(controller_cfg.get("osqp_reusable_eps_rel", 1e-4)),
+        "adaptive_rho": bool(controller_cfg.get("osqp_reusable_adaptive_rho", True)),
+    }
+
+
+def _compact_qp_profile(profile_blocks: list[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Aggregate per-QP timing blocks into one diagnostics dictionary."""
+
+    totals: Dict[str, float] = {}
+    osqp_qp_count = 0
+    reused_count = 0
+    fallback_count = 0
+    for block in profile_blocks:
+        if not isinstance(block, Mapping):
+            continue
+        for key, value in block.items():
+            if not str(key).endswith("_ms"):
+                continue
+            try:
+                totals[str(key)] = float(totals.get(str(key), 0.0) + float(value))
+            except Exception:
+                continue
+        if any(str(key).startswith("osqp_") for key in block.keys()):
+            osqp_qp_count += 1
+        if bool(block.get("osqp_reused", False)):
+            reused_count += 1
+        if float(block.get("fallback_solve_ms", 0.0) or 0.0) > 0.0:
+            fallback_count += 1
+    totals["osqp_qp_count"] = float(osqp_qp_count)
+    totals["osqp_reused_count"] = float(reused_count)
+    totals["fallback_qp_count"] = float(fallback_count)
+    return totals
+
+
+def _solve_qp_cached(
+    H: np.ndarray,
+    g: np.ndarray,
+    Aeq: np.ndarray,
+    beq: np.ndarray,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    x0: np.ndarray,
+    *,
+    backend: str,
+    solver_cache: Optional[Dict[str, OSQPReusableSolver]],
+    solver_key: str,
+    osqp_settings: Optional[Mapping[str, Any]] = None,
+    profile: Optional[Dict[str, float]] = None,
+    allow_slsqp_fallback: bool = True,
+) -> Dict[str, Any]:
+    """Solve QP with a reusable OSQP workspace when available.
+
+    The fallback path deliberately preserves the old `solve_qp` behavior so a
+    reusable workspace mismatch or numerical failure cannot break controller
+    modes that already relied on auto -> SLSQP fallback.
+    """
+
+    requested_backend = str(backend).lower()
+    resolved_backend = requested_backend
+    if requested_backend == "auto":
+        resolved_backend = "osqp_reusable" if has_osqp() else "slsqp"
+
+    if resolved_backend not in {"osqp", "osqp_reusable"}:
+        slsqp_start = _profile_tic(profile, "fallback_solve_ms")
+        result = solve_qp(H, g, Aeq, beq, lb, ub, x0, backend="slsqp")
+        _profile_toc(profile, "fallback_solve_ms", slsqp_start)
+        result["profile"] = {"fallback_solve_ms": float(result.get("runtime_s", 0.0)) * 1000.0}
+        return result
+
+    if solver_cache is None or not has_osqp():
+        fallback_start = _profile_tic(profile, "fallback_solve_ms")
+        result = solve_qp(H, g, Aeq, beq, lb, ub, x0, backend=("osqp" if resolved_backend == "osqp" else "auto"))
+        _profile_toc(profile, "fallback_solve_ms", fallback_start)
+        result["profile"] = {"fallback_solve_ms": (time.perf_counter() - fallback_start) * 1000.0 if profile is not None else 0.0}
+        return result
+
+    settings = dict(osqp_settings or {})
+    cache_key = f"{solver_key}:shape:{np.asarray(H).shape}:{np.asarray(Aeq).shape}"
+    osqp_setup_ms = 0.0
+    osqp_matrix_update_ms = 0.0
+    osqp_reused = False
+    try:
+        solver = solver_cache.get(cache_key)
+        if solver is None or not solver.can_update(H, Aeq):
+            setup_start = time.perf_counter()
+            solver = OSQPReusableSolver(H, Aeq, **settings)
+            solver_cache[cache_key] = solver
+            osqp_setup_ms = (time.perf_counter() - setup_start) * 1000.0
+        else:
+            osqp_reused = True
+            solver.update_settings(**settings)
+            update_start = time.perf_counter()
+            solver.update_problem_matrices(H, Aeq)
+            osqp_matrix_update_ms = (time.perf_counter() - update_start) * 1000.0
+        warm_start_x = solver.last_x
+        if warm_start_x is None:
+            warm_start_x = np.asarray(x0, dtype=float).reshape(-1)
+        result = solver.solve(g, beq, lb, ub, x0=warm_start_x)
+        result_profile = dict(result.get("profile", {}))
+        result_profile["osqp_setup_ms"] = float(osqp_setup_ms)
+        result_profile["osqp_matrix_update_ms"] = float(osqp_matrix_update_ms)
+        result_profile["osqp_update_ms"] = float(
+            osqp_setup_ms
+            + osqp_matrix_update_ms
+            + float(result_profile.get("osqp_vector_update_ms", 0.0))
+            + float(result_profile.get("osqp_warm_start_ms", 0.0))
+        )
+        result_profile["osqp_reused"] = bool(osqp_reused)
+        result["profile"] = result_profile
+        result["osqp_reused"] = bool(osqp_reused)
+        result["solver_key"] = str(solver_key)
+        _profile_add(profile, "osqp_setup_ms", osqp_setup_ms)
+        _profile_add(profile, "osqp_matrix_update_ms", osqp_matrix_update_ms)
+        _profile_add(profile, "osqp_update_ms", float(result_profile.get("osqp_update_ms", 0.0)))
+        _profile_add(profile, "osqp_solve_ms", float(result_profile.get("osqp_solve_ms", 0.0)))
+    except Exception as exc:  # pragma: no cover - defensive
+        result = {
+            "success": False,
+            "x": None,
+            "status": f"osqp_reusable_exception:{exc}",
+            "objective": float("nan"),
+            "runtime_s": 0.0,
+            "backend": "osqp_reusable",
+            "profile": {
+                "osqp_setup_ms": float(osqp_setup_ms),
+                "osqp_matrix_update_ms": float(osqp_matrix_update_ms),
+                "osqp_update_ms": float(osqp_setup_ms + osqp_matrix_update_ms),
+                "osqp_solve_ms": 0.0,
+            },
+            "osqp_reused": bool(osqp_reused),
+        }
+
+    if result["success"]:
+        return result
+    if requested_backend == "auto" and bool(allow_slsqp_fallback):
+        fallback_check_start = _profile_tic(profile, "fallback_check_ms")
+        _profile_toc(profile, "fallback_check_ms", fallback_check_start)
+        fallback_start = _profile_tic(profile, "fallback_solve_ms")
+        slsqp_result = solve_qp(H, g, Aeq, beq, lb, ub, x0, backend="slsqp")
+        _profile_toc(profile, "fallback_solve_ms", fallback_start)
+        slsqp_result["fallback_from"] = "osqp_reusable"
+        slsqp_result["osqp_reusable_status"] = str(result.get("status", ""))
+        slsqp_result["profile"] = {
+            **dict(result.get("profile", {})),
+            "fallback_solve_ms": (time.perf_counter() - fallback_start) * 1000.0 if profile is not None else 0.0,
+        }
+        return slsqp_result
+    result["slsqp_fallback_skipped"] = bool(requested_backend == "auto" and not bool(allow_slsqp_fallback))
+    return result
 
 
 def _compute_arm_only_task_scaling(

@@ -6,6 +6,7 @@ import argparse
 import json
 import socketserver
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -23,15 +24,29 @@ class _ReusableTCPServer(socketserver.TCPServer):
 
 
 class _BackendRequestHandler(socketserver.StreamRequestHandler):
-    """One-request-per-connection JSON handler."""
+    """Newline-delimited JSON handler.
+
+    Old clients still send one request then close the connection. Persistent
+    clients keep the socket open and send multiple newline-framed requests.
+    """
 
     def handle(self) -> None:  # pragma: no cover - exercised via live IPC
-        try:
-            request = recv_message(self.connection)
-            response = dispatch_request(request)
-        except Exception as err:
-            response = {"ok": False, "error": str(err)}
-        send_message(self.connection, response)
+        while True:
+            try:
+                request = recv_message(self.connection)
+            except ConnectionError:
+                return
+            except Exception as err:
+                send_message(self.connection, {"ok": False, "error": str(err)})
+                return
+
+            try:
+                response = dispatch_request(request)
+            except Exception as err:
+                response = {"ok": False, "error": str(err)}
+            send_message(self.connection, response)
+            if str(request.get("cmd", "")).lower() == "shutdown":
+                return
 
 
 def dispatch_request(request: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,14 +66,26 @@ def dispatch_request(request: Dict[str, Any]) -> Dict[str, Any]:
     if _BACKEND is None:
         raise RuntimeError("Backend is not initialized. Send reset after launching service.")
 
+    snapshot_mode = str(request.get("snapshot_mode", "full")).strip().lower()
     if command == "reset":
         snapshot = _BACKEND.reset(request["q"], request["qd"], microgravity=bool(request.get("microgravity", True)))
-        return {"ok": True, "snapshot": to_jsonable(snapshot)}
+        return {"ok": True, "snapshot": to_jsonable(_BACKEND.snapshot(snapshot_mode))}
     if command == "get_state":
-        return {"ok": True, "state": to_jsonable(_BACKEND.get_state()), "snapshot": _BACKEND.jsonable_snapshot()}
+        return {"ok": True, "state": to_jsonable(_BACKEND.get_state()), "snapshot": _BACKEND.jsonable_snapshot(snapshot_mode)}
     if command == "step":
-        result = _BACKEND.step(request.get("payload", {}))
-        return {"ok": True, **to_jsonable(result)}
+        payload = dict(request.get("payload", {}))
+        payload.setdefault("snapshot_mode", snapshot_mode)
+        payload.setdefault("profile", bool(request.get("profile", False)))
+        dispatch_start = time.perf_counter()
+        result = _BACKEND.step(payload)
+        dispatch_total_ms = (time.perf_counter() - dispatch_start) * 1000.0
+        response = {"ok": True, **to_jsonable(result)}
+        if bool(request.get("profile", False)):
+            profile = dict(response.get("_profile", {}))
+            backend_total_ms = float(profile.get("backend_total_ms", dispatch_total_ms))
+            profile["backend_dispatch_ms"] = max(0.0, dispatch_total_ms - backend_total_ms)
+            response["_profile"] = profile
+        return response
     raise ValueError(f"Unsupported backend command: {command}")
 
 

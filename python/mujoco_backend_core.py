@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
 
@@ -122,7 +123,12 @@ class HeadlessMujocoBackend:
     def step(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         """Advance one backend step using current internal state."""
 
+        profile_enabled = bool(payload.get("profile", False))
+        profile_start = time.perf_counter()
+        mujoco_step_ms = 0.0
+        snapshot_build_ms = 0.0
         dt = float(_payload_scalar(payload, "dt", float(self.backend_cfg.get("default_dt", 0.02))))
+        snapshot_mode = str(payload.get("snapshot_mode", "full")).strip().lower()
         microgravity = bool(payload.get("microgravity", self.backend_cfg.get("microgravity", True)))
         qdd_payload = np.nan_to_num(
             _payload_vector(payload, "qdd", self.q_state.shape[0], default_value=0.0),
@@ -170,8 +176,10 @@ class HeadlessMujocoBackend:
                 clipped_arm = np.clip(arm_cmd, arm_range[:, 0], arm_range[:, 1])
                 self.data.ctrl[arm_ids] = clipped_arm
                 self.last_arm_ctrl_applied[:applied_arm_dim] = clipped_arm
+            mujoco_start = time.perf_counter()
             for _ in range(substeps):
                 mujoco.mj_step(self.model, self.data)
+            mujoco_step_ms += (time.perf_counter() - mujoco_start) * 1000.0
             q_next, qd_next = self._read_native_state()
         else:
             # Apply arm generalized forces directly to the headless MuJoCo model.
@@ -179,8 +187,10 @@ class HeadlessMujocoBackend:
             applied_arm_dim = min(self.arm_velocity_count, arm_torques.size)
             if applied_arm_dim > 0:
                 self.data.qfrc_applied[:applied_arm_dim] = arm_torques[:applied_arm_dim]
+            mujoco_start = time.perf_counter()
             for _ in range(substeps):
                 mujoco.mj_step(self.model, self.data)
+            mujoco_step_ms += (time.perf_counter() - mujoco_start) * 1000.0
 
             # Compose next HCDR state:
             # - platform is advanced by cable-wrench planar dynamics when enabled
@@ -210,19 +220,33 @@ class HeadlessMujocoBackend:
         self._sync_model_from_state()
         self.status_code = "ok_headless"
         self.status_detail = self.physics_mode
+        snapshot_start = time.perf_counter()
+        snapshot = self.snapshot(snapshot_mode)
+        snapshot_build_ms = (time.perf_counter() - snapshot_start) * 1000.0
 
-        return {
+        result = {
             "q_next": q_next.copy(),
             "qd_next": qd_next.copy(),
             "time_s": float(self.time_s),
             "status_code": str(self.status_code),
             "status_detail": str(self.status_detail),
             "physics_mode": self.physics_mode,
-            "snapshot": self.snapshot(),
+            "snapshot": snapshot,
         }
+        if profile_enabled:
+            result["_profile"] = {
+                "backend_total_ms": (time.perf_counter() - profile_start) * 1000.0,
+                "mujoco_step_ms": float(mujoco_step_ms),
+                "snapshot_build_ms": float(snapshot_build_ms),
+                "snapshot_mode": snapshot_mode,
+            }
+        return result
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, mode: str = "full") -> dict[str, Any]:
         """Return viewer/log friendly snapshot of the current backend state."""
+
+        if str(mode).strip().lower() == "minimal":
+            return self._minimal_snapshot()
 
         tip_world = compute_tip_world(self.model, self.data, self.backend_cfg)
         snapshot = {
@@ -243,6 +267,25 @@ class HeadlessMujocoBackend:
         else:
             snapshot["u_a"] = self.last_u_a.copy()
         snapshot.update(self._platform_wrench_snapshot())
+        return snapshot
+
+    def _minimal_snapshot(self) -> dict[str, Any]:
+        """Return the fields required by online control and suite metrics."""
+
+        tip_world = compute_tip_world(self.model, self.data, self.backend_cfg)
+        snapshot = {
+            "time_s": float(self.time_s),
+            "tip_world": tip_world,
+            "status_code": str(self.status_code),
+            "status_detail": str(self.status_detail),
+            "physics_mode": self.physics_mode,
+        }
+        if self.native_mode:
+            snapshot["cable_lengths"] = np.asarray(self.data.ten_length[self.cable_tendon_ids], dtype=float).reshape(-1).copy()
+            snapshot["cable_forces"] = self.last_cable_ctrl_applied.copy()
+        else:
+            snapshot["u_a"] = self.last_u_a.copy()
+        snapshot["platform_wrench_map_A2D"] = self._platform_wrench_map_only()
         return snapshot
 
     def _load_model(self) -> tuple[mujoco.MjModel, mujoco.MjData, dict[str, Any]]:
@@ -320,10 +363,10 @@ class HeadlessMujocoBackend:
             qd_next[3 : 3 + arm_state_dim] = np.asarray(self.data.qvel[self.arm_qvel_indices[:arm_state_dim]], dtype=float).reshape(-1)
         return q_next, qd_next
 
-    def jsonable_snapshot(self) -> dict[str, Any]:
+    def jsonable_snapshot(self, mode: str = "full") -> dict[str, Any]:
         """Return JSON-safe snapshot for IPC services."""
 
-        return to_jsonable(self.snapshot())
+        return to_jsonable(self.snapshot(mode))
 
     def _compute_platform_acceleration(self, u_a: np.ndarray, qdd_payload: np.ndarray) -> np.ndarray:
         """Return planar platform acceleration from cable wrench when enabled."""
@@ -381,6 +424,15 @@ class HeadlessMujocoBackend:
             "platform_wrench_from_cable_forces": a2d @ tensions,
             "platform_wrench_map_source": "mujoco_backend_core_3d",
         }
+
+    def _platform_wrench_map_only(self) -> np.ndarray:
+        """Compute only A2D, which is the map consumed by the controller."""
+
+        cable_count = int(self.controller_cfg["n_c"])
+        anchors_world = np.asarray(self.controller_cfg["cable_anchors_world"], dtype=float).reshape(3, cable_count)
+        attach_local = np.asarray(self.controller_cfg["platform_attach_local"], dtype=float).reshape(3, cable_count)
+        a2d, _ = _compute_a2d(self.q_state[:3], float(self.controller_cfg["z0"]), anchors_world, attach_local)
+        return a2d.copy()
 
 
 def _payload_scalar(payload: Mapping[str, Any], key: str, default_value: float) -> float:
