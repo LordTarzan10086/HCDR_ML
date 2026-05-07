@@ -5,11 +5,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 
 import numpy as np
 
+from benchmark_modes import add_benchmark_mode_argument, apply_benchmark_mode
 from controller_routeB_online import RouteBOnlineController
 from mujoco_online_loop import (
     launch_routeb_services,
@@ -25,7 +27,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Route-B online smoke demo")
     parser.add_argument("--config", type=str, default="", help="Path to exported JSON from export_routeb_online_config_json.m")
     parser.add_argument("--steps", type=int, default=120)
-    parser.add_argument("--dt", type=float, default=0.02)
+    parser.add_argument("--dt", type=float, default=0.01)
     parser.add_argument("--viewer", action="store_true", help="Launch separate viewer service")
     parser.add_argument("--viewer-only", action="store_true", help="Launch/reset viewer and keep it open without running the control loop")
     parser.add_argument("--reuse-viewer", action="store_true", help="Reuse an existing viewer service on the configured viewer port")
@@ -41,10 +43,15 @@ def main() -> None:
     parser.add_argument("--settle-duration", type=float, default=-1.0, help="Extra hold time appended after the move; <0 uses config default")
     parser.add_argument("--control-mode", type=str, default="", help="cooperative | platform_only | arm_only | arm_only_osc_baseline")
     parser.add_argument("--save-results", action="store_true", help="Export CSV/JSON diagnostics under results/online_smoke")
+    parser.add_argument("--output-root", type=str, default="results/online_smoke", help="Output root used when --save-results is enabled")
     parser.add_argument("--hard-lock-platform", action="store_true", help="Force platform qdd to platform_pose_des inside the online HQP")
     parser.add_argument("--enable-joint-limit-avoidance", action="store_true", help="Enable paper-style arm joint-limit qdd bounds")
     parser.add_argument("--enable-singularity-avoidance", action="store_true", help="Enable cooperative SVD singularity-avoidance tracking split")
+    add_benchmark_mode_argument(parser)
     args = parser.parse_args()
+    apply_benchmark_mode(args.benchmark_mode)
+    if bool(args.viewer or args.viewer_only or args.reuse_viewer or args.traj_demonstrate):
+        os.environ["HCDR_BACKEND_SNAPSHOT_MODE"] = "full"
 
     config_path = resolve_config_path(args.config)
     payload = normalize_online_config_payload(
@@ -591,7 +598,9 @@ def export_online_smoke_results(
 ) -> Path:
     """Save per-step CSV plus summary JSON for D2/D3 controller diagnosis."""
 
-    export_root = Path(__file__).resolve().parent.parent / "results" / "online_smoke"
+    export_root = Path(str(getattr(args, "output_root", "results/online_smoke")).strip() or "results/online_smoke")
+    if not export_root.is_absolute():
+        export_root = Path(__file__).resolve().parent.parent / export_root
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     export_dir = export_root / f"routeb_online_{timestamp}"
     export_dir.mkdir(parents=True, exist_ok=True)
@@ -606,6 +615,7 @@ def export_online_smoke_results(
         "q_platform_x",
         "q_platform_y",
         "q_platform_psi",
+        "dyn_residual",
         "tip_x",
         "tip_y",
         "tip_z",
@@ -699,6 +709,7 @@ def export_online_smoke_results(
                 "q_platform_x": float(q_next[0]),
                 "q_platform_y": float(q_next[1]),
                 "q_platform_psi": float(q_next[2]),
+                "dyn_residual": float(solver_diag.get("dyn_residual", np.nan)),
                 "tip_x": float(tip[0]),
                 "tip_y": float(tip[1]),
                 "tip_z": float(tip[2]),

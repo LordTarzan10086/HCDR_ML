@@ -22,6 +22,7 @@ from typing import Any, Iterable, Mapping
 
 import numpy as np
 
+from benchmark_modes import DEFAULT_BENCHMARK_MODE
 from demo_online_routeb_trajectory_modes import (
     json_ready,
     resolve_config_path,
@@ -78,7 +79,12 @@ def main() -> None:
     parser.add_argument("--config", type=str, default="", help="Route-B online config JSON")
     parser.add_argument("--dt", type=float, default=0.01)
     parser.add_argument("--output-root", type=str, default="results/tracking")
-    parser.add_argument("--modes", type=str, default="persistent_double,persistent_single,direct_single,persistent_single_gc_disabled")
+    parser.add_argument(
+        "--modes",
+        type=str,
+        default=DEFAULT_BENCHMARK_MODE,
+        help="Comma-separated benchmark modes. Use 'persistent_double,persistent_single,direct_single,persistent_single_gc_disabled' for a full transport comparison.",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ from typing import Callable, Iterable
 
 import numpy as np
 
+from benchmark_modes import add_benchmark_mode_argument, apply_benchmark_mode
 from controller_routeB_online import RouteBOnlineController
 from demo_online_routeb_smoke import (
     resolve_effective_steps,
@@ -72,7 +74,11 @@ def main() -> None:
     parser.add_argument("--mode-pause-duration", type=float, default=0.5, help="Viewer pause after each mode in --control-mode all")
     parser.add_argument("--output-detail", type=str, default="compact", choices=("compact", "json"))
     parser.add_argument("--save-results", action="store_true")
+    add_benchmark_mode_argument(parser)
     args = parser.parse_args()
+    apply_benchmark_mode(args.benchmark_mode)
+    if bool(args.viewer or args.reuse_viewer or args.traj_demonstrate):
+        os.environ["HCDR_BACKEND_SNAPSHOT_MODE"] = "full"
 
     config_path = resolve_config_path(args.config)
     payload = normalize_online_config_payload(

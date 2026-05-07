@@ -93,13 +93,25 @@ def _plot_ratio(path: Path, ratio: dict[str, np.ndarray], trajectory: str, mode:
         arm_percent,
         colors=["#00B8D9", "#FF7A00"],
         alpha=0.86,
-        labels=["CDPR / 平台贡献", "机械臂贡献"],
+        labels=["CDPR贡献", "机械臂贡献"],
     )
     ax.plot(time_s, platform_percent, color="#005B73", linewidth=1.15)
     ax.plot(time_s, platform_percent + arm_percent, color="#2b2b2b", linewidth=0.8)
     ax.set_xlabel("时间 [s]")
     ax.set_ylabel("末端运动贡献比例 [%]")
-    ax.set_title(f"{trajectory} / {mode}：末端运动分配比例")
+    title_mode = {
+        "platform_only": "平台模式",
+        "arm_only": "机械臂模式",
+        "cooperative": "协同模式",
+    }.get(mode, mode)
+    title_trajectory = {
+        "line": "平面直线",
+        "triangle": "平面三角形",
+        "square": "平面正方形",
+        "circle": "平面圆",
+        "helix": "螺旋线",
+    }.get(trajectory, trajectory)
+    ax.set_title(f"{title_mode}下跟踪{title_trajectory}：末端运动分配比例")
     ax.set_ylim(0.0, 100.0)
     ax.grid(True, alpha=0.25)
     ax.legend(loc="upper right")

@@ -19,6 +19,7 @@ from typing import Any
 
 import numpy as np
 
+from benchmark_modes import add_benchmark_mode_argument, apply_benchmark_mode
 from demo_online_routeb_trajectory_modes import (
     export_record_csv,
     json_ready,
@@ -79,7 +80,9 @@ def main() -> None:
     parser.add_argument("--dt", type=float, default=0.02)
     parser.add_argument("--output-root", type=str, default="results/tracking")
     parser.add_argument("--report-name", type=str, default="")
+    add_benchmark_mode_argument(parser)
     args = parser.parse_args()
+    apply_benchmark_mode(args.benchmark_mode)
 
     config_path = resolve_config_path(args.config)
     repo_root = Path(__file__).resolve().parent.parent
@@ -220,13 +223,14 @@ def _summarize_record(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _collect_tension_stats(logs: list[dict[str, Any]]) -> dict[str, Any]:
-    """Collect per-cable tension min/max/mean/std from backend snapshots."""
+    """Collect per-cable command min/max/mean/std from the actuation vector u_a."""
 
     values = []
     for entry in logs:
-        force = np.asarray(entry.get("snapshot", {}).get("cable_forces", []), dtype=float).reshape(-1)
-        if force.size > 0:
-            values.append(force)
+        force_width = np.asarray(entry.get("snapshot", {}).get("cable_forces", []), dtype=float).reshape(-1).size
+        command = np.asarray(entry.get("u_a", []), dtype=float).reshape(-1)
+        if force_width > 0 and command.size >= force_width:
+            values.append(command[:force_width])
     if not values:
         return {"available": False}
     matrix = np.vstack(values)
@@ -331,6 +335,7 @@ def _export_detailed_record_csv(csv_path: Path, record: dict[str, Any]) -> None:
         "q_platform_x",
         "q_platform_y",
         "q_platform_psi",
+        "dyn_residual",
         "solver_status",
         "fail_reason",
         "fallback_applied",
@@ -383,6 +388,7 @@ def _export_detailed_record_csv(csv_path: Path, record: dict[str, Any]) -> None:
                 "q_platform_x": float(q_next[0]) if q_next.size >= 3 else np.nan,
                 "q_platform_y": float(q_next[1]) if q_next.size >= 3 else np.nan,
                 "q_platform_psi": float(q_next[2]) if q_next.size >= 3 else np.nan,
+                "dyn_residual": float(solver.get("dyn_residual", np.nan)),
                 "solver_status": str(solver.get("solver_status", "")),
                 "fail_reason": str(solver.get("fail_reason", "")),
                 "fallback_applied": bool(entry.get("diagnostics", {}).get("fallback_applied", False)),
@@ -476,9 +482,9 @@ def _build_markdown_report(rows: list[dict[str, Any]], config_path: Path, suite_
     lines.extend(
         [
             "",
-            "## 张力统计摘要",
+            "## 索力命令统计摘要",
             "",
-            "下表给出每个 run 的全索最大张力范围摘要。完整逐索 min/max/mean/std 保存在 `trajectory_suite_summary.json`。",
+            "下表给出每个 run 的全索力命令范围摘要。完整逐索 min/max/mean/std 保存在 `trajectory_suite_summary.json`。",
             "",
             "| trajectory | mode | tension available | min(all cables) N | max(all cables) N | mean(all cables) N |",
             "|---|---:|---:|---:|---:|---:|",
@@ -507,6 +513,7 @@ def _build_markdown_report(rows: list[dict[str, Any]], config_path: Path, suite_
             "- `trajectory_suite_summary.json`：全量 summary 和逐索张力统计。",
             "- `trajectory_suite_summary.csv`：紧凑指标表。",
             "- `<trajectory>/<trajectory>_<mode>.csv`：逐步 tip/desired/error/platform 状态。",
+            "- `_detailed.csv` 中 `u_a_1..u_a_8` 为控制器实际输出的索力命令，`u_a_9..u_a_14` 为机械臂力矩命令。",
         ]
     )
     return "\n".join(lines) + "\n"

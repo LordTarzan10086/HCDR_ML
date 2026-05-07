@@ -25,14 +25,14 @@ MODE_COLORS = {
 }
 DESIRED_COLOR = "#d62728"
 MODE_LABELS = {
-    "platform_only": "平台单独",
-    "arm_only": "机械臂单独",
-    "cooperative": "协同",
+    "platform_only": "平台模式",
+    "arm_only": "机械臂模式",
+    "cooperative": "协同模式",
 }
 MODE_SHORT_LABELS = {
-    "platform_only": "平台",
-    "arm_only": "机械臂",
-    "cooperative": "协同",
+    "platform_only": "平台模式",
+    "arm_only": "机械臂模式",
+    "cooperative": "协同模式",
 }
 TRAJECTORY_LABELS = {
     "line": "平面直线",
@@ -48,7 +48,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Plot Route-B trajectory suite figures.")
     parser.add_argument("--suite-dir", type=str, default="", help="Existing results/tracking/routeb_trajectory_suite_* directory")
-    parser.add_argument("--motion-distribution-trajectory", type=str, default="line", help="Trajectory used for the focused cooperative motion-distribution figure")
+    parser.add_argument("--motion-distribution-trajectory", type=str, default="line", help="Legacy argument kept for compatibility; motion-distribution figures are now generated for every cooperative trajectory")
     args = parser.parse_args()
     _configure_matplotlib_for_chinese()
 
@@ -64,20 +64,23 @@ def main() -> None:
     generated: list[Path] = []
     generated.append(_plot_metrics_summary(summary_rows, figures_dir))
     generated.append(_plot_platform_delta_summary(summary_rows, figures_dir))
-    generated.append(_plot_tension_summary(suite_dir, figures_dir))
+    generated.append(_plot_tension_summary(grouped, figures_dir))
+    generated.append(_plot_motion_distribution_summary(grouped, payload, figures_dir))
     for trajectory, records in grouped.items():
         generated.append(_plot_trajectory_3d(trajectory, records, figures_dir))
         generated.append(_plot_trajectory_projections(trajectory, records, figures_dir))
         generated.append(_plot_error_timeseries(trajectory, records, figures_dir))
-        if trajectory == str(args.motion_distribution_trajectory).strip():
+        if any(record["mode"] == "cooperative" for record in records):
             generated.append(_plot_motion_distribution_timeseries(trajectory, records, payload, figures_dir))
         if any(_has_prefix(record["columns"], "cable_force_") for record in records):
             generated.append(_plot_cable_forces(trajectory, records, figures_dir))
         if any(_has_prefix(record["columns"], "arm_torque_") for record in records):
             generated.append(_plot_arm_torques(trajectory, records, figures_dir))
 
+    index_text = _build_figures_index(suite_dir, generated)
     index_path = figures_dir / "figures_index.md"
-    index_path.write_text(_build_figures_index(suite_dir, generated), encoding="utf-8")
+    index_path.write_text(index_text, encoding="utf-8")
+    (figures_dir / "analysis_figure_inventory.md").write_text(index_text, encoding="utf-8")
     print(f"saved figures: {figures_dir}")
     print(f"saved index: {index_path}")
 
@@ -173,15 +176,15 @@ def _plot_metrics_summary(rows: list[dict[str, str]], figures_dir: Path) -> Path
     fig, ax = plt.subplots(figsize=(13.5, 5.8), dpi=160)
     ax.bar(x - width, 1000.0 * rmse, width, label="RMSE 范数")
     ax.bar(x, 1000.0 * max_err, width, label="最大误差")
-    ax.bar(x + width, 1000.0 * hold, width, label="保持段漂移")
+    ax.bar(x + width, 1000.0 * hold, width, label="尾段漂移")
     ax.axhline(25.0, color="#444444", linestyle="--", linewidth=1.0, label="25 mm 跟踪阈值")
     ax.axhline(10.0, color="#777777", linestyle=":", linewidth=1.0, label="10 mm 保持阈值")
     ax.set_ylabel("误差 [mm]")
     ax.set_title("三模式统一轨迹跟踪误差汇总")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=35, ha="right")
+    ax.set_xticklabels(labels, rotation=0, ha="center")
     ax.grid(True, axis="y", alpha=0.25)
-    ax.legend(ncol=2)
+    ax.legend(ncol=3, loc="upper right")
     fig.tight_layout()
     return _save(fig, figures_dir / "summary_tracking_metrics.png")
 
@@ -195,48 +198,48 @@ def _plot_platform_delta_summary(rows: list[dict[str, str]], figures_dir: Path) 
     dy = np.asarray([float(row["platform_delta_y"]) for row in rows])
     dpsi = np.asarray([float(row["platform_delta_psi"]) for row in rows])
     fig, axes = plt.subplots(2, 1, figsize=(13.5, 7.2), dpi=160, sharex=True)
-    axes[0].bar(x - 0.18, dx, 0.36, label="平台 Δx")
-    axes[0].bar(x + 0.18, dy, 0.36, label="平台 Δy")
-    axes[0].set_ylabel("平台平移 [m]")
+    axes[0].bar(x - 0.18, dx, 0.36, label="平台模式 Δx")
+    axes[0].bar(x + 0.18, dy, 0.36, label="平台模式 Δy")
+    axes[0].set_ylabel("平台模式平移 [m]")
     axes[0].grid(True, axis="y", alpha=0.25)
     axes[0].legend()
-    axes[1].bar(x, np.rad2deg(dpsi), 0.45, color="#8c564b", label="平台 Δψ")
-    axes[1].set_ylabel("平台偏航角 [deg]")
-    axes[1].set_title("最终平台运动分配")
+    axes[1].bar(x, np.rad2deg(dpsi), 0.45, color="#8c564b", label="平台模式 Δψ")
+    axes[1].set_ylabel("平台模式偏航角 [deg]")
+    axes[1].set_title("最终平台模式运动分配")
     axes[1].grid(True, axis="y", alpha=0.25)
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(labels, rotation=35, ha="right")
+    axes[1].set_xticklabels(labels, rotation=0, ha="center")
     axes[1].legend()
     fig.tight_layout()
     return _save(fig, figures_dir / "summary_platform_delta.png")
 
 
-def _plot_tension_summary(suite_dir: Path, figures_dir: Path) -> Path:
-    """Plot per-run cable-force min/max/mean from summary JSON."""
+def _plot_tension_summary(grouped: dict[str, list[dict]], figures_dir: Path) -> Path:
+    """Plot per-run cable-command min/max/mean from u_a columns."""
 
-    summary = json.loads((suite_dir / "trajectory_suite_summary.json").read_text(encoding="utf-8"))
-    records = summary.get("records", [])
-    labels = [f"{_trajectory_label(row['trajectory'])}\n{_short_mode(row['mode'])}" for row in records]
+    records = [record for trajectory in grouped.values() for record in trajectory]
+    labels = [f"{_trajectory_label(record['trajectory'])}\n{_short_mode(record['mode'])}" for record in records]
     x = np.arange(len(records))
     min_all, mean_all, max_all = [], [], []
-    for row in records:
-        stat = row.get("tension_stats", {})
-        if not stat.get("available", False):
+    for record in records:
+        cable_cols = _cable_command_columns(record)
+        if not cable_cols:
             min_all.append(np.nan)
             mean_all.append(np.nan)
             max_all.append(np.nan)
             continue
-        min_all.append(float(np.min(np.asarray(stat["min"], dtype=float))))
-        mean_all.append(float(np.mean(np.asarray(stat["mean"], dtype=float))))
-        max_all.append(float(np.max(np.asarray(stat["max"], dtype=float))))
+        force = np.column_stack([np.asarray(record[column], dtype=float) for column in cable_cols])
+        min_all.append(float(np.nanmin(force)))
+        mean_all.append(float(np.nanmean(force)))
+        max_all.append(float(np.nanmax(force)))
     fig, ax = plt.subplots(figsize=(13.5, 5.5), dpi=160)
     ax.plot(x, min_all, marker="o", label="所有索最小值")
     ax.plot(x, mean_all, marker="s", label="所有索均值")
     ax.plot(x, max_all, marker="^", label="所有索最大值")
     ax.set_ylabel("索力 [N]")
-    ax.set_title("索力统计汇总")
+    ax.set_title("索力命令统计汇总")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=35, ha="right")
+    ax.set_xticklabels(labels, rotation=0, ha="center")
     ax.grid(True, alpha=0.25)
     ax.legend()
     fig.tight_layout()
@@ -261,12 +264,12 @@ def _plot_motion_distribution_summary(grouped: dict[str, list[dict]], payload: d
         arm_ratios.append(100.0 * float(np.nanmean(ratio["arm_ratio"])))
     x = np.arange(len(labels))
     fig, ax = plt.subplots(figsize=(9.5, 5.0), dpi=170)
-    ax.bar(x, platform_ratios, label="平台贡献比例", color="#1f77b4")
-    ax.bar(x, arm_ratios, bottom=platform_ratios, label="机械臂贡献比例", color="#2ca02c")
+    ax.bar(x, platform_ratios, label="CDPR贡献比例", color="#00B8D9")
+    ax.bar(x, arm_ratios, bottom=platform_ratios, label="机械臂贡献比例", color="#FF7A00")
     ax.set_ylabel("末端运动贡献比例 [%]")
     ax.set_title("协同模式末端运动分配比例汇总")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=20, ha="right")
+    ax.set_xticklabels(labels, rotation=0, ha="center")
     ax.set_ylim(0.0, 100.0)
     ax.grid(True, axis="y", alpha=0.25)
     ax.legend()
@@ -291,13 +294,13 @@ def _plot_motion_distribution_timeseries(trajectory: str, records: list[dict], p
                 arm_percent,
                 colors=["#00B8D9", "#FF7A00"],
                 alpha=0.86,
-                labels=["CDPR / 平台贡献", "机械臂贡献"],
+                labels=["CDPR贡献", "机械臂贡献"],
             )
             ax.plot(time_s, platform_percent, color="#005B73", linewidth=1.15)
             ax.plot(time_s, platform_percent + arm_percent, color="#2b2b2b", linewidth=0.8)
     ax.set_xlabel("时间 [s]")
     ax.set_ylabel("末端运动贡献比例 [%]")
-    ax.set_title(f"{_trajectory_label(trajectory)}：cooperative 末端运动分配比例")
+    ax.set_title(f"协同模式下跟踪{_trajectory_label(trajectory)}：末端运动分配比例")
     ax.set_ylim(0.0, 100.0)
     ax.grid(True, alpha=0.25)
     ax.legend(loc="upper right")
@@ -369,9 +372,9 @@ def _plot_trajectory_3d(trajectory: str, records: list[dict], figures_dir: Path)
         )
     ax.set_xlabel("X [m]")
     ax.set_ylabel("Y [m]")
-    ax.set_zlabel("Z [m]")
+    ax.set_zlabel("Z [m]", labelpad=12)
     ax.set_title(f"{_trajectory_label(trajectory)}：期望轨迹与实际末端轨迹")
-    ax.legend()
+    ax.legend(loc="upper right")
     _equalize_3d(ax, records)
     fig.tight_layout()
     return _save(fig, figures_dir / f"{trajectory}_trajectory_3d.png")
@@ -382,19 +385,33 @@ def _plot_trajectory_projections(trajectory: str, records: list[dict], figures_d
 
     fig, axes = plt.subplots(1, 3, figsize=(14.0, 4.4), dpi=170)
     projections = [("des_x", "des_y", "X [m]", "Y [m]", "XY"), ("des_x", "des_z", "X [m]", "Z [m]", "XZ"), ("des_y", "des_z", "Y [m]", "Z [m]", "YZ")]
+    axis_limits = _projection_limits(records, min_span=0.06)
     for ax, (xkey, ykey, xlabel, ylabel, title) in zip(axes, projections):
         first = records[0]
         ax.plot(first[xkey], first[ykey], color=DESIRED_COLOR, linewidth=2.2, label="期望轨迹")
+        projection_is_degenerate = _projection_is_degenerate(first, xkey, ykey, threshold=0.015)
         for record in records:
             actual_x = record[xkey.replace("des_", "tip_")]
             actual_y = record[ykey.replace("des_", "tip_")]
-            ax.plot(actual_x, actual_y, color=MODE_COLORS.get(record["mode"], "#555555"), linewidth=1.7, label=_mode_label(record["mode"]))
+            if projection_is_degenerate:
+                ax.scatter(
+                    actual_x,
+                    actual_y,
+                    color=MODE_COLORS.get(record["mode"], "#555555"),
+                    s=8,
+                    alpha=0.72,
+                    label=_mode_label(record["mode"]),
+                )
+            else:
+                ax.plot(actual_x, actual_y, color=MODE_COLORS.get(record["mode"], "#555555"), linewidth=1.7, label=_mode_label(record["mode"]))
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(f"{title} 投影")
         ax.axis("equal")
+        ax.set_xlim(axis_limits[xkey])
+        ax.set_ylim(axis_limits[ykey])
         ax.grid(True, alpha=0.25)
-    axes[0].legend(fontsize=8)
+    axes[0].legend(fontsize=8, loc="upper left", bbox_to_anchor=(0.0, 1.02))
     fig.suptitle(f"{_trajectory_label(trajectory)}：轨迹三视图投影")
     fig.tight_layout()
     return _save(fig, figures_dir / f"{trajectory}_trajectory_projections.png")
@@ -408,9 +425,9 @@ def _plot_error_timeseries(trajectory: str, records: list[dict], figures_dir: Pa
         color = MODE_COLORS.get(record["mode"], "#555555")
         mode_label = _mode_label(record["mode"])
         axes[0].plot(record["time_s"], 1000.0 * record["err_norm"], color=color, linewidth=1.8, label=mode_label)
-        axes[1].plot(record["time_s"], 1000.0 * record["err_x"], color=color, linestyle="-", linewidth=1.3, label=f"{mode_label} e_x")
-        axes[1].plot(record["time_s"], 1000.0 * record["err_y"], color=color, linestyle="--", linewidth=1.3, label=f"{mode_label} e_y")
-        axes[1].plot(record["time_s"], 1000.0 * record["err_z"], color=color, linestyle=":", linewidth=1.3, label=f"{mode_label} e_z")
+        axes[1].plot(record["time_s"], 1000.0 * record["err_x"], color=color, linestyle="-", linewidth=1.3, label=rf"{mode_label} $e_x$")
+        axes[1].plot(record["time_s"], 1000.0 * record["err_y"], color=color, linestyle="--", linewidth=1.3, label=rf"{mode_label} $e_y$")
+        axes[1].plot(record["time_s"], 1000.0 * record["err_z"], color=color, linestyle=":", linewidth=1.3, label=rf"{mode_label} $e_z$")
     axes[0].axhline(25.0, color="#555555", linestyle="--", linewidth=1.0)
     axes[0].set_ylabel("||e|| [mm]")
     axes[0].set_title(f"{_trajectory_label(trajectory)}：跟踪误差范数")
@@ -425,19 +442,19 @@ def _plot_error_timeseries(trajectory: str, records: list[dict], figures_dir: Pa
 
 
 def _plot_cable_forces(trajectory: str, records: list[dict], figures_dir: Path) -> Path:
-    """Plot 8 cable-force time series for each mode."""
+    """Plot cable tension commands from the actual actuation vector u_a."""
 
     fig, axes = plt.subplots(len(records), 1, figsize=(11.0, 3.2 * len(records)), dpi=170, sharex=True)
     axes_array = np.atleast_1d(axes)
     for ax, record in zip(axes_array, records):
-        cable_cols = _prefixed_columns(record["columns"], "cable_force_")
+        cable_cols = _cable_command_columns(record)
         for idx, column in enumerate(cable_cols):
             ax.plot(record["time_s"], record[column], linewidth=1.1, label=f"f{idx + 1}")
-        ax.set_ylabel(f"{_mode_label(record['mode'])}\n索力 [N]")
+        ax.set_ylabel(f"{_mode_label(record['mode'])}\n索力命令 [N]")
         ax.grid(True, alpha=0.25)
         ax.legend(ncol=4, fontsize=7)
     axes_array[-1].set_xlabel("时间 [s]")
-    fig.suptitle(f"{_trajectory_label(trajectory)}：8 根索张力时间序列")
+    fig.suptitle(f"{_trajectory_label(trajectory)}：8 根索力命令时间序列")
     fig.tight_layout()
     return _save(fig, figures_dir / f"{trajectory}_cable_forces.png")
 
@@ -448,7 +465,7 @@ def _plot_arm_torques(trajectory: str, records: list[dict], figures_dir: Path) -
     fig, axes = plt.subplots(len(records), 1, figsize=(11.0, 3.2 * len(records)), dpi=170, sharex=True)
     axes_array = np.atleast_1d(axes)
     for ax, record in zip(axes_array, records):
-        torque_cols = _prefixed_columns(record["columns"], "arm_torque_")
+        torque_cols = _arm_torque_command_columns(record)
         for idx, column in enumerate(torque_cols):
             ax.plot(record["time_s"], record[column], linewidth=1.1, label=f"tau{idx + 1}")
         ax.set_ylabel(f"{_mode_label(record['mode'])}\n力矩 [Nm]")
@@ -528,9 +545,9 @@ def _figure_caption(stem: str) -> str:
     if stem == "summary_tracking_metrics":
         return "三模式统一轨迹跟踪误差汇总"
     if stem == "summary_platform_delta":
-        return "最终平台运动分配汇总"
+        return "最终平台模式运动分配汇总"
     if stem == "summary_cable_force":
-        return "索力统计汇总"
+        return "索力命令统计汇总"
     if stem == "summary_motion_distribution_ratio":
         return "协同模式末端运动分配比例汇总"
     for trajectory, label in TRAJECTORY_LABELS.items():
@@ -542,7 +559,7 @@ def _figure_caption(stem: str) -> str:
             "trajectory_3d": "期望轨迹与实际末端轨迹三维图",
             "trajectory_projections": "轨迹 XY/XZ/YZ 三视图投影",
             "tracking_errors": "跟踪误差时间序列",
-            "cable_forces": "8 根索张力时间序列",
+            "cable_forces": "8 根索力命令时间序列",
             "arm_torques": "机械臂关节力矩命令",
             "motion_distribution_ratio": "协同模式末端运动分配比例",
         }
@@ -554,13 +571,13 @@ def _figure_note(stem: str) -> str:
     """Return a short Chinese explanatory note for a generated figure."""
 
     if stem == "summary_tracking_metrics":
-        return "图注：比较每条轨迹、每种控制模式下的 RMSE 范数、最大误差和保持段漂移。"
+        return "图注：比较每条轨迹、每种控制模式下的 RMSE 范数、最大误差和尾段漂移。"
     if stem == "summary_platform_delta":
-        return "图注：展示运行结束时平台的平移与偏航角分配，用于判断 cooperative 是否产生合理平台运动。"
+        return "图注：展示运行结束时平台模式的平移与偏航角分配，用于判断协同模式是否产生合理平台模式运动。"
     if stem == "summary_cable_force":
-        return "图注：统计所有索在每次运行中的最小、均值和最大张力。"
+        return "图注：统计控制器实际输出向量 $u_a$ 前 8 项在每次运行中的最小、均值和最大索力命令。"
     if stem == "summary_motion_distribution_ratio":
-        return "图注：通过冻结平台/机械臂的有限差分 FK 估计 cooperative 中末端运动由平台和机械臂分别贡献的比例。"
+        return "图注：通过冻结平台/机械臂的有限差分 FK 估计协同模式中末端运动由 CDPR 和机械臂分别贡献的比例。"
     if stem.endswith("_trajectory_3d"):
         return "图注：红色为期望末端轨迹，其余曲线为不同 mode 的实际末端轨迹。"
     if stem.endswith("_trajectory_projections"):
@@ -568,11 +585,11 @@ def _figure_note(stem: str) -> str:
     if stem.endswith("_tracking_errors"):
         return "图注：上图为误差范数，下图为 XYZ 分量误差。"
     if stem.endswith("_cable_forces"):
-        return "图注：展示 8 根索在运行过程中的张力变化。"
+        return "图注：展示控制器实际输出向量 $u_a$ 前 8 项对应的索力命令变化。"
     if stem.endswith("_arm_torques"):
         return "图注：展示 6 个机械臂关节的力矩命令变化。"
     if stem.endswith("_motion_distribution_ratio"):
-        return "图注：展示 cooperative 运行过程中平台与机械臂对末端运动的相对贡献比例。"
+        return "图注：展示协同模式运行过程中 CDPR 与机械臂对末端运动的相对贡献比例。"
     return "图注：由轨迹 suite 导出数据生成。"
 
 
@@ -582,6 +599,65 @@ def _has_prefix(columns: list[str], prefix: str) -> bool:
 
 def _prefixed_columns(columns: list[str], prefix: str) -> list[str]:
     return [column for column in columns if column.startswith(prefix)]
+
+
+def _cable_command_columns(record: dict) -> list[str]:
+    """Return u_a columns corresponding to the cable-tension commands."""
+
+    columns = list(record["columns"])
+    ua_cols = _prefixed_columns(columns, "u_a_")
+    cable_cols = _prefixed_columns(columns, "cable_force_")
+    cable_count = len(cable_cols)
+    if cable_count > 0 and len(ua_cols) >= cable_count:
+        return [f"u_a_{index + 1}" for index in range(cable_count) if f"u_a_{index + 1}" in record]
+    return cable_cols
+
+
+def _arm_torque_command_columns(record: dict) -> list[str]:
+    """Return u_a columns corresponding to arm torque commands."""
+
+    columns = list(record["columns"])
+    ua_cols = _prefixed_columns(columns, "u_a_")
+    cable_cols = _prefixed_columns(columns, "cable_force_")
+    cable_count = len(cable_cols)
+    if cable_count > 0 and len(ua_cols) > cable_count:
+        return [f"u_a_{index + 1}" for index in range(cable_count, len(ua_cols)) if f"u_a_{index + 1}" in record]
+    return _prefixed_columns(columns, "arm_torque_")
+
+
+def _projection_limits(records: list[dict], *, min_span: float) -> dict[str, tuple[float, float]]:
+    """Build projection axis limits with a minimum span to avoid over-zooming."""
+
+    limits: dict[str, tuple[float, float]] = {}
+    for key_pair in (("des_x", "tip_x"), ("des_y", "tip_y"), ("des_z", "tip_z")):
+        values = []
+        for record in records:
+            for key in key_pair:
+                if key in record:
+                    values.append(np.asarray(record[key], dtype=float).reshape(-1))
+        if not values:
+            continue
+        stacked = np.concatenate(values)
+        finite = stacked[np.isfinite(stacked)]
+        if finite.size == 0:
+            continue
+        low = float(np.min(finite))
+        high = float(np.max(finite))
+        center = 0.5 * (low + high)
+        span = max(float(high - low), float(min_span))
+        margin = 0.08 * span
+        limits[key_pair[0]] = (center - 0.5 * span - margin, center + 0.5 * span + margin)
+    return limits
+
+
+def _projection_is_degenerate(record: dict, xkey: str, ykey: str, *, threshold: float) -> bool:
+    """Return true when the desired projection collapses to a near-point."""
+
+    desired_x = np.asarray(record[xkey], dtype=float).reshape(-1)
+    desired_y = np.asarray(record[ykey], dtype=float).reshape(-1)
+    span_x = float(np.nanmax(desired_x) - np.nanmin(desired_x)) if desired_x.size else 0.0
+    span_y = float(np.nanmax(desired_y) - np.nanmin(desired_y)) if desired_y.size else 0.0
+    return max(span_x, span_y) < float(threshold)
 
 
 def _equalize_3d(ax, records: list[dict]) -> None:

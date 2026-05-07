@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import mujoco
 
+from benchmark_modes import add_benchmark_mode_argument, apply_benchmark_mode
 from controller_routeB_online import RouteBOnlineController
 from demo_online_routeb_smoke import build_point_to_point_trajectory, resolve_config_path, summarize_logs
 from demo_online_routeb_trajectory_modes import json_ready
@@ -32,6 +33,15 @@ from mujoco_online_loop import launch_routeb_services, run_routeb_online_loop_ip
 from online_config_utils import initial_q_from_payload, normalize_online_config_payload
 from pinocchio_terms_online import compute_pinocchio_terms
 from run_routeb_trajectory_stability_suite import _payload_with_free_ports, _write_temp_config
+
+
+EXPERIMENT_LABELS = {
+    "singularity_off": "关闭奇异规避",
+    "singularity_on": "开启奇异规避",
+    "singularity_strict_svd": "严格 SVD-HQP",
+    "joint_limit_off": "关闭关节限位规避",
+    "joint_limit_on": "开启关节限位规避",
+}
 
 
 def main() -> None:
@@ -54,8 +64,11 @@ def main() -> None:
     parser.add_argument("--skip-proxy-snapshot-figures", action="store_true", help="Do not export Matplotlib proxy snapshot figures.")
     parser.add_argument("--skip-mujoco-snapshot-figures", action="store_true", help="Do not export offscreen MuJoCo snapshot figures.")
     parser.add_argument("--export-proxy-snapshot-figures", action="store_true", help="Also export simplified Matplotlib proxy snapshot figures.")
+    parser.add_argument("--export-snapshot-comparisons", action="store_true", help="Export standalone off/on snapshot comparison figures in addition to paper-style figures.")
     parser.add_argument("--include-strict-svd-hqp", action="store_true", help="Also run an experimental strict SVD-HQP singularity split case.")
+    add_benchmark_mode_argument(parser)
     args = parser.parse_args()
+    apply_benchmark_mode(args.benchmark_mode)
     _configure_matplotlib_for_chinese()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -441,15 +454,16 @@ def plot_experiment_figures(
                 include_labels=("joint_limit_off", "joint_limit_on"),
             )
         )
-    generated.extend(
-        plot_snapshot_comparisons(
-            records,
-            joint_setup,
-            figures_dir,
-            enable_proxy=bool(args.export_proxy_snapshot_figures) and not bool(args.skip_proxy_snapshot_figures),
-            enable_mujoco=not bool(args.skip_mujoco_snapshot_figures),
+    if bool(args.export_snapshot_comparisons) or bool(args.export_proxy_snapshot_figures):
+        generated.extend(
+            plot_snapshot_comparisons(
+                records,
+                joint_setup,
+                figures_dir,
+                enable_proxy=bool(args.export_proxy_snapshot_figures) and not bool(args.skip_proxy_snapshot_figures),
+                enable_mujoco=bool(args.export_snapshot_comparisons) and not bool(args.skip_mujoco_snapshot_figures),
+            )
         )
-    )
     if not bool(args.skip_mujoco_snapshot_figures) and not bool(args.skip_timeseries_figures):
         paper_fig7 = plot_singularity_paper_figure(records, figures_dir)
         if paper_fig7 is not None:
@@ -479,7 +493,7 @@ def plot_metric(
         rows = read_csv_numeric(csv_path)
         if column not in rows or "time_s" not in rows:
             continue
-        plt.plot(rows["time_s"], rows[column], label=label)
+        plt.plot(rows["time_s"], rows[column], label=EXPERIMENT_LABELS.get(label, label))
     plt.title(title)
     plt.xlabel("时间 [s]")
     plt.ylabel(column)
@@ -508,7 +522,7 @@ def plot_joint_limit(records: list[dict[str, Any]], joint_setup: dict[str, Any],
         rows = read_csv_numeric(path.parent.parent / f"{record['label']}.csv")
         key = f"q_arm_{joint_index}"
         if key in rows:
-            ax.plot(rows["time_s"], rows[key], label=record["label"])
+            ax.plot(rows["time_s"], rows[key], label=EXPERIMENT_LABELS.get(str(record["label"]), str(record["label"])))
             if not band_label_used and rows["time_s"].size > 0:
                 ax.axhspan(lower, lower_band, color="#2ca02c", alpha=0.16, label="下限缓冲带")
                 ax.axhspan(upper_band, upper, color="#2ca02c", alpha=0.10, label="上限缓冲带")
@@ -634,7 +648,7 @@ def plot_configuration_snapshot_pair(
         ax.set_title(f"{caption}\n{metric_text}", fontsize=11)
         ax.set_xlabel("X [m]")
         ax.set_ylabel("Y [m]")
-        ax.set_zlabel("Z [m]")
+        ax.set_zlabel("Z [m]", labelpad=12)
         ax.view_init(elev=18, azim=-58)
         ax.grid(True, alpha=0.28)
         _set_equal_3d_limits(ax, actual, desired, platform)
@@ -755,7 +769,6 @@ def plot_singularity_paper_figure(records: list[dict[str, Any]], figures_dir: Pa
         return None
     off_record = record_by_label["singularity_off"]
     on_record = record_by_label["singularity_on"]
-    strict_record = record_by_label.get("singularity_strict_svd")
     try:
         off_image = render_record_snapshot(off_record, "arm_sigma_min", "min")
         on_image = render_record_snapshot(on_record, "arm_sigma_min", "min")
@@ -764,7 +777,6 @@ def plot_singularity_paper_figure(records: list[dict[str, Any]], figures_dir: Pa
         return None
     off_rows = read_csv_numeric(Path(off_record["csv_path"]))
     on_rows = read_csv_numeric(Path(on_record["csv_path"]))
-    strict_rows = read_csv_numeric(Path(strict_record["csv_path"])) if strict_record is not None else None
     fig = plt.figure(figsize=(12.0, 10.0), dpi=170)
     grid = fig.add_gridspec(3, 2, height_ratios=[1.25, 0.85, 0.85])
     ax_img_off = fig.add_subplot(grid[0, 0])
@@ -774,10 +786,8 @@ def plot_singularity_paper_figure(records: list[dict[str, Any]], figures_dir: Pa
         ax.set_title(title)
         ax.axis("off")
     ax_sigma = fig.add_subplot(grid[1, :])
-    ax_sigma.plot(off_rows["time_s"], off_rows["arm_sigma_min"], label="关闭规避：最小奇异值", linewidth=2.0)
-    ax_sigma.plot(on_rows["time_s"], on_rows["arm_sigma_min"], label="开启规避：最小奇异值", linewidth=2.0)
-    if strict_rows is not None and "arm_sigma_min" in strict_rows:
-        ax_sigma.plot(strict_rows["time_s"], strict_rows["arm_sigma_min"], label="严格 SVD-HQP：最小奇异值", linewidth=2.0)
+    ax_sigma.plot(off_rows["time_s"], off_rows["arm_sigma_min"], label="关闭规避", linewidth=2.0)
+    ax_sigma.plot(on_rows["time_s"], on_rows["arm_sigma_min"], label="开启规避", linewidth=2.0)
     ax_sigma.axhline(0.08, color="#555555", linestyle="--", linewidth=1.0, label="阈值 0.08")
     ax_sigma.set_xlabel("时间 [s]")
     ax_sigma.set_ylabel("最小奇异值")
@@ -786,13 +796,11 @@ def plot_singularity_paper_figure(records: list[dict[str, Any]], figures_dir: Pa
     ax_sigma.legend()
     ax_manip = fig.add_subplot(grid[2, :])
     if "manipulability_proxy" in off_rows and "manipulability_proxy" in on_rows:
-        ax_manip.plot(off_rows["time_s"], off_rows["manipulability_proxy"], label="关闭规避：可操作度", linewidth=2.0)
-        ax_manip.plot(on_rows["time_s"], on_rows["manipulability_proxy"], label="开启规避：可操作度", linewidth=2.0)
-        if strict_rows is not None and "manipulability_proxy" in strict_rows:
-            ax_manip.plot(strict_rows["time_s"], strict_rows["manipulability_proxy"], label="严格 SVD-HQP：可操作度", linewidth=2.0)
+        ax_manip.plot(off_rows["time_s"], off_rows["manipulability_proxy"], label="关闭规避", linewidth=2.0)
+        ax_manip.plot(on_rows["time_s"], on_rows["manipulability_proxy"], label="开启规避", linewidth=2.0)
     ax_manip.set_xlabel("时间 [s]")
     ax_manip.set_ylabel("可操作度指标")
-    ax_manip.set_title("机械臂 measured manipulability 对比")
+    ax_manip.set_title("机械臂可操作度对比")
     ax_manip.grid(True, alpha=0.25)
     ax_manip.legend()
     fig.suptitle("奇异规避对比实验（类论文 Fig. 7）", fontsize=15)
@@ -847,11 +855,11 @@ def plot_joint_limit_paper_figure(records: list[dict[str, Any]], joint_setup: di
     ax_platform = fig.add_subplot(grid[2, :])
     off_platform = _platform_motion_norm(off_rows)
     on_platform = _platform_motion_norm(on_rows)
-    ax_platform.plot(off_rows["time_s"], off_platform, label="关闭规避：平台位移范数", linewidth=2.0)
-    ax_platform.plot(on_rows["time_s"], on_platform, label="开启规避：平台位移范数", linewidth=2.0)
+    ax_platform.plot(off_rows["time_s"], off_platform, label="关闭规避：平台模式位移范数", linewidth=2.0)
+    ax_platform.plot(on_rows["time_s"], on_platform, label="开启规避：平台模式位移范数", linewidth=2.0)
     ax_platform.set_xlabel("时间 [s]")
-    ax_platform.set_ylabel("平台位移范数 [m/rad 混合]")
-    ax_platform.set_title("平台补偿运动对比")
+    ax_platform.set_ylabel("平台模式位移范数 [m/rad 混合]")
+    ax_platform.set_title("平台模式补偿运动对比")
     ax_platform.grid(True, alpha=0.25)
     ax_platform.legend()
     fig.suptitle("关节限位规避对比实验（类论文 Fig. 8）", fontsize=15)
